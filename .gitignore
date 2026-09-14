@@ -1,0 +1,73 @@
+# ── Dependencies ──────────────────────────────────
+node_modules/
+client/node_modules/
+server/node_modules/
+package-lock.json.bak
+yarn.lock.bak
+
+# ── Secrets & Environment Variables ───────────────
+.env
+.env.*
+!.env.example
+client/.env
+client/.env.*
+!client/.env.example
+server/.env
+server/.env.*
+!server/.env.example
+*.env
+*.env.local
+
+# ── Certificates, Keys & Credentials ──────────────
+*.pem
+*.key
+*.jks
+*.p8
+*.p12
+*.keystore
+*.mobileprovision
+google-services.json
+GoogleService-Info.plist
+
+# ── Build Artifacts ───────────────────────────────
+.expo/
+client/.expo/
+dist/
+client/dist/
+server/dist/
+server/build/
+web-build/
+*.tsbuildinfo
+client/*.tsbuildinfo
+server/*.tsbuildinfo
+
+# ── Uploaded User Media / Local Storage ───────────
+uploads/
+server/uploads/
+
+# ── Logs & Debugging ──────────────────────────────
+*.log
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+.metro-health-check*
+
+# ── Native Build Folders (when prebuilt) ──────────
+client/ios/
+client/android/
+
+# ── Operating System & Editor Files ───────────────
+.DS_Store
+Thumbs.db
+Desktop.ini
+.vscode/
+.idea/
+client/.idea/
+client/.claude/
+*.swp
+*.swo
+
+# ── Tooling & Temporary Files ─────────────────────
+.agents/
+.gemini/
+scratch/

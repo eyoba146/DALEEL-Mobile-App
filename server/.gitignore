@@ -1,0 +1,24 @@
+# Dependencies
+node_modules/
+
+# Environment variables & secrets
+.env
+.env.*
+!.env.example
+
+# Build artifacts
+dist/
+build/
+*.tsbuildinfo
+
+# Local uploads & user generated media
+uploads/
+
+# Logs & Debug
+*.log
+npm-debug.*
+yarn-debug.*
+
+# OS
+.DS_Store
+Thumbs.db

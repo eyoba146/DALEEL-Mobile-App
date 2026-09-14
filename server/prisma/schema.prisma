@@ -1,0 +1,110 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserType {
+  diaspora
+  foreign_resident
+}
+
+enum Language {
+  en
+  am
+}
+
+model User {
+  id           String   @id @default(uuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  userType     UserType
+  country      String
+  language     Language @default(en)
+  isAdmin      Boolean  @default(false)
+  isVerified   Boolean  @default(false)
+  avatarUrl    String?
+  phone        String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  favorites           Favorite[]
+  emailVerifications  EmailVerification[]
+  passwordResets      PasswordReset[]
+}
+
+model Destination {
+  id        String   @id @default(uuid())
+  name      String
+  region    String
+  blurb     String
+  image     String
+  createdAt DateTime @default(now())
+}
+
+model Service {
+  id        String   @id @default(uuid())
+  name      String
+  category  String
+  location  String
+  verified  Boolean  @default(false)
+  blurb     String
+  image     String
+  createdAt DateTime @default(now())
+}
+
+model EventItem {
+  id        String   @id @default(uuid())
+  title     String
+  date      DateTime
+  city      String
+  category  String
+  image     String
+  createdAt DateTime @default(now())
+}
+
+enum FavoriteType {
+  destination
+  service
+  event
+}
+
+model Favorite {
+  id         String       @id @default(uuid())
+  userId     String
+  itemType   FavoriteType
+  itemId     String
+  createdAt  DateTime     @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, itemType, itemId])
+}
+
+model EmailVerification {
+  id        String   @id @default(uuid())
+  userId    String
+  email     String
+  code      String
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model PasswordReset {
+  id        String   @id @default(uuid())
+  userId    String
+  email     String
+  code      String
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}

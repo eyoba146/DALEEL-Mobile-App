@@ -1,0 +1,70 @@
+# ── Dependencies ──────────────────────────────────
+node_modules/
+backend/node_modules/
+package-lock.json.bak
+yarn.lock.bak
+
+# ── Secrets & Environment Variables ───────────────
+# Never commit actual .env files containing API keys or database URLs!
+.env
+.env.*
+!.env.example
+backend/.env
+backend/.env.*
+!backend/.env.example
+*.env
+*.env.local
+
+# ── Certificates, Keys & Credentials ──────────────
+*.pem
+*.key
+*.jks
+*.p8
+*.p12
+*.keystore
+*.mobileprovision
+google-services.json
+GoogleService-Info.plist
+
+# ── Expo & Build Artifacts ────────────────────────
+.expo/
+dist/
+web-build/
+expo-env.d.ts
+*.tsbuildinfo
+backend/dist/
+backend/build/
+
+# ── Uploaded User Media / Local Storage ───────────
+backend/uploads/
+uploads/
+
+# ── Metro & Cache ─────────────────────────────────
+.metro-health-check*
+*.metro*
+
+# ── Logs & Debugging ──────────────────────────────
+*.log
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+
+# ── Native Build Folders (when using Prebuild) ────
+/ios
+/android
+.kotlin/
+*.orig.*
+
+# ── Operating System & Editor Files ───────────────
+.DS_Store
+Thumbs.db
+Desktop.ini
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# ── Tooling & Temporary Files ─────────────────────
+.agents/
+.gemini/
+scratch/
