@@ -140,7 +140,12 @@ export default function SavedScreen() {
         {filteredItems.map((item) => {
           if (item._type === 'destination') {
             return (
-              <View key={`dest-${item.id}`} style={styles.card}>
+              <TouchableOpacity
+                key={`dest-${item.id}`}
+                style={styles.card}
+                activeOpacity={0.92}
+                onPress={() => router.push({ pathname: '/destination/[id]', params: { id: item.id } })}
+              >
                 <Image source={{ uri: item.image }} style={styles.cardImage} resizeMode="cover" />
                 <View style={styles.cardBody}>
                   <View style={styles.typeBadge}>
@@ -158,18 +163,26 @@ export default function SavedScreen() {
 
                 <TouchableOpacity
                   style={styles.bookmarkBtn}
-                  onPress={() => toggleFavorite('destination', item.id)}
+                  onPress={(e) => {
+                    e.stopPropagation?.();
+                    toggleFavorite('destination', item.id);
+                  }}
                   activeOpacity={0.7}
                 >
                   <Ionicons name="bookmark" size={20} color={colors.gold} />
                 </TouchableOpacity>
-              </View>
+              </TouchableOpacity>
             );
           }
 
           if (item._type === 'service') {
             return (
-              <View key={`serv-${item.id}`} style={styles.card}>
+              <TouchableOpacity
+                key={`serv-${item.id}`}
+                style={styles.card}
+                activeOpacity={0.92}
+                onPress={() => router.push({ pathname: '/service/[id]', params: { id: item.id } })}
+              >
                 <Image source={{ uri: item.image }} style={styles.cardImage} resizeMode="cover" />
                 <View style={styles.cardBody}>
                   <View style={[styles.typeBadge, { backgroundColor: '#FEFCBF' }]}>
@@ -185,12 +198,15 @@ export default function SavedScreen() {
 
                 <TouchableOpacity
                   style={styles.bookmarkBtn}
-                  onPress={() => toggleFavorite('service', item.id)}
+                  onPress={(e) => {
+                    e.stopPropagation?.();
+                    toggleFavorite('service', item.id);
+                  }}
                   activeOpacity={0.7}
                 >
                   <Ionicons name="bookmark" size={20} color={colors.gold} />
                 </TouchableOpacity>
-              </View>
+              </TouchableOpacity>
             );
           }
 
@@ -203,7 +219,12 @@ export default function SavedScreen() {
                 : 'Upcoming';
 
             return (
-              <View key={`event-${item.id}`} style={styles.card}>
+              <TouchableOpacity
+                key={`event-${item.id}`}
+                style={styles.card}
+                activeOpacity={0.92}
+                onPress={() => router.push('/events')}
+              >
                 <Image source={{ uri: item.image }} style={styles.cardImage} resizeMode="cover" />
                 <View style={styles.cardBody}>
                   <View style={[styles.typeBadge, { backgroundColor: '#E2E8F0' }]}>
@@ -220,12 +241,15 @@ export default function SavedScreen() {
 
                 <TouchableOpacity
                   style={styles.bookmarkBtn}
-                  onPress={() => toggleFavorite('event', item.id)}
+                  onPress={(e) => {
+                    e.stopPropagation?.();
+                    toggleFavorite('event', item.id);
+                  }}
                   activeOpacity={0.7}
                 >
                   <Ionicons name="bookmark" size={20} color={colors.gold} />
                 </TouchableOpacity>
-              </View>
+              </TouchableOpacity>
             );
           }
 

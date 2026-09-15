@@ -35,26 +35,62 @@ model User {
   favorites           Favorite[]
   emailVerifications  EmailVerification[]
   passwordResets      PasswordReset[]
+  serviceInquiries    ServiceInquiry[]
 }
 
 model Destination {
-  id        String   @id @default(uuid())
-  name      String
-  region    String
-  blurb     String
-  image     String
-  createdAt DateTime @default(now())
+  id              String   @id @default(uuid())
+  name            String
+  region          String
+  blurb           String
+  image           String
+  description     String?
+  bestTimeToVisit String?
+  elevation       String?
+  unescoStatus    Boolean  @default(false)
+  highlights      String?
+  gettingThere    String?
+  rating          Float    @default(4.9)
+  createdAt       DateTime @default(now())
 }
 
 model Service {
-  id        String   @id @default(uuid())
-  name      String
-  category  String
-  location  String
-  verified  Boolean  @default(false)
-  blurb     String
-  image     String
-  createdAt DateTime @default(now())
+  id             String   @id @default(uuid())
+  name           String
+  category       String
+  location       String
+  verified       Boolean  @default(false)
+  blurb          String
+  image          String
+  description    String?
+  phone          String?
+  whatsapp       String?
+  email          String?
+  address        String?
+  rating         Float    @default(4.9)
+  reviewCount    Int      @default(0)
+  operatingHours String?
+  features       String?
+  createdAt      DateTime @default(now())
+
+  inquiries      ServiceInquiry[]
+}
+
+model ServiceInquiry {
+  id              String   @id @default(uuid())
+  serviceId       String
+  userId          String?
+  fullName        String
+  contactEmail    String
+  contactPhone    String?
+  contactWhatsapp String?
+  timeframe       String?
+  message         String
+  status          String   @default("pending")
+  createdAt       DateTime @default(now())
+
+  service Service @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  user    User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
 }
 
 model EventItem {

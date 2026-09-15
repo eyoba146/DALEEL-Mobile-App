@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   Image,
@@ -31,6 +32,7 @@ const CATEGORIES: CategoryItem[] = [
 ];
 
 export default function ServicesScreen() {
+  const router = useRouter();
   const { isFavorite, toggleFavorite } = useFavorites();
   const [activeCategory, setActiveCategory] = useState('All');
   const [services, setServices] = useState<Service[]>(sampleServices as any);
@@ -121,7 +123,12 @@ export default function ServicesScreen() {
           {services.map((s) => {
             const fav = isFavorite('service', s.id);
             return (
-              <View key={s.id} style={styles.card}>
+              <TouchableOpacity
+                key={s.id}
+                style={styles.card}
+                activeOpacity={0.93}
+                onPress={() => router.push({ pathname: '/service/[id]', params: { id: s.id } })}
+              >
                 {/* Hero Photo with Floating Badges */}
                 <View style={styles.imageContainer}>
                   <Image source={{ uri: s.image }} style={styles.cardImage} resizeMode="cover" />
@@ -134,7 +141,10 @@ export default function ServicesScreen() {
                   {/* Bookmark Floating Button */}
                   <TouchableOpacity
                     style={[styles.floatingBookmark, fav && styles.floatingBookmarkActive]}
-                    onPress={() => toggleFavorite('service', s.id)}
+                    onPress={(e) => {
+                      e.stopPropagation?.();
+                      toggleFavorite('service', s.id);
+                    }}
                     activeOpacity={0.85}
                   >
                     <Ionicons
@@ -171,23 +181,19 @@ export default function ServicesScreen() {
                       <Text style={styles.trustText}>DALEEL Guaranteed Partner</Text>
                     </View>
 
-                    <TouchableOpacity
-                      style={styles.connectBtn}
-                      activeOpacity={0.85}
-                      onPress={() => toggleFavorite('service', s.id)}
-                    >
+                    <View style={styles.connectBtn}>
                       <Text style={styles.connectBtnText}>
-                        {fav ? 'Saved' : 'Save Partner'}
+                        Connect & Inquire
                       </Text>
                       <Ionicons
-                        name={fav ? 'checkmark' : 'arrow-forward'}
+                        name="arrow-forward"
                         size={14}
                         color={colors.navy}
                       />
-                    </TouchableOpacity>
+                    </View>
                   </View>
                 </View>
-              </View>
+              </TouchableOpacity>
             );
           })}
 

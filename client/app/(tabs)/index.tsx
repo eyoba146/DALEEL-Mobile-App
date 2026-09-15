@@ -162,7 +162,7 @@ export default function Home() {
                 key={d.id}
                 style={styles.destCard}
                 activeOpacity={0.85}
-                onPress={() => router.push('/(tabs)/explore')}
+                onPress={() => router.push({ pathname: '/destination/[id]', params: { id: d.id } })}
               >
                 <Image source={{ uri: d.image }} style={styles.destImage} />
                 <View style={styles.destOverlay} />
@@ -170,7 +170,10 @@ export default function Home() {
                 {/* Bookmark trigger */}
                 <TouchableOpacity
                   style={styles.destBookmarkBtn}
-                  onPress={() => toggleFavorite('destination', d.id)}
+                  onPress={(e) => {
+                    e.stopPropagation?.();
+                    toggleFavorite('destination', d.id);
+                  }}
                   activeOpacity={0.7}
                 >
                   <Ionicons
@@ -204,7 +207,7 @@ export default function Home() {
               key={s.id}
               activeOpacity={0.85}
               style={styles.serviceCard}
-              onPress={() => router.push('/(tabs)/services')}
+              onPress={() => router.push({ pathname: '/service/[id]', params: { id: s.id } })}
             >
               <Image source={{ uri: s.image }} style={styles.serviceImage} />
               <View style={{ flex: 1, marginLeft: 14 }}>
@@ -224,7 +227,10 @@ export default function Home() {
 
               <TouchableOpacity
                 style={styles.cardBookmarkBtn}
-                onPress={() => toggleFavorite('service', s.id)}
+                onPress={(e) => {
+                  e.stopPropagation?.();
+                  toggleFavorite('service', s.id);
+                }}
                 activeOpacity={0.7}
               >
                 <Ionicons

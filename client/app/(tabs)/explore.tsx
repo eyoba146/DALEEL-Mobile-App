@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   Image,
@@ -26,6 +27,7 @@ const FILTER_CATEGORIES = [
 ];
 
 export default function ExploreScreen() {
+  const router = useRouter();
   const { isFavorite, toggleFavorite } = useFavorites();
   const [destinations, setDestinations] = useState<Destination[]>(sampleDestinations as any);
   const [searchQuery, setSearchQuery] = useState('');
@@ -189,7 +191,11 @@ export default function ExploreScreen() {
           const fav = isFavorite('destination', d.id);
           return (
             <View key={d.id} style={styles.cardWrap}>
-              <View style={styles.card}>
+              <TouchableOpacity
+                style={styles.card}
+                activeOpacity={0.93}
+                onPress={() => router.push({ pathname: '/destination/[id]', params: { id: d.id } })}
+              >
                 <Image source={{ uri: d.image }} style={styles.image} resizeMode="cover" />
 
                 <View style={styles.regionBadge}>
@@ -199,7 +205,10 @@ export default function ExploreScreen() {
                 {/* Bookmark trigger */}
                 <TouchableOpacity
                   style={styles.bookmarkBadge}
-                  onPress={() => toggleFavorite('destination', d.id)}
+                  onPress={(e) => {
+                    e.stopPropagation?.();
+                    toggleFavorite('destination', d.id);
+                  }}
                   activeOpacity={0.7}
                 >
                   <Ionicons
@@ -227,7 +236,7 @@ export default function ExploreScreen() {
                     </View>
                   </View>
                 </View>
-              </View>
+              </TouchableOpacity>
             </View>
           );
         })}

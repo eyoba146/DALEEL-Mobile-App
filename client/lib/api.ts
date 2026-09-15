@@ -149,6 +149,13 @@ export type Destination = {
   region: string;
   blurb: string;
   image: string;
+  description?: string | null;
+  bestTimeToVisit?: string | null;
+  elevation?: string | null;
+  unescoStatus?: boolean;
+  highlights?: string | null;
+  gettingThere?: string | null;
+  rating?: number;
 };
 
 export type Service = {
@@ -159,6 +166,15 @@ export type Service = {
   verified: boolean;
   blurb: string;
   image: string;
+  description?: string | null;
+  phone?: string | null;
+  whatsapp?: string | null;
+  email?: string | null;
+  address?: string | null;
+  rating?: number;
+  reviewCount?: number;
+  operatingHours?: string | null;
+  features?: string | null;
 };
 
 export type EventItem = {
@@ -178,10 +194,27 @@ export type Favorite = {
   createdAt: string;
 };
 
+export type ServiceInquiryPayload = {
+  fullName: string;
+  contactEmail: string;
+  contactPhone?: string;
+  contactWhatsapp?: string;
+  timeframe?: string;
+  message: string;
+};
+
 export const contentApi = {
   destinations: () => apiRequest<Destination[]>('/destinations'),
+  destination: (id: string) => apiRequest<Destination>(`/destinations/${id}`),
   services: (category?: string) =>
     apiRequest<Service[]>(category ? `/services?category=${encodeURIComponent(category)}` : '/services'),
+  service: (id: string) => apiRequest<Service>(`/services/${id}`),
+  createInquiry: (serviceId: string, data: ServiceInquiryPayload, token?: string | null) =>
+    apiRequest<{ success: boolean; message: string; inquiry: any }>(`/services/${serviceId}/inquiry`, {
+      method: 'POST',
+      body: data,
+      token,
+    }),
   events: () => apiRequest<EventItem[]>('/events'),
 };
 

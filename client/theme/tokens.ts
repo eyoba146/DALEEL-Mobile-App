@@ -60,7 +60,7 @@ export const spacing = {
 } as const;
 
 export const radius = {
-  xs: 4, sm: 8, md: 14, lg: 20, xl: 28, pill: 999,
+  xs: 4, sm: 8, md: 14, lg: 20, xl: 28, pill: 999, full: 999,
 } as const;
 
 export const fonts = {
@@ -69,6 +69,13 @@ export const fonts = {
   bodyMedium:   'Inter_500Medium',
   bodySemiBold: 'Inter_600SemiBold',
   bodyBold:     'Inter_700Bold',
+
+  // Semantic aliases
+  serifBold:    'DMSerifDisplay_400Regular',
+  sansRegular:  'Inter_400Regular',
+  sansMedium:   'Inter_500Medium',
+  sansSemiBold: 'Inter_600SemiBold',
+  sansBold:     'Inter_700Bold',
 } as const;
 
 export const type = {
