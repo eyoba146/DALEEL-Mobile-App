@@ -113,14 +113,14 @@ export default function ExploreScreen() {
             <Ionicons
               name="search"
               size={16}
-              color={isSearchFocused ? colors.navy : colors.goldRich}
+              color={colors.navy}
             />
           </View>
 
           <TextInput
             style={styles.searchInput}
             placeholder="Search heritage, cities, or landmarks…"
-            placeholderTextColor={colors.charcoalLight}
+            placeholderTextColor={colors.charcoalSub}
             value={searchQuery}
             onChangeText={setSearchQuery}
             onFocus={() => setIsSearchFocused(true)}
@@ -137,7 +137,7 @@ export default function ExploreScreen() {
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
               style={styles.clearBtn}
             >
-              <Ionicons name="close-circle" size={19} color={colors.charcoalLight} />
+              <Ionicons name="close-circle" size={19} color={colors.charcoalSub} />
             </TouchableOpacity>
           ) : (
             <View style={styles.countBadgePill}>
@@ -296,24 +296,33 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginHorizontal: 16,
-    paddingHorizontal: 12,
-    height: 48,
+    paddingHorizontal: 14,
+    height: 50,
     borderRadius: 16,
-    backgroundColor: colors.surface,
+    backgroundColor: '#FFFFFF',
     borderWidth: 1.5,
-    borderColor: colors.border,
+    borderColor: 'rgba(223, 183, 108, 0.45)',
     gap: 10,
+    shadowColor: colors.navy,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+    elevation: 2,
   },
   searchBarPodFocused: {
-    borderColor: colors.gold,
+    borderColor: colors.goldRich,
     backgroundColor: '#FFFFFF',
     borderWidth: 2,
+    shadowColor: colors.gold,
+    shadowOpacity: 0.22,
+    shadowRadius: 8,
+    elevation: 3,
   },
   searchIconCircle: {
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: colors.goldSoft,
+    backgroundColor: 'rgba(223, 183, 108, 0.2)',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -331,17 +340,17 @@ const styles = StyleSheet.create({
     padding: 4,
   },
   countBadgePill: {
-    backgroundColor: colors.goldSoft,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
+    backgroundColor: 'rgba(223, 183, 108, 0.16)',
+    paddingHorizontal: 9,
+    paddingVertical: 4,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: colors.goldBorder,
+    borderColor: 'rgba(223, 183, 108, 0.35)',
   },
   countBadgeText: {
     fontFamily: fonts.bodyBold,
     fontSize: 11,
-    color: colors.goldRich,
+    color: colors.navy,
   },
   // ── Filter Pills ────────────────────────────────────
   filterPillsScroll: {

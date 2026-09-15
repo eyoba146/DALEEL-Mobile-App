@@ -165,41 +165,6 @@ export default function DestinationDetailScreen() {
     <View style={styles.screen}>
       <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
 
-      {/* Floating Top Nav Bar with Generous Safe Area Margin (Clear of Battery & Status Bar) */}
-      <View style={[styles.floatingNavSafe, { paddingTop: Math.max(insets.top, 24) + 14 }]}>
-        <View style={styles.floatingNavRow}>
-          <TouchableOpacity
-            style={styles.circleNavBtn}
-            onPress={() => router.back()}
-            activeOpacity={0.8}
-          >
-            <Ionicons name="chevron-back" size={22} color="#FFFFFF" />
-          </TouchableOpacity>
-
-          <View style={styles.rightNavActions}>
-            <TouchableOpacity
-              style={styles.circleNavBtn}
-              onPress={handleShare}
-              activeOpacity={0.8}
-            >
-              <Ionicons name="share-social-outline" size={19} color="#FFFFFF" />
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.circleNavBtn, fav && styles.circleNavBtnActive]}
-              onPress={() => toggleFavorite('destination', destination.id)}
-              activeOpacity={0.8}
-            >
-              <Ionicons
-                name={fav ? 'bookmark' : 'bookmark-outline'}
-                size={20}
-                color={fav ? colors.gold : '#FFFFFF'}
-              />
-            </TouchableOpacity>
-          </View>
-        </View>
-      </View>
-
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
@@ -209,6 +174,41 @@ export default function DestinationDetailScreen() {
         <View style={styles.heroContainer}>
           <Image source={{ uri: destination.image }} style={styles.heroImage} resizeMode="cover" />
           <View style={styles.heroGradientOverlay} />
+
+          {/* Top Nav Buttons inside Hero (Scrolls away with the Hero) */}
+          <View style={[styles.floatingNavSafe, { paddingTop: Math.max(insets.top, 24) + 14 }]}>
+            <View style={styles.floatingNavRow}>
+              <TouchableOpacity
+                style={styles.circleNavBtn}
+                onPress={() => router.back()}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="chevron-back" size={22} color="#FFFFFF" />
+              </TouchableOpacity>
+
+              <View style={styles.rightNavActions}>
+                <TouchableOpacity
+                  style={styles.circleNavBtn}
+                  onPress={handleShare}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons name="share-social-outline" size={19} color="#FFFFFF" />
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.circleNavBtn, fav && styles.circleNavBtnActive]}
+                  onPress={() => toggleFavorite('destination', destination.id)}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons
+                    name={fav ? 'bookmark' : 'bookmark-outline'}
+                    size={20}
+                    color={fav ? colors.gold : '#FFFFFF'}
+                  />
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
 
           {/* Bottom Floating Title Pod */}
           <View style={styles.heroTextPod}>

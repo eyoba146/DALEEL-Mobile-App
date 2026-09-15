@@ -183,41 +183,6 @@ export default function ServiceDetailScreen() {
     <View style={styles.screen}>
       <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
 
-      {/* Floating Top Nav Bar (Hero Overlay with generous Safe Area padding) */}
-      <View style={[styles.floatingNavSafe, { paddingTop: Math.max(insets.top, 24) + 14 }]}>
-        <View style={styles.floatingNavRow}>
-          <TouchableOpacity
-            style={styles.circleNavBtn}
-            onPress={() => router.back()}
-            activeOpacity={0.8}
-          >
-            <Ionicons name="chevron-back" size={22} color="#FFFFFF" />
-          </TouchableOpacity>
-
-          <View style={styles.rightNavActions}>
-            <TouchableOpacity
-              style={styles.circleNavBtn}
-              onPress={handleShare}
-              activeOpacity={0.8}
-            >
-              <Ionicons name="share-social-outline" size={19} color="#FFFFFF" />
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.circleNavBtn, fav && styles.circleNavBtnActive]}
-              onPress={() => toggleFavorite('service', service.id)}
-              activeOpacity={0.8}
-            >
-              <Ionicons
-                name={fav ? 'bookmark' : 'bookmark-outline'}
-                size={20}
-                color={fav ? colors.gold : '#FFFFFF'}
-              />
-            </TouchableOpacity>
-          </View>
-        </View>
-      </View>
-
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
@@ -227,6 +192,41 @@ export default function ServiceDetailScreen() {
         <View style={styles.heroContainer}>
           <Image source={{ uri: service.image }} style={styles.heroImage} resizeMode="cover" />
           <View style={styles.heroGradientOverlay} />
+
+          {/* Floating Top Nav Bar inside Hero (Scrolls away with content) */}
+          <View style={[styles.floatingNavSafe, { paddingTop: Math.max(insets.top, 24) + 14 }]}>
+            <View style={styles.floatingNavRow}>
+              <TouchableOpacity
+                style={styles.circleNavBtn}
+                onPress={() => router.back()}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="chevron-back" size={22} color="#FFFFFF" />
+              </TouchableOpacity>
+
+              <View style={styles.rightNavActions}>
+                <TouchableOpacity
+                  style={styles.circleNavBtn}
+                  onPress={handleShare}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons name="share-social-outline" size={19} color="#FFFFFF" />
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.circleNavBtn, fav && styles.circleNavBtnActive]}
+                  onPress={() => toggleFavorite('service', service.id)}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons
+                    name={fav ? 'bookmark' : 'bookmark-outline'}
+                    size={20}
+                    color={fav ? colors.gold : '#FFFFFF'}
+                  />
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
 
           {/* Floating Category & Verified Badges */}
           <View style={styles.heroTextPod}>

@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
@@ -329,71 +330,109 @@ export default function SavedScreen() {
             {/* 4. Suggested Starters Carousel */}
             <View style={styles.suggestedSection}>
               <View style={styles.suggestedHeaderRow}>
-                <Ionicons name="star" size={13} color={colors.goldRich} />
+                <View style={styles.suggestedHeaderIconCircle}>
+                  <Ionicons name="sparkles" size={13} color={colors.goldRich} />
+                </View>
                 <Text style={styles.suggestedHeaderTitle}>Popular to Start Your Collection</Text>
+                <View style={styles.suggestedScrollHint}>
+                  <Text style={styles.suggestedScrollHintText}>Scroll</Text>
+                  <Ionicons name="arrow-forward" size={11} color={colors.goldRich} />
+                </View>
               </View>
 
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.suggestedScrollContent}
-              >
-                {allDestinations.slice(0, 2).map((d) => (
-                  <TouchableOpacity
-                    key={d.id}
-                    style={styles.suggestedCard}
-                    onPress={() => router.push({ pathname: '/destination/[id]', params: { id: d.id } })}
-                    activeOpacity={0.9}
-                  >
-                    <Image source={{ uri: d.image }} style={styles.suggestedImage} />
-                    <View style={styles.suggestedOverlay} />
-                    <View style={styles.suggestedBody}>
-                      <View style={styles.suggestedPill}>
-                        <Text style={styles.suggestedPillText}>{d.region}</Text>
+              <View style={styles.carouselContainer}>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.suggestedScrollContent}
+                >
+                  {allDestinations.slice(0, 4).map((d) => (
+                    <TouchableOpacity
+                      key={d.id}
+                      style={styles.suggestedCard}
+                      onPress={() => router.push({ pathname: '/destination/[id]', params: { id: d.id } })}
+                      activeOpacity={0.9}
+                    >
+                      <Image source={{ uri: d.image }} style={styles.suggestedImage} />
+                      <LinearGradient
+                        colors={['transparent', 'rgba(7, 21, 43, 0.35)', 'rgba(7, 21, 43, 0.9)']}
+                        locations={[0, 0.45, 1]}
+                        style={StyleSheet.absoluteFill}
+                      />
+                      <View style={styles.suggestedBody}>
+                        <View style={styles.suggestedPill}>
+                          <Ionicons name="location-sharp" size={9} color="#DFB76C" style={{ marginRight: 3 }} />
+                          <Text style={styles.suggestedPillText}>{d.region}</Text>
+                        </View>
+                        <Text style={styles.suggestedName} numberOfLines={1}>{d.name}</Text>
+                        <TouchableOpacity
+                          style={styles.suggestedSaveBtn}
+                          onPress={(e) => {
+                            e.stopPropagation?.();
+                            toggleFavorite('destination', d.id);
+                          }}
+                          activeOpacity={0.8}
+                        >
+                          <Ionicons name="bookmark-outline" size={13} color={colors.navy} />
+                          <Text style={styles.suggestedSaveBtnText}>Save</Text>
+                        </TouchableOpacity>
                       </View>
-                      <Text style={styles.suggestedName}>{d.name}</Text>
-                      <TouchableOpacity
-                        style={styles.suggestedSaveBtn}
-                        onPress={(e) => {
-                          e.stopPropagation?.();
-                          toggleFavorite('destination', d.id);
-                        }}
-                      >
-                        <Ionicons name="bookmark-outline" size={13} color={colors.navy} />
-                        <Text style={styles.suggestedSaveBtnText}>Save</Text>
-                      </TouchableOpacity>
-                    </View>
-                  </TouchableOpacity>
-                ))}
+                    </TouchableOpacity>
+                  ))}
 
-                {allServices.slice(0, 1).map((s) => (
-                  <TouchableOpacity
-                    key={s.id}
-                    style={styles.suggestedCard}
-                    onPress={() => router.push({ pathname: '/service/[id]', params: { id: s.id } })}
-                    activeOpacity={0.9}
-                  >
-                    <Image source={{ uri: s.image }} style={styles.suggestedImage} />
-                    <View style={styles.suggestedOverlay} />
-                    <View style={styles.suggestedBody}>
-                      <View style={styles.suggestedPill}>
-                        <Text style={styles.suggestedPillText}>{s.category}</Text>
+                  {allServices.slice(0, 3).map((s) => (
+                    <TouchableOpacity
+                      key={s.id}
+                      style={styles.suggestedCard}
+                      onPress={() => router.push({ pathname: '/service/[id]', params: { id: s.id } })}
+                      activeOpacity={0.9}
+                    >
+                      <Image source={{ uri: s.image }} style={styles.suggestedImage} />
+                      <LinearGradient
+                        colors={['transparent', 'rgba(7, 21, 43, 0.35)', 'rgba(7, 21, 43, 0.9)']}
+                        locations={[0, 0.45, 1]}
+                        style={StyleSheet.absoluteFill}
+                      />
+                      <View style={styles.suggestedBody}>
+                        <View style={styles.suggestedPill}>
+                          <Ionicons name="briefcase" size={9} color="#DFB76C" style={{ marginRight: 3 }} />
+                          <Text style={styles.suggestedPillText}>{s.category}</Text>
+                        </View>
+                        <Text style={styles.suggestedName} numberOfLines={1}>{s.name}</Text>
+                        <TouchableOpacity
+                          style={styles.suggestedSaveBtn}
+                          onPress={(e) => {
+                            e.stopPropagation?.();
+                            toggleFavorite('service', s.id);
+                          }}
+                          activeOpacity={0.8}
+                        >
+                          <Ionicons name="bookmark-outline" size={13} color={colors.navy} />
+                          <Text style={styles.suggestedSaveBtnText}>Save</Text>
+                        </TouchableOpacity>
                       </View>
-                      <Text style={styles.suggestedName} numberOfLines={1}>{s.name}</Text>
-                      <TouchableOpacity
-                        style={styles.suggestedSaveBtn}
-                        onPress={(e) => {
-                          e.stopPropagation?.();
-                          toggleFavorite('service', s.id);
-                        }}
-                      >
-                        <Ionicons name="bookmark-outline" size={13} color={colors.navy} />
-                        <Text style={styles.suggestedSaveBtnText}>Save</Text>
-                      </TouchableOpacity>
-                    </View>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+
+                {/* Left Fade Gradient for Scroll Affordance */}
+                <LinearGradient
+                  colors={['#FFFFFF', 'rgba(255, 255, 255, 0)']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={styles.carouselFadeLeft}
+                  pointerEvents="none"
+                />
+
+                {/* Right Fade Gradient for Scroll Affordance */}
+                <LinearGradient
+                  colors={['rgba(255, 255, 255, 0)', '#FFFFFF']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={styles.carouselFadeRight}
+                  pointerEvents="none"
+                />
+              </View>
             </View>
           </View>
         )}
@@ -664,85 +703,137 @@ const styles = StyleSheet.create({
     lineHeight: 15,
   },
 
-  // Suggested Starters Section
+  // Suggested Starters Section (Wider with Fade Gradients)
   suggestedSection: {
-    width: '100%',
+    marginHorizontal: -20,
     backgroundColor: '#FFFFFF',
-    borderRadius: radius.xl,
-    paddingVertical: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(0,0,0,0.05)',
+    paddingVertical: 18,
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: 'rgba(0, 0, 0, 0.06)',
+    marginTop: 12,
   },
   suggestedHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    marginBottom: 12,
-    gap: 6,
+    paddingHorizontal: 20,
+    marginBottom: 14,
+    gap: 8,
+  },
+  suggestedHeaderIconCircle: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: 'rgba(223, 183, 108, 0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   suggestedHeaderTitle: {
     fontFamily: fonts.bodyBold,
-    fontSize: 13,
+    fontSize: 14,
     color: colors.navy,
+    flex: 1,
+  },
+  suggestedScrollHint: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(223, 183, 108, 0.12)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: radius.pill,
+  },
+  suggestedScrollHintText: {
+    fontFamily: fonts.bodySemiBold,
+    fontSize: 10.5,
+    color: colors.goldRich,
+  },
+  carouselContainer: {
+    position: 'relative',
+    width: '100%',
+  },
+  carouselFadeLeft: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
+    width: 32,
+    zIndex: 10,
+  },
+  carouselFadeRight: {
+    position: 'absolute',
+    right: 0,
+    top: 0,
+    bottom: 0,
+    width: 44,
+    zIndex: 10,
   },
   suggestedScrollContent: {
-    paddingHorizontal: 16,
-    gap: 12,
+    paddingHorizontal: 20,
+    gap: 14,
   },
   suggestedCard: {
-    width: 170,
-    height: 180,
-    borderRadius: radius.lg,
+    width: 230,
+    height: 200,
+    borderRadius: radius.xl,
     overflow: 'hidden',
     position: 'relative',
     backgroundColor: colors.navy,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    elevation: 2,
   },
   suggestedImage: {
     width: '100%',
     height: '100%',
   },
-  suggestedOverlay: {
-    ...StyleSheet.absoluteFill,
-    backgroundColor: 'rgba(7, 21, 43, 0.48)',
-  },
   suggestedBody: {
     position: 'absolute',
-    bottom: 10,
-    left: 10,
-    right: 10,
+    bottom: 12,
+    left: 12,
+    right: 12,
   },
   suggestedPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
     alignSelf: 'flex-start',
-    backgroundColor: 'rgba(255, 255, 255, 0.25)',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
+    backgroundColor: 'rgba(7, 21, 43, 0.75)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
     borderRadius: radius.pill,
-    marginBottom: 4,
+    marginBottom: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(223, 183, 108, 0.4)',
   },
   suggestedPillText: {
     fontFamily: fonts.bodySemiBold,
-    fontSize: 9.5,
+    fontSize: 10,
     color: '#FFFFFF',
   },
   suggestedName: {
     fontFamily: fonts.bodyBold,
-    fontSize: 13,
+    fontSize: 14,
     color: '#FFFFFF',
-    marginBottom: 6,
+    marginBottom: 8,
+    textShadowColor: 'rgba(0,0,0,0.6)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
   },
   suggestedSaveBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     alignSelf: 'flex-start',
     backgroundColor: colors.gold,
-    paddingHorizontal: 9,
-    paddingVertical: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
     borderRadius: radius.pill,
-    gap: 4,
+    gap: 5,
   },
   suggestedSaveBtnText: {
     fontFamily: fonts.bodyBold,
-    fontSize: 10.5,
+    fontSize: 11,
     color: colors.navy,
   },
 });
