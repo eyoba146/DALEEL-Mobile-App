@@ -463,18 +463,18 @@ export default function SavedScreen() {
                   ))}
                 </ScrollView>
 
-                {/* Left Fade Gradient for Scroll Affordance (Subtle reduced intensity) */}
+                {/* Left Fade Gradient for Scroll Affordance (Black Vignette Fade) */}
                 <LinearGradient
-                  colors={['rgba(255, 255, 255, 0.65)', 'rgba(255, 255, 255, 0)']}
+                  colors={['rgba(0, 0, 0, 0.72)', 'rgba(0, 0, 0, 0)']}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 0 }}
                   style={styles.carouselFadeLeft}
                   pointerEvents="none"
                 />
 
-                {/* Right Fade Gradient for Scroll Affordance (Subtle reduced intensity) */}
+                {/* Right Fade Gradient for Scroll Affordance (Black Vignette Fade) */}
                 <LinearGradient
-                  colors={['rgba(255, 255, 255, 0)', 'rgba(255, 255, 255, 0.65)']}
+                  colors={['rgba(0, 0, 0, 0)', 'rgba(0, 0, 0, 0.72)']}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 0 }}
                   style={styles.carouselFadeRight}
@@ -805,7 +805,7 @@ const styles = StyleSheet.create({
     left: 0,
     top: 0,
     bottom: 0,
-    width: 16,
+    width: 20,
     zIndex: 10,
   },
   carouselFadeRight: {
@@ -813,7 +813,7 @@ const styles = StyleSheet.create({
     right: 0,
     top: 0,
     bottom: 0,
-    width: 18,
+    width: 22,
     zIndex: 10,
   },
   suggestedScrollContent: {
