@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   Animated,
+  Dimensions,
   Image,
   RefreshControl,
   ScrollView,
@@ -22,6 +23,8 @@ import { contentApi, Destination, EventItem, Service } from '../../lib/api';
 import ScreenHeader from '../../components/ScreenHeader';
 import { useFavorites } from '../../lib/favorites-context';
 import { colors, fonts, radius, spacing } from '../../theme/tokens';
+
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 type FilterType = 'all' | 'destination' | 'service' | 'event';
 
@@ -782,9 +785,8 @@ const styles = StyleSheet.create({
 
   // Suggested Starters Section (Premium Navy VIP UI)
   suggestedSection: {
-    width: '100%',
-    alignSelf: 'stretch',
-    marginHorizontal: -12,
+    width: SCREEN_WIDTH - 24,
+    alignSelf: 'center',
     backgroundColor: colors.navy,
     paddingVertical: 18,
     borderRadius: 16,
