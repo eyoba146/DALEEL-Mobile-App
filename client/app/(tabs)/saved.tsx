@@ -75,6 +75,23 @@ export default function SavedScreen() {
   const [filter, setFilter] = useState<FilterType>('all');
   const [isRefreshing, setIsRefreshing] = useState(false);
 
+  // ── Dynamic Carousel Fades ──
+  const scrollX = React.useRef(new Animated.Value(0)).current;
+  const [carouselContentWidth, setCarouselContentWidth] = useState(1);
+  const [carouselLayoutWidth, setCarouselLayoutWidth] = useState(0);
+
+  const maxScroll = Math.max(40, carouselContentWidth - carouselLayoutWidth);
+  const leftFadeOpacity = scrollX.interpolate({
+    inputRange: [0, 20],
+    outputRange: [0, 1],
+    extrapolate: 'clamp',
+  });
+  const rightFadeOpacity = scrollX.interpolate({
+    inputRange: [Math.max(0, maxScroll - 30), maxScroll],
+    outputRange: [1, 0],
+    extrapolate: 'clamp',
+  });
+
   // Content dictionaries
   const [allDestinations, setAllDestinations] = useState<Destination[]>(sampleDestinations as any);
   const [allServices, setAllServices] = useState<Service[]>(sampleServices as any);
@@ -389,10 +406,19 @@ export default function SavedScreen() {
               </View>
 
               <View style={styles.carouselContainer}>
-                <ScrollView
+                <Animated.ScrollView
                   horizontal
                   showsHorizontalScrollIndicator={false}
                   contentContainerStyle={styles.suggestedScrollContent}
+                  snapToInterval={244}
+                  decelerationRate="fast"
+                  onContentSizeChange={(w) => setCarouselContentWidth(w)}
+                  onLayout={(e) => setCarouselLayoutWidth(e.nativeEvent.layout.width)}
+                  onScroll={Animated.event(
+                    [{ nativeEvent: { contentOffset: { x: scrollX } } }],
+                    { useNativeDriver: true }
+                  )}
+                  scrollEventThrottle={16}
                 >
                   {allDestinations.slice(0, 4).map((d) => (
                     <TouchableOpacity
@@ -401,7 +427,7 @@ export default function SavedScreen() {
                       onPress={() => router.push({ pathname: '/destination/[id]', params: { id: d.id } })}
                       activeOpacity={0.9}
                     >
-                      <Image source={{ uri: d.image }} style={styles.suggestedImage} />
+                      <Image source={{ uri: d.image }} style={styles.suggestedImage} resizeMode="cover" />
                       <LinearGradient
                         colors={['transparent', 'rgba(7, 21, 43, 0.35)', 'rgba(7, 21, 43, 0.9)']}
                         locations={[0, 0.45, 1]}
@@ -435,7 +461,7 @@ export default function SavedScreen() {
                       onPress={() => router.push({ pathname: '/service/[id]', params: { id: s.id } })}
                       activeOpacity={0.9}
                     >
-                      <Image source={{ uri: s.image }} style={styles.suggestedImage} />
+                      <Image source={{ uri: s.image }} style={styles.suggestedImage} resizeMode="cover" />
                       <LinearGradient
                         colors={['transparent', 'rgba(7, 21, 43, 0.35)', 'rgba(7, 21, 43, 0.9)']}
                         locations={[0, 0.45, 1]}
@@ -461,25 +487,27 @@ export default function SavedScreen() {
                       </View>
                     </TouchableOpacity>
                   ))}
-                </ScrollView>
+                </Animated.ScrollView>
 
-                {/* Left Fade Gradient for Scroll Affordance (Black Vignette Fade) */}
-                <LinearGradient
-                  colors={['rgba(0, 0, 0, 0.72)', 'rgba(0, 0, 0, 0)']}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                  style={styles.carouselFadeLeft}
-                  pointerEvents="none"
-                />
+                {/* Dynamic Left Edge Fade (Navy) */}
+                <Animated.View style={[styles.carouselFadeLeft, { opacity: leftFadeOpacity }]} pointerEvents="none">
+                  <LinearGradient
+                    colors={['rgba(7, 21, 43, 1)', 'rgba(7, 21, 43, 0)']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                    style={StyleSheet.absoluteFill}
+                  />
+                </Animated.View>
 
-                {/* Right Fade Gradient for Scroll Affordance (Black Vignette Fade) */}
-                <LinearGradient
-                  colors={['rgba(0, 0, 0, 0)', 'rgba(0, 0, 0, 0.72)']}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                  style={styles.carouselFadeRight}
-                  pointerEvents="none"
-                />
+                {/* Dynamic Right Edge Fade (Navy) */}
+                <Animated.View style={[styles.carouselFadeRight, { opacity: rightFadeOpacity }]} pointerEvents="none">
+                  <LinearGradient
+                    colors={['rgba(7, 21, 43, 0)', 'rgba(7, 21, 43, 1)']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                    style={StyleSheet.absoluteFill}
+                  />
+                </Animated.View>
               </View>
             </View>
           </View>
@@ -636,6 +664,7 @@ const styles = StyleSheet.create({
 
   // ── 10x Empty State Styles ─────────────────────────
   emptyContainer: {
+    width: '100%',
     paddingHorizontal: 20,
     paddingTop: 36,
     paddingBottom: 40,
@@ -751,15 +780,17 @@ const styles = StyleSheet.create({
     lineHeight: 15,
   },
 
-  // Suggested Starters Section (Wider with Fade Gradients)
+  // Suggested Starters Section (Premium Navy VIP UI)
   suggestedSection: {
-    marginHorizontal: -20,
-    backgroundColor: '#FFFFFF',
+    width: '100%',
+    alignSelf: 'stretch',
+    backgroundColor: colors.navy,
     paddingVertical: 18,
-    borderTopWidth: 1,
-    borderBottomWidth: 1,
-    borderColor: 'rgba(0, 0, 0, 0.06)',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
     marginTop: 12,
+    overflow: 'hidden',
   },
   suggestedHeaderRow: {
     flexDirection: 'row',
@@ -772,14 +803,14 @@ const styles = StyleSheet.create({
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: 'rgba(223, 183, 108, 0.2)',
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
     alignItems: 'center',
     justifyContent: 'center',
   },
   suggestedHeaderTitle: {
     fontFamily: fonts.bodyBold,
     fontSize: 14,
-    color: colors.navy,
+    color: '#FFFFFF',
     flex: 1,
   },
   suggestedScrollHint: {
@@ -805,16 +836,20 @@ const styles = StyleSheet.create({
     left: 0,
     top: 0,
     bottom: 0,
-    width: 20,
+    width: 28,
     zIndex: 10,
+    borderTopLeftRadius: 16,
+    borderBottomLeftRadius: 16,
   },
   carouselFadeRight: {
     position: 'absolute',
     right: 0,
     top: 0,
     bottom: 0,
-    width: 22,
+    width: 28,
     zIndex: 10,
+    borderTopRightRadius: 16,
+    borderBottomRightRadius: 16,
   },
   suggestedScrollContent: {
     paddingHorizontal: 20,
@@ -826,12 +861,14 @@ const styles = StyleSheet.create({
     borderRadius: radius.xl,
     overflow: 'hidden',
     position: 'relative',
-    backgroundColor: colors.navy,
+    backgroundColor: '#0F2447',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.08,
+    shadowOpacity: 0.12,
     shadowRadius: 6,
-    elevation: 2,
+    elevation: 3,
   },
   suggestedImage: {
     width: '100%',

@@ -136,63 +136,30 @@ export default function ExploreScreen() {
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  // ── High-Performance Native Scroll Slide Header (60fps Native Driver, No Stutter) ──
+  // ── High-Performance Native Scroll Slide Header (60fps Native Driver) ──
   const HEADER_HEIGHT = 126;
-  const translateY = useRef(new Animated.Value(0)).current;
-  const isHidden = useRef(false);
-  const lastScrollY = useRef(0);
-  const accumulatedDelta = useRef(0);
+  const scrollY = useRef(new Animated.Value(0)).current;
 
-  const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-    const currentY = event.nativeEvent.contentOffset.y;
-    const diff = currentY - lastScrollY.current;
+  // We use diffClamp to seamlessly translate the header based purely on scroll direction
+  // without any manual JS logic or timers getting stuck.
+  const clampedScrollY = Animated.diffClamp(
+    Animated.add(
+      scrollY.interpolate({
+        inputRange: [0, 1],
+        outputRange: [0, 1],
+        extrapolateLeft: 'clamp', // Ignore iOS rubber-banding at the top
+      }),
+      new Animated.Value(0)
+    ),
+    0,
+    HEADER_HEIGHT + 20
+  );
 
-    // 1. If at or near top of the list, always restore header immediately
-    if (currentY <= 20) {
-      accumulatedDelta.current = 0;
-      if (isHidden.current) {
-        isHidden.current = false;
-        Animated.timing(translateY, {
-          toValue: 0,
-          duration: 200,
-          useNativeDriver: true,
-        }).start();
-      }
-      lastScrollY.current = currentY;
-      return;
-    }
-
-    // 2. Accumulate delta in the current scroll direction (hysteresis buffer)
-    if ((diff > 0 && accumulatedDelta.current < 0) || (diff < 0 && accumulatedDelta.current > 0)) {
-      accumulatedDelta.current = 0;
-    }
-    accumulatedDelta.current += diff;
-
-    // 3. User scrolling down continuously past threshold -> smoothly slide header away
-    if (accumulatedDelta.current > 35 && currentY > HEADER_HEIGHT) {
-      if (!isHidden.current) {
-        isHidden.current = true;
-        Animated.timing(translateY, {
-          toValue: -HEADER_HEIGHT - 6,
-          duration: 200,
-          useNativeDriver: true,
-        }).start();
-      }
-    }
-    // 4. User scrolling up continuously -> smoothly slide header back into view
-    else if (accumulatedDelta.current < -25) {
-      if (isHidden.current) {
-        isHidden.current = false;
-        Animated.timing(translateY, {
-          toValue: 0,
-          duration: 200,
-          useNativeDriver: true,
-        }).start();
-      }
-    }
-
-    lastScrollY.current = currentY;
-  };
+  const translateY = clampedScrollY.interpolate({
+    inputRange: [0, HEADER_HEIGHT + 20],
+    outputRange: [0, -(HEADER_HEIGHT + 20)],
+    extrapolate: 'clamp',
+  });
 
   const loadDestinations = useCallback(async () => {
     try {
@@ -262,13 +229,16 @@ export default function ExploreScreen() {
 
       {/* Main content body with absolute floating header and full-bleed scroll */}
       <View style={styles.mainBodyContainer}>
-        <ScrollView
+        <Animated.ScrollView
           style={{ flex: 1 }}
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="on-drag"
-          onScroll={handleScroll}
+          onScroll={Animated.event(
+            [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+            { useNativeDriver: true }
+          )}
           scrollEventThrottle={16}
           refreshControl={
             <RefreshControl
@@ -319,7 +289,7 @@ export default function ExploreScreen() {
           )}
 
           <View style={{ height: 32 }} />
-        </ScrollView>
+        </Animated.ScrollView>
 
         {/* ── Floating Collapsible Search Bar & Filter Section (60fps Native Driver) ── */}
         <Animated.View
