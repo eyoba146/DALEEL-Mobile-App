@@ -665,7 +665,7 @@ const styles = StyleSheet.create({
   // ── 10x Empty State Styles ─────────────────────────
   emptyContainer: {
     width: '100%',
-    paddingHorizontal: 20,
+    paddingHorizontal: 0,
     paddingTop: 36,
     paddingBottom: 40,
     alignItems: 'center',
@@ -784,6 +784,7 @@ const styles = StyleSheet.create({
   suggestedSection: {
     width: '100%',
     alignSelf: 'stretch',
+    marginHorizontal: -12,
     backgroundColor: colors.navy,
     paddingVertical: 18,
     borderRadius: 16,
