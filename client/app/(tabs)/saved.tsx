@@ -3,6 +3,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
+  Animated,
   Image,
   RefreshControl,
   ScrollView,
@@ -23,6 +24,50 @@ import { useFavorites } from '../../lib/favorites-context';
 import { colors, fonts, radius, spacing } from '../../theme/tokens';
 
 type FilterType = 'all' | 'destination' | 'service' | 'event';
+
+function AnimatedCardWrapper({
+  index,
+  filterKey,
+  children,
+}: {
+  index: number;
+  filterKey: string;
+  children: React.ReactNode;
+}) {
+  const anim = React.useRef(new Animated.Value(0)).current;
+
+  React.useEffect(() => {
+    anim.setValue(0);
+    Animated.spring(anim, {
+      toValue: 1,
+      tension: 65,
+      friction: 9,
+      delay: Math.min(index * 45, 250),
+      useNativeDriver: true,
+    }).start();
+  }, [filterKey, index, anim]);
+
+  const translateY = anim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [18, 0],
+  });
+
+  const scale = anim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0.97, 1],
+  });
+
+  return (
+    <Animated.View
+      style={{
+        opacity: anim,
+        transform: [{ translateY }, { scale }],
+      }}
+    >
+      {children}
+    </Animated.View>
+  );
+}
 
 export default function SavedScreen() {
   const router = useRouter();
@@ -138,76 +183,78 @@ export default function SavedScreen() {
           />
         }
       >
-        {filteredItems.map((item) => {
+        {filteredItems.map((item, index) => {
           if (item._type === 'destination') {
             return (
-              <TouchableOpacity
-                key={`dest-${item.id}`}
-                style={styles.card}
-                activeOpacity={0.92}
-                onPress={() => router.push({ pathname: '/destination/[id]', params: { id: item.id } })}
-              >
-                <Image source={{ uri: item.image }} style={styles.cardImage} resizeMode="cover" />
-                <View style={styles.cardBody}>
-                  <View style={styles.typeBadge}>
-                    <Text style={styles.typeBadgeText}>DESTINATION</Text>
-                  </View>
-                  <Text style={styles.cardName}>{item.name}</Text>
-                  <Text style={styles.cardBlurb} numberOfLines={2}>
-                    {item.blurb}
-                  </Text>
-                  <View style={styles.metaRow}>
-                    <Ionicons name="location-outline" size={13} color="#718096" />
-                    <Text style={styles.metaText}>{item.region}, Ethiopia</Text>
-                  </View>
-                </View>
-
+              <AnimatedCardWrapper key={`dest-${item.id}`} index={index} filterKey={filter}>
                 <TouchableOpacity
-                  style={styles.bookmarkBtn}
-                  onPress={(e) => {
-                    e.stopPropagation?.();
-                    toggleFavorite('destination', item.id);
-                  }}
-                  activeOpacity={0.7}
+                  style={styles.card}
+                  activeOpacity={0.92}
+                  onPress={() => router.push({ pathname: '/destination/[id]', params: { id: item.id } })}
                 >
-                  <Ionicons name="bookmark" size={20} color={colors.gold} />
+                  <Image source={{ uri: item.image }} style={styles.cardImage} resizeMode="cover" />
+                  <View style={styles.cardBody}>
+                    <View style={styles.typeBadge}>
+                      <Text style={styles.typeBadgeText}>DESTINATION</Text>
+                    </View>
+                    <Text style={styles.cardName}>{item.name}</Text>
+                    <Text style={styles.cardBlurb} numberOfLines={2}>
+                      {item.blurb}
+                    </Text>
+                    <View style={styles.metaRow}>
+                      <Ionicons name="location-outline" size={13} color="#718096" />
+                      <Text style={styles.metaText}>{item.region}, Ethiopia</Text>
+                    </View>
+                  </View>
+
+                  <TouchableOpacity
+                    style={styles.bookmarkBtn}
+                    onPress={(e) => {
+                      e.stopPropagation?.();
+                      toggleFavorite('destination', item.id);
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons name="bookmark" size={20} color={colors.gold} />
+                  </TouchableOpacity>
                 </TouchableOpacity>
-              </TouchableOpacity>
+              </AnimatedCardWrapper>
             );
           }
 
           if (item._type === 'service') {
             return (
-              <TouchableOpacity
-                key={`serv-${item.id}`}
-                style={styles.card}
-                activeOpacity={0.92}
-                onPress={() => router.push({ pathname: '/service/[id]', params: { id: item.id } })}
-              >
-                <Image source={{ uri: item.image }} style={styles.cardImage} resizeMode="cover" />
-                <View style={styles.cardBody}>
-                  <View style={[styles.typeBadge, { backgroundColor: '#FEFCBF' }]}>
-                    <Text style={[styles.typeBadgeText, { color: '#744210' }]}>SERVICE</Text>
-                  </View>
-                  <Text style={styles.cardName}>{item.name}</Text>
-                  <Text style={styles.cardCategory}>{item.category}</Text>
-                  <View style={styles.metaRow}>
-                    <Ionicons name="location-outline" size={13} color="#718096" />
-                    <Text style={styles.metaText}>{item.location}</Text>
-                  </View>
-                </View>
-
+              <AnimatedCardWrapper key={`serv-${item.id}`} index={index} filterKey={filter}>
                 <TouchableOpacity
-                  style={styles.bookmarkBtn}
-                  onPress={(e) => {
-                    e.stopPropagation?.();
-                    toggleFavorite('service', item.id);
-                  }}
-                  activeOpacity={0.7}
+                  style={styles.card}
+                  activeOpacity={0.92}
+                  onPress={() => router.push({ pathname: '/service/[id]', params: { id: item.id } })}
                 >
-                  <Ionicons name="bookmark" size={20} color={colors.gold} />
+                  <Image source={{ uri: item.image }} style={styles.cardImage} resizeMode="cover" />
+                  <View style={styles.cardBody}>
+                    <View style={[styles.typeBadge, { backgroundColor: '#FEFCBF' }]}>
+                      <Text style={[styles.typeBadgeText, { color: '#744210' }]}>SERVICE</Text>
+                    </View>
+                    <Text style={styles.cardName}>{item.name}</Text>
+                    <Text style={styles.cardCategory}>{item.category}</Text>
+                    <View style={styles.metaRow}>
+                      <Ionicons name="location-outline" size={13} color="#718096" />
+                      <Text style={styles.metaText}>{item.location}</Text>
+                    </View>
+                  </View>
+
+                  <TouchableOpacity
+                    style={styles.bookmarkBtn}
+                    onPress={(e) => {
+                      e.stopPropagation?.();
+                      toggleFavorite('service', item.id);
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons name="bookmark" size={20} color={colors.gold} />
+                  </TouchableOpacity>
                 </TouchableOpacity>
-              </TouchableOpacity>
+              </AnimatedCardWrapper>
             );
           }
 
@@ -220,37 +267,38 @@ export default function SavedScreen() {
                 : 'Upcoming';
 
             return (
-              <TouchableOpacity
-                key={`event-${item.id}`}
-                style={styles.card}
-                activeOpacity={0.92}
-                onPress={() => router.push('/events')}
-              >
-                <Image source={{ uri: item.image }} style={styles.cardImage} resizeMode="cover" />
-                <View style={styles.cardBody}>
-                  <View style={[styles.typeBadge, { backgroundColor: '#E2E8F0' }]}>
-                    <Text style={[styles.typeBadgeText, { color: colors.navy }]}>EVENT</Text>
-                  </View>
-                  <Text style={styles.cardName}>{item.title}</Text>
-                  <View style={styles.metaRow}>
-                    <Ionicons name="calendar-outline" size={13} color="#718096" />
-                    <Text style={styles.metaText}>
-                      {dateStr} • {item.city}
-                    </Text>
-                  </View>
-                </View>
-
+              <AnimatedCardWrapper key={`event-${item.id}`} index={index} filterKey={filter}>
                 <TouchableOpacity
-                  style={styles.bookmarkBtn}
-                  onPress={(e) => {
-                    e.stopPropagation?.();
-                    toggleFavorite('event', item.id);
-                  }}
-                  activeOpacity={0.7}
+                  style={styles.card}
+                  activeOpacity={0.92}
+                  onPress={() => router.push('/events')}
                 >
-                  <Ionicons name="bookmark" size={20} color={colors.gold} />
+                  <Image source={{ uri: item.image }} style={styles.cardImage} resizeMode="cover" />
+                  <View style={styles.cardBody}>
+                    <View style={[styles.typeBadge, { backgroundColor: '#E2E8F0' }]}>
+                      <Text style={[styles.typeBadgeText, { color: colors.navy }]}>EVENT</Text>
+                    </View>
+                    <Text style={styles.cardName}>{item.title}</Text>
+                    <View style={styles.metaRow}>
+                      <Ionicons name="calendar-outline" size={13} color="#718096" />
+                      <Text style={styles.metaText}>
+                        {dateStr} • {item.city}
+                      </Text>
+                    </View>
+                  </View>
+
+                  <TouchableOpacity
+                    style={styles.bookmarkBtn}
+                    onPress={(e) => {
+                      e.stopPropagation?.();
+                      toggleFavorite('event', item.id);
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons name="bookmark" size={20} color={colors.gold} />
+                  </TouchableOpacity>
                 </TouchableOpacity>
-              </TouchableOpacity>
+              </AnimatedCardWrapper>
             );
           }
 
@@ -415,18 +463,18 @@ export default function SavedScreen() {
                   ))}
                 </ScrollView>
 
-                {/* Left Fade Gradient for Scroll Affordance */}
+                {/* Left Fade Gradient for Scroll Affordance (Subtle reduced intensity) */}
                 <LinearGradient
-                  colors={['#FFFFFF', 'rgba(255, 255, 255, 0)']}
+                  colors={['rgba(255, 255, 255, 0.65)', 'rgba(255, 255, 255, 0)']}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 0 }}
                   style={styles.carouselFadeLeft}
                   pointerEvents="none"
                 />
 
-                {/* Right Fade Gradient for Scroll Affordance */}
+                {/* Right Fade Gradient for Scroll Affordance (Subtle reduced intensity) */}
                 <LinearGradient
-                  colors={['rgba(255, 255, 255, 0)', '#FFFFFF']}
+                  colors={['rgba(255, 255, 255, 0)', 'rgba(255, 255, 255, 0.65)']}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 0 }}
                   style={styles.carouselFadeRight}
@@ -757,7 +805,7 @@ const styles = StyleSheet.create({
     left: 0,
     top: 0,
     bottom: 0,
-    width: 32,
+    width: 16,
     zIndex: 10,
   },
   carouselFadeRight: {
@@ -765,7 +813,7 @@ const styles = StyleSheet.create({
     right: 0,
     top: 0,
     bottom: 0,
-    width: 44,
+    width: 18,
     zIndex: 10,
   },
   suggestedScrollContent: {

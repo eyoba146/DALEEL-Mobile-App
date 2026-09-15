@@ -1,8 +1,11 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
+  Animated,
   Image,
+  NativeScrollEvent,
+  NativeSyntheticEvent,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -26,6 +29,104 @@ const FILTER_CATEGORIES = [
   { id: 'highlands', label: 'Highlands & Peaks', icon: 'trail-sign' },
 ];
 
+const AnimatedDestinationCard = React.memo(function AnimatedDestinationCard({
+  destination,
+  index,
+  filterTrigger,
+  fav,
+  onToggleFav,
+  onPress,
+}: {
+  destination: Destination;
+  index: number;
+  filterTrigger: string;
+  fav: boolean;
+  onToggleFav: () => void;
+  onPress: () => void;
+}) {
+  const animValue = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    animValue.setValue(0);
+    Animated.spring(animValue, {
+      toValue: 1,
+      tension: 65,
+      friction: 9,
+      delay: Math.min(index * 45, 220),
+      useNativeDriver: true,
+    }).start();
+  }, [filterTrigger, index, animValue]);
+
+  const translateY = animValue.interpolate({
+    inputRange: [0, 1],
+    outputRange: [22, 0],
+  });
+
+  const scale = animValue.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0.96, 1],
+  });
+
+  return (
+    <Animated.View
+      style={[
+        styles.cardWrap,
+        {
+          opacity: animValue,
+          transform: [{ translateY }, { scale }],
+        },
+      ]}
+    >
+      <TouchableOpacity
+        style={styles.card}
+        activeOpacity={0.93}
+        onPress={onPress}
+      >
+        <Image source={{ uri: destination.image }} style={styles.image} resizeMode="cover" />
+
+        <View style={styles.regionBadge}>
+          <Text style={styles.regionText}>{destination.region}</Text>
+        </View>
+
+        {/* Bookmark trigger */}
+        <TouchableOpacity
+          style={styles.bookmarkBadge}
+          onPress={(e) => {
+            e.stopPropagation?.();
+            onToggleFav();
+          }}
+          activeOpacity={0.7}
+        >
+          <Ionicons
+            name={fav ? 'bookmark' : 'bookmark-outline'}
+            size={20}
+            color={fav ? colors.gold : '#FFFFFF'}
+          />
+        </TouchableOpacity>
+
+        <View style={styles.body}>
+          <Text style={styles.name}>{destination.name}</Text>
+          <Text style={styles.blurb} numberOfLines={3}>
+            {destination.blurb}
+          </Text>
+
+          <View style={styles.footer}>
+            <View style={styles.footerLeft}>
+              <Ionicons name="location-outline" size={14} color="#718096" />
+              <Text style={styles.footerText}>Federal Democratic Republic of Ethiopia</Text>
+            </View>
+
+            <View style={styles.explorePill}>
+              <Text style={styles.explorePillText}>View Guide</Text>
+              <Ionicons name="arrow-forward" size={13} color={colors.navy} />
+            </View>
+          </View>
+        </View>
+      </TouchableOpacity>
+    </Animated.View>
+  );
+});
+
 export default function ExploreScreen() {
   const router = useRouter();
   const { isFavorite, toggleFavorite } = useFavorites();
@@ -34,6 +135,63 @@ export default function ExploreScreen() {
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // ── Scroll Hide/Show Animation (Pure Translation / Height, No Fade) ──
+  const [headerHeight, setHeaderHeight] = useState(124);
+  const measuredHeaderHeight = useRef(124);
+  const headerAnim = useRef(new Animated.Value(1)).current;
+  const lastScrollY = useRef(0);
+  const isHeaderVisible = useRef(true);
+
+  const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const currentY = event.nativeEvent.contentOffset.y;
+    const diff = currentY - lastScrollY.current;
+
+    if (currentY <= 10) {
+      if (!isHeaderVisible.current) {
+        isHeaderVisible.current = true;
+        Animated.timing(headerAnim, {
+          toValue: 1,
+          duration: 180,
+          useNativeDriver: false,
+        }).start();
+      }
+    } else if (diff > 6 && currentY > 20) {
+      // User is scrolling downward -> immediately hide
+      if (isHeaderVisible.current) {
+        isHeaderVisible.current = false;
+        Animated.timing(headerAnim, {
+          toValue: 0,
+          duration: 180,
+          useNativeDriver: false,
+        }).start();
+      }
+    } else if (diff < -6) {
+      // User is scrolling upward -> immediately show
+      if (!isHeaderVisible.current) {
+        isHeaderVisible.current = true;
+        Animated.timing(headerAnim, {
+          toValue: 1,
+          duration: 180,
+          useNativeDriver: false,
+        }).start();
+      }
+    }
+
+    lastScrollY.current = currentY;
+  };
+
+  const headerAnimHeight = headerAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, headerHeight],
+    extrapolate: 'clamp',
+  });
+
+  const headerAnimTranslateY = headerAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [-headerHeight, 0],
+    extrapolate: 'clamp',
+  });
 
   const loadDestinations = useCallback(async () => {
     try {
@@ -101,80 +259,103 @@ export default function ExploreScreen() {
         badgeCount={destinations.length}
       />
 
-      {/* ── 10x Enhanced Search Bar & Filter Section ── */}
-      <View style={styles.searchSectionWrap}>
-        <View
+      {/* ── Collapsible Search Bar & Filter Section on Scroll (No Fade) ── */}
+      <Animated.View
+        style={[
+          styles.collapsibleHeaderWrap,
+          {
+            height: headerAnimHeight,
+          },
+        ]}
+      >
+        <Animated.View
           style={[
-            styles.searchBarPod,
-            isSearchFocused && styles.searchBarPodFocused,
+            styles.searchSectionWrap,
+            {
+              transform: [{ translateY: headerAnimTranslateY }],
+            },
           ]}
+          onLayout={(e) => {
+            const h = e.nativeEvent.layout.height;
+            if (h > 0 && Math.abs(h - measuredHeaderHeight.current) > 2) {
+              measuredHeaderHeight.current = h;
+              setHeaderHeight(h);
+            }
+          }}
         >
-          <View style={[styles.searchIconCircle, isSearchFocused && styles.searchIconCircleFocused]}>
-            <Ionicons
-              name="search"
-              size={16}
-              color={colors.navy}
+          <View
+            style={[
+              styles.searchBarPod,
+              isSearchFocused && styles.searchBarPodFocused,
+            ]}
+          >
+            <View style={[styles.searchIconCircle, isSearchFocused && styles.searchIconCircleFocused]}>
+              <Ionicons
+                name="search"
+                size={16}
+                color={colors.navy}
+              />
+            </View>
+
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search heritage, cities, or landmarks…"
+              placeholderTextColor={colors.charcoalSub}
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              onFocus={() => setIsSearchFocused(true)}
+              onBlur={() => setIsSearchFocused(false)}
+              returnKeyType="search"
+              clearButtonMode="never"
+              autoCorrect={false}
+              autoCapitalize="none"
             />
+
+            {searchQuery.length > 0 ? (
+              <TouchableOpacity
+                onPress={() => setSearchQuery('')}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                style={styles.clearBtn}
+              >
+                <Ionicons name="close-circle" size={19} color={colors.charcoalSub} />
+              </TouchableOpacity>
+            ) : (
+              <View style={styles.countBadgePill}>
+                <Text style={styles.countBadgeText}>{filtered.length} found</Text>
+              </View>
+            )}
           </View>
 
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Search heritage, cities, or landmarks…"
-            placeholderTextColor={colors.charcoalSub}
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            onFocus={() => setIsSearchFocused(true)}
-            onBlur={() => setIsSearchFocused(false)}
-            returnKeyType="search"
-            clearButtonMode="never"
-            autoCorrect={false}
-            autoCapitalize="none"
-          />
-
-          {searchQuery.length > 0 ? (
-            <TouchableOpacity
-              onPress={() => setSearchQuery('')}
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-              style={styles.clearBtn}
-            >
-              <Ionicons name="close-circle" size={19} color={colors.charcoalSub} />
-            </TouchableOpacity>
-          ) : (
-            <View style={styles.countBadgePill}>
-              <Text style={styles.countBadgeText}>{filtered.length} found</Text>
-            </View>
-          )}
-        </View>
-
-        {/* Horizontal Quick Filter Pills Carousel */}
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.filterPillsScroll}
-        >
-          {FILTER_CATEGORIES.map((cat) => {
-            const active = selectedCategory === cat.id;
-            return (
-              <TouchableOpacity
-                key={cat.id}
-                style={[styles.filterPill, active && styles.filterPillActive]}
-                onPress={() => setSelectedCategory(cat.id)}
-                activeOpacity={0.8}
-              >
-                <Ionicons
-                  name={cat.icon as any}
-                  size={13}
-                  color={active ? colors.navy : colors.charcoalSub}
-                  style={{ marginRight: 5 }}
-                />
-                <Text style={[styles.filterPillText, active && styles.filterPillTextActive]}>
-                  {cat.label}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </ScrollView>
-      </View>
+          {/* Horizontal Quick Filter Pills Carousel */}
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.filterPillsScroll}
+          >
+            {FILTER_CATEGORIES.map((cat) => {
+              const active = selectedCategory === cat.id;
+              return (
+                <TouchableOpacity
+                  key={cat.id}
+                  style={[styles.filterPill, active && styles.filterPillActive]}
+                  onPress={() => setSelectedCategory(cat.id)}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons
+                    name={cat.icon as any}
+                    size={13}
+                    color={active ? colors.navy : colors.charcoalSub}
+                    style={{ marginRight: 5 }}
+                  />
+                  <Text style={[styles.filterPillText, active && styles.filterPillTextActive]}>
+                    {cat.label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+        </Animated.View>
+      </Animated.View>
 
       <ScrollView
         style={{ flex: 1 }}
@@ -182,6 +363,8 @@ export default function ExploreScreen() {
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
+        onScroll={handleScroll}
+        scrollEventThrottle={16}
         refreshControl={
           <RefreshControl
             refreshing={isRefreshing}
@@ -191,57 +374,18 @@ export default function ExploreScreen() {
           />
         }
       >
-        {filtered.map((d) => {
+        {filtered.map((d, index) => {
           const fav = isFavorite('destination', d.id);
           return (
-            <View key={d.id} style={styles.cardWrap}>
-              <TouchableOpacity
-                style={styles.card}
-                activeOpacity={0.93}
-                onPress={() => router.push({ pathname: '/destination/[id]', params: { id: d.id } })}
-              >
-                <Image source={{ uri: d.image }} style={styles.image} resizeMode="cover" />
-
-                <View style={styles.regionBadge}>
-                  <Text style={styles.regionText}>{d.region}</Text>
-                </View>
-
-                {/* Bookmark trigger */}
-                <TouchableOpacity
-                  style={styles.bookmarkBadge}
-                  onPress={(e) => {
-                    e.stopPropagation?.();
-                    toggleFavorite('destination', d.id);
-                  }}
-                  activeOpacity={0.7}
-                >
-                  <Ionicons
-                    name={fav ? 'bookmark' : 'bookmark-outline'}
-                    size={20}
-                    color={fav ? colors.gold : '#FFFFFF'}
-                  />
-                </TouchableOpacity>
-
-                <View style={styles.body}>
-                  <Text style={styles.name}>{d.name}</Text>
-                  <Text style={styles.blurb} numberOfLines={3}>
-                    {d.blurb}
-                  </Text>
-
-                  <View style={styles.footer}>
-                    <View style={styles.footerLeft}>
-                      <Ionicons name="location-outline" size={14} color="#718096" />
-                      <Text style={styles.footerText}>Federal Democratic Republic of Ethiopia</Text>
-                    </View>
-
-                    <View style={styles.explorePill}>
-                      <Text style={styles.explorePillText}>View Guide</Text>
-                      <Ionicons name="arrow-forward" size={13} color={colors.navy} />
-                    </View>
-                  </View>
-                </View>
-              </TouchableOpacity>
-            </View>
+            <AnimatedDestinationCard
+              key={d.id}
+              destination={d}
+              index={index}
+              filterTrigger={`${selectedCategory}-${searchQuery}`}
+              fav={fav}
+              onToggleFav={() => toggleFavorite('destination', d.id)}
+              onPress={() => router.push({ pathname: '/destination/[id]', params: { id: d.id } })}
+            />
           );
         })}
 
@@ -280,6 +424,11 @@ const styles = StyleSheet.create({
     backgroundColor: colors.ivory,
   },
   // ── 10x Luxury Search Section ───────────────────────
+  collapsibleHeaderWrap: {
+    overflow: 'hidden',
+    backgroundColor: '#FFFFFF',
+    zIndex: 10,
+  },
   searchSectionWrap: {
     backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
