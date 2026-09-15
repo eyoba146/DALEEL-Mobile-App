@@ -266,6 +266,7 @@ export default function InvestmentsScreen() {
       <ScreenHeader
         title="Investment Hub"
         subtitle="Diaspora opportunities, incentives & ventures"
+        showBack={true}
         badgeCount={opportunities.length}
       />
 
