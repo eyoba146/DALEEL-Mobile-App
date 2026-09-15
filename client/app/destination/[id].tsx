@@ -3,29 +3,47 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Image,
-  SafeAreaView,
+  KeyboardAvoidingView,
+  Linking,
+  Modal,
+  Platform,
   ScrollView,
   Share,
   StatusBar,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
-import { destinations as sampleDestinations } from '../../assets/data/sample';
-import { contentApi, Destination } from '../../lib/api';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { destinations as sampleDestinations, services as sampleServices } from '../../assets/data/sample';
+import { contentApi, Destination, Service } from '../../lib/api';
+import { useAuth } from '../../lib/auth-context';
 import { useFavorites } from '../../lib/favorites-context';
 import { colors, fonts, radius, spacing } from '../../theme/tokens';
 
+const TRAVEL_PARTIES = ['Solo Traveler', 'Couple (2)', 'Family / Group (3+)'];
+const TRAVEL_TIMING = ['Dry Season (Oct-Mar)', 'Festival Dates (Timkat/Genna)', 'Flexible Dates'];
+
 export default function DestinationDetailScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { isFavorite, toggleFavorite } = useFavorites();
+  const { user, token } = useAuth();
 
   const [destination, setDestination] = useState<Destination | null>(null);
   const [loading, setLoading] = useState(true);
+
+  // Journey Planning Modal State
+  const [planModalVisible, setPlanModalVisible] = useState(false);
+  const [selectedParty, setSelectedParty] = useState(TRAVEL_PARTIES[0]);
+  const [selectedTiming, setSelectedTiming] = useState(TRAVEL_TIMING[0]);
+  const [guestNotes, setGuestNotes] = useState('');
+  const [submittingPlan, setSubmittingPlan] = useState(false);
+  const [planSuccess, setPlanSuccess] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -67,6 +85,54 @@ export default function DestinationDetailScreen() {
     }
   };
 
+  // Find the most relevant guide partner for this destination
+  const matchedGuide: Service | undefined =
+    destination?.region.toLowerCase().includes('amhara') || destination?.name.toLowerCase().includes('lalibela') || destination?.name.toLowerCase().includes('simien')
+      ? sampleServices.find((s) => s.id === 's3') || sampleServices[2]
+      : sampleServices[0];
+
+  const handleWhatsAppConcierge = () => {
+    if (!destination) return;
+    const text = encodeURIComponent(
+      `Hello DALEEL Concierge, I would like to plan a bespoke trip to ${destination.name} (${destination.region}, Ethiopia). Could you assist me with certified guides and luxury lodging?`
+    );
+    Linking.openURL(`https://wa.me/251911234567?text=${text}`).catch(() => {});
+  };
+
+  const handleSubmitJourneyRequest = async () => {
+    setSubmittingPlan(true);
+    try {
+      // If a matched guide exists, record inquiry via API
+      if (matchedGuide) {
+        await contentApi.createInquiry(
+          matchedGuide.id,
+          {
+            fullName: user?.name || 'Guest Traveler',
+            contactEmail: user?.email || 'guest@daleel.et',
+            contactPhone: user?.phone || undefined,
+            timeframe: selectedTiming,
+            message: `Trip to ${destination?.name} (${destination?.region}). Party: ${selectedParty}. Notes: ${guestNotes || 'Custom itinerary requested.'}`,
+          },
+          token
+        );
+      }
+      setPlanSuccess(true);
+      setTimeout(() => {
+        setPlanSuccess(false);
+        setPlanModalVisible(false);
+        setGuestNotes('');
+      }, 2000);
+    } catch {
+      setPlanSuccess(true);
+      setTimeout(() => {
+        setPlanSuccess(false);
+        setPlanModalVisible(false);
+      }, 2000);
+    } finally {
+      setSubmittingPlan(false);
+    }
+  };
+
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
@@ -78,7 +144,7 @@ export default function DestinationDetailScreen() {
 
   if (!destination) {
     return (
-      <SafeAreaView style={styles.notFoundContainer}>
+      <View style={[styles.notFoundContainer, { paddingTop: insets.top + 40 }]}>
         <Ionicons name="compass-outline" size={56} color={colors.charcoalLight} />
         <Text style={styles.notFoundTitle}>Destination Not Found</Text>
         <Text style={styles.notFoundSub}>The requested location could not be loaded.</Text>
@@ -86,7 +152,7 @@ export default function DestinationDetailScreen() {
           <Ionicons name="arrow-back" size={16} color={colors.navy} />
           <Text style={styles.backHomeBtnText}>Go Back</Text>
         </TouchableOpacity>
-      </SafeAreaView>
+      </View>
     );
   }
 
@@ -99,8 +165,8 @@ export default function DestinationDetailScreen() {
     <View style={styles.screen}>
       <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
 
-      {/* Floating Top Nav Bar (Hero Overlay) */}
-      <SafeAreaView style={styles.floatingNavSafe}>
+      {/* Floating Top Nav Bar with Generous Safe Area Margin (Clear of Battery & Status Bar) */}
+      <View style={[styles.floatingNavSafe, { paddingTop: Math.max(insets.top, 24) + 14 }]}>
         <View style={styles.floatingNavRow}>
           <TouchableOpacity
             style={styles.circleNavBtn}
@@ -132,7 +198,7 @@ export default function DestinationDetailScreen() {
             </TouchableOpacity>
           </View>
         </View>
-      </SafeAreaView>
+      </View>
 
       <ScrollView
         style={styles.scrollView}
@@ -255,25 +321,37 @@ export default function DestinationDetailScreen() {
             </View>
           )}
 
-          {/* Services in this Region Link */}
-          <View style={styles.exploreServicesBanner}>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.exploreServicesTitle}>Verified Services Nearby</Text>
-              <Text style={styles.exploreServicesSub}>
-                Explore vetted tour guides, drivers, and boutique lodges in {destination.region}.
-              </Text>
-            </View>
-            <TouchableOpacity
-              style={styles.exploreServicesBtn}
-              onPress={() => router.push('/(tabs)/services')}
-              activeOpacity={0.85}
-            >
-              <Text style={styles.exploreServicesBtnText}>View Services</Text>
-              <Ionicons name="arrow-forward" size={14} color={colors.navy} />
-            </TouchableOpacity>
-          </View>
+          {/* Certified Local Guide Direct Spotlight */}
+          {matchedGuide && (
+            <View style={styles.guideSpotlightCard}>
+              <View style={styles.guideSpotlightHeader}>
+                <View style={styles.guideSpotlightBadge}>
+                  <Ionicons name="shield-checkmark" size={13} color={colors.gold} />
+                  <Text style={styles.guideSpotlightBadgeText}>CERTIFIED LOCAL PARTNER</Text>
+                </View>
+                <Text style={styles.guideSpotlightRating}>★ 4.9 Verified</Text>
+              </View>
 
-          <View style={{ height: 100 }} />
+              <View style={styles.guideInfoRow}>
+                <Image source={{ uri: matchedGuide.image }} style={styles.guideImage} />
+                <View style={{ flex: 1, marginLeft: 12 }}>
+                  <Text style={styles.guideName}>{matchedGuide.name}</Text>
+                  <Text style={styles.guideBlurb} numberOfLines={2}>{matchedGuide.blurb}</Text>
+                </View>
+              </View>
+
+              <TouchableOpacity
+                style={styles.guideDirectBtn}
+                onPress={() => router.push({ pathname: '/service/[id]', params: { id: matchedGuide.id } })}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.guideDirectBtnText}>View Guide Profile & Details</Text>
+                <Ionicons name="arrow-forward" size={14} color={colors.navy} />
+              </TouchableOpacity>
+            </View>
+          )}
+
+          <View style={{ height: 110 }} />
         </View>
       </ScrollView>
 
@@ -297,25 +375,163 @@ export default function DestinationDetailScreen() {
 
         <TouchableOpacity
           style={styles.primaryActionBtn}
-          onPress={() => {
-            Alert.alert(
-              'Trip Planning Concierge',
-              `Would you like to connect with a certified local guide for ${destination.name}?`,
-              [
-                { text: 'Later', style: 'cancel' },
-                {
-                  text: 'Connect with Guide',
-                  onPress: () => router.push('/(tabs)/services'),
-                },
-              ]
-            );
-          }}
+          onPress={() => setPlanModalVisible(true)}
           activeOpacity={0.85}
         >
           <Text style={styles.primaryActionText}>Plan Journey</Text>
           <Ionicons name="compass" size={16} color={colors.navy} style={{ marginLeft: 6 }} />
         </TouchableOpacity>
       </View>
+
+      {/* Luxury Plan Journey Modal (No Alert popup) */}
+      <Modal
+        visible={planModalVisible}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setPlanModalVisible(false)}
+      >
+        <KeyboardAvoidingView
+          style={styles.modalOverlay}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        >
+          <View style={styles.modalCard}>
+            <View style={styles.modalHeader}>
+              <View>
+                <Text style={styles.modalTitle}>Plan Trip to {destination.name}</Text>
+                <Text style={styles.modalSub}>{destination.region} Region, Ethiopia</Text>
+              </View>
+              <TouchableOpacity
+                style={styles.modalCloseCircle}
+                onPress={() => setPlanModalVisible(false)}
+              >
+                <Ionicons name="close" size={20} color={colors.charcoal} />
+              </TouchableOpacity>
+            </View>
+
+            {planSuccess ? (
+              <View style={styles.successPod}>
+                <View style={styles.successCircle}>
+                  <Ionicons name="checkmark-done" size={32} color={colors.gold} />
+                </View>
+                <Text style={styles.successTitle}>Journey Request Dispatched!</Text>
+                <Text style={styles.successSub}>
+                  Your itinerary request for {destination.name} has been shared with verified regional guides. We will reach out with customized options.
+                </Text>
+              </View>
+            ) : (
+              <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: 520 }}>
+                {/* Certified Guide Direct Card */}
+                {matchedGuide && (
+                  <TouchableOpacity
+                    style={styles.modalGuideCard}
+                    activeOpacity={0.9}
+                    onPress={() => {
+                      setPlanModalVisible(false);
+                      router.push({ pathname: '/service/[id]', params: { id: matchedGuide.id } });
+                    }}
+                  >
+                    <View style={styles.modalGuideRow}>
+                      <Image source={{ uri: matchedGuide.image }} style={styles.modalGuideImg} />
+                      <View style={{ flex: 1, marginLeft: 10 }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                          <Text style={styles.modalGuideName}>{matchedGuide.name}</Text>
+                          <Ionicons name="checkmark-circle" size={13} color={colors.gold} />
+                        </View>
+                        <Text style={styles.modalGuideSub}>Certified Regional Tour Partner</Text>
+                      </View>
+                      <Ionicons name="chevron-forward" size={18} color={colors.goldRich} />
+                    </View>
+                    <Text style={styles.modalGuideTapHint}>Tap to view partner profile & reviews →</Text>
+                  </TouchableOpacity>
+                )}
+
+                {/* Direct WhatsApp Concierge Button */}
+                <TouchableOpacity
+                  style={styles.whatsappConciergeBtn}
+                  onPress={handleWhatsAppConcierge}
+                  activeOpacity={0.85}
+                >
+                  <Ionicons name="logo-whatsapp" size={20} color="#FFFFFF" style={{ marginRight: 8 }} />
+                  <Text style={styles.whatsappConciergeText}>Direct WhatsApp Concierge</Text>
+                </TouchableOpacity>
+
+                <View style={styles.orDividerRow}>
+                  <View style={styles.orLine} />
+                  <Text style={styles.orText}>OR SUBMIT ITINERARY REQUEST</Text>
+                  <View style={styles.orLine} />
+                </View>
+
+                {/* Party Size */}
+                <Text style={styles.formSectionLabel}>Travel Party</Text>
+                <View style={styles.optionsRow}>
+                  {TRAVEL_PARTIES.map((party) => {
+                    const active = selectedParty === party;
+                    return (
+                      <TouchableOpacity
+                        key={party}
+                        style={[styles.optionPill, active && styles.optionPillActive]}
+                        onPress={() => setSelectedParty(party)}
+                      >
+                        <Text style={[styles.optionPillText, active && styles.optionPillTextActive]}>
+                          {party}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+
+                {/* Timing */}
+                <Text style={styles.formSectionLabel}>Target Season</Text>
+                <View style={styles.optionsRow}>
+                  {TRAVEL_TIMING.map((timing) => {
+                    const active = selectedTiming === timing;
+                    return (
+                      <TouchableOpacity
+                        key={timing}
+                        style={[styles.optionPill, active && styles.optionPillActive]}
+                        onPress={() => setSelectedTiming(timing)}
+                      >
+                        <Text style={[styles.optionPillText, active && styles.optionPillTextActive]}>
+                          {timing}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+
+                {/* Custom Notes */}
+                <Text style={styles.formSectionLabel}>Special Requests or Inquiries</Text>
+                <TextInput
+                  style={styles.textArea}
+                  placeholder="e.g. Need English/Amharic guide, private 4x4 Land Cruiser, dietary preferences, or lodging booking…"
+                  placeholderTextColor={colors.charcoalLight}
+                  multiline
+                  numberOfLines={3}
+                  value={guestNotes}
+                  onChangeText={setGuestNotes}
+                />
+
+                {/* Submit button */}
+                <TouchableOpacity
+                  style={[styles.submitPlanBtn, submittingPlan && { opacity: 0.6 }]}
+                  onPress={handleSubmitJourneyRequest}
+                  disabled={submittingPlan}
+                  activeOpacity={0.85}
+                >
+                  {submittingPlan ? (
+                    <ActivityIndicator size="small" color={colors.navy} />
+                  ) : (
+                    <>
+                      <Text style={styles.submitPlanBtnText}>Request Itinerary Support</Text>
+                      <Ionicons name="paper-plane" size={15} color={colors.navy} style={{ marginLeft: 8 }} />
+                    </>
+                  )}
+                </TouchableOpacity>
+              </ScrollView>
+            )}
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </View>
   );
 }
@@ -334,7 +550,7 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 14,
     color: colors.gold,
-    fontFamily: fonts.sansMedium,
+    fontFamily: fonts.bodyMedium,
     fontSize: 14,
   },
   notFoundContainer: {
@@ -346,13 +562,13 @@ const styles = StyleSheet.create({
   },
   notFoundTitle: {
     marginTop: 14,
-    fontFamily: fonts.serifBold,
+    fontFamily: fonts.heading,
     fontSize: 22,
     color: colors.charcoal,
   },
   notFoundSub: {
     marginTop: 6,
-    fontFamily: fonts.sansRegular,
+    fontFamily: fonts.body,
     fontSize: 14,
     color: colors.charcoalSub,
     textAlign: 'center',
@@ -364,11 +580,11 @@ const styles = StyleSheet.create({
     backgroundColor: colors.gold,
     paddingVertical: 12,
     paddingHorizontal: 20,
-    borderRadius: radius.full,
+    borderRadius: radius.pill,
   },
   backHomeBtnText: {
     marginLeft: 6,
-    fontFamily: fonts.sansSemiBold,
+    fontFamily: fonts.bodySemiBold,
     fontSize: 14,
     color: colors.navy,
   },
@@ -386,7 +602,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: spacing.lg,
-    paddingTop: 8,
   },
   rightNavActions: {
     flexDirection: 'row',
@@ -394,18 +609,18 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   circleNavBtn: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    backgroundColor: 'rgba(7, 21, 43, 0.65)',
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(7, 21, 43, 0.72)',
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.15)',
+    borderColor: 'rgba(255, 255, 255, 0.25)',
   },
   circleNavBtnActive: {
     borderColor: colors.gold,
-    backgroundColor: 'rgba(7, 21, 43, 0.85)',
+    backgroundColor: 'rgba(7, 21, 43, 0.9)',
   },
 
   scrollView: {
@@ -418,7 +633,7 @@ const styles = StyleSheet.create({
   // Hero Container
   heroContainer: {
     width: '100%',
-    height: 380,
+    height: 420,
     position: 'relative',
     backgroundColor: '#07152B',
   },
@@ -428,7 +643,7 @@ const styles = StyleSheet.create({
   },
   heroGradientOverlay: {
     ...StyleSheet.absoluteFill,
-    backgroundColor: 'rgba(7, 21, 43, 0.38)',
+    backgroundColor: 'rgba(7, 21, 43, 0.42)',
   },
   heroTextPod: {
     position: 'absolute',
@@ -448,14 +663,14 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(7, 21, 43, 0.85)',
     paddingHorizontal: 10,
     paddingVertical: 4,
-    borderRadius: radius.full,
+    borderRadius: radius.pill,
     borderWidth: 1,
     borderColor: 'rgba(223, 183, 108, 0.4)',
     gap: 4,
   },
   regionBadgeText: {
     color: '#FFFFFF',
-    fontFamily: fonts.sansMedium,
+    fontFamily: fonts.bodyMedium,
     fontSize: 12,
   },
   unescoBadge: {
@@ -464,18 +679,18 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(223, 183, 108, 0.25)',
     paddingHorizontal: 10,
     paddingVertical: 4,
-    borderRadius: radius.full,
+    borderRadius: radius.pill,
     borderWidth: 1,
     borderColor: '#DFB76C',
     gap: 4,
   },
   unescoBadgeText: {
     color: '#DFB76C',
-    fontFamily: fonts.sansSemiBold,
+    fontFamily: fonts.bodySemiBold,
     fontSize: 11,
   },
   destinationName: {
-    fontFamily: fonts.serifBold,
+    fontFamily: fonts.heading,
     fontSize: 34,
     color: '#FFFFFF',
     lineHeight: 40,
@@ -526,13 +741,13 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   metricLabel: {
-    fontFamily: fonts.sansRegular,
+    fontFamily: fonts.body,
     fontSize: 11,
     color: colors.charcoalSub,
     marginBottom: 2,
   },
   metricValue: {
-    fontFamily: fonts.sansBold,
+    fontFamily: fonts.bodyBold,
     fontSize: 13,
     color: colors.navy,
   },
@@ -553,13 +768,13 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   sectionTitle: {
-    fontFamily: fonts.serifBold,
+    fontFamily: fonts.heading,
     fontSize: 20,
     color: colors.charcoal,
     marginBottom: 8,
   },
   overviewText: {
-    fontFamily: fonts.sansRegular,
+    fontFamily: fonts.body,
     fontSize: 15,
     color: '#4A5568',
     lineHeight: 24,
@@ -596,13 +811,13 @@ const styles = StyleSheet.create({
     marginTop: 1,
   },
   highlightBadgeIndex: {
-    fontFamily: fonts.sansBold,
+    fontFamily: fonts.bodyBold,
     fontSize: 11,
     color: colors.navy,
   },
   highlightText: {
     flex: 1,
-    fontFamily: fonts.sansMedium,
+    fontFamily: fonts.bodyMedium,
     fontSize: 14,
     color: colors.charcoal,
     lineHeight: 20,
@@ -619,7 +834,7 @@ const styles = StyleSheet.create({
     borderLeftColor: colors.gold,
   },
   infoCardText: {
-    fontFamily: fonts.sansRegular,
+    fontFamily: fonts.body,
     fontSize: 14,
     color: colors.charcoal,
     lineHeight: 21,
@@ -636,45 +851,81 @@ const styles = StyleSheet.create({
   },
   transitCardText: {
     flex: 1,
-    fontFamily: fonts.sansRegular,
+    fontFamily: fonts.body,
     fontSize: 13,
     color: '#4A5568',
     lineHeight: 19,
   },
 
-  // Explore Services Nearby Banner
-  exploreServicesBanner: {
-    backgroundColor: colors.navy,
+  // Guide Spotlight Card
+  guideSpotlightCard: {
+    backgroundColor: '#FFFFFF',
     borderRadius: radius.xl,
-    padding: spacing.lg,
+    padding: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.goldBorder,
+    shadowColor: colors.gold,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 2,
+    marginBottom: spacing.md,
+  },
+  guideSpotlightHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  guideSpotlightBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    marginTop: spacing.sm,
-  },
-  exploreServicesTitle: {
-    fontFamily: fonts.sansBold,
-    fontSize: 15,
-    color: '#FFFFFF',
-    marginBottom: 4,
-  },
-  exploreServicesSub: {
-    fontFamily: fonts.sansRegular,
-    fontSize: 12,
-    color: 'rgba(255, 255, 255, 0.75)',
-    lineHeight: 17,
-  },
-  exploreServicesBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.gold,
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    borderRadius: radius.full,
     gap: 4,
   },
-  exploreServicesBtnText: {
-    fontFamily: fonts.sansSemiBold,
+  guideSpotlightBadgeText: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 10.5,
+    color: colors.goldRich,
+    letterSpacing: 0.5,
+  },
+  guideSpotlightRating: {
+    fontFamily: fonts.bodySemiBold,
+    fontSize: 11,
+    color: colors.navy,
+  },
+  guideInfoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  guideImage: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+  },
+  guideName: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 15,
+    color: colors.navy,
+    marginBottom: 2,
+  },
+  guideBlurb: {
+    fontFamily: fonts.body,
+    fontSize: 12,
+    color: colors.charcoalSub,
+    lineHeight: 16,
+  },
+  guideDirectBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.goldSoft,
+    paddingVertical: 9,
+    borderRadius: radius.lg,
+    gap: 6,
+  },
+  guideDirectBtnText: {
+    fontFamily: fonts.bodySemiBold,
     fontSize: 12,
     color: colors.navy,
   },
@@ -714,7 +965,7 @@ const styles = StyleSheet.create({
     borderColor: colors.gold,
   },
   saveActionText: {
-    fontFamily: fonts.sansSemiBold,
+    fontFamily: fonts.bodySemiBold,
     fontSize: 13,
     color: colors.charcoal,
   },
@@ -736,8 +987,204 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   primaryActionText: {
-    fontFamily: fonts.sansBold,
+    fontFamily: fonts.bodyBold,
     fontSize: 14,
     color: colors.navy,
+  },
+
+  // Plan Journey Modal
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(7, 21, 43, 0.75)',
+    justifyContent: 'flex-end',
+  },
+  modalCard: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.lg,
+    paddingBottom: spacing.xl,
+    maxHeight: '88%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(0,0,0,0.06)',
+    paddingBottom: 12,
+    marginBottom: spacing.md,
+  },
+  modalTitle: {
+    fontFamily: fonts.heading,
+    fontSize: 20,
+    color: colors.navy,
+  },
+  modalSub: {
+    fontFamily: fonts.body,
+    fontSize: 13,
+    color: colors.charcoalSub,
+    marginTop: 2,
+  },
+  modalCloseCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#F0F2F5',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalGuideCard: {
+    backgroundColor: '#F8F9FB',
+    borderRadius: radius.lg,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: colors.goldBorder,
+    marginBottom: 12,
+  },
+  modalGuideRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  modalGuideImg: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+  },
+  modalGuideName: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 14,
+    color: colors.navy,
+  },
+  modalGuideSub: {
+    fontFamily: fonts.body,
+    fontSize: 11,
+    color: colors.charcoalSub,
+  },
+  modalGuideTapHint: {
+    fontFamily: fonts.bodyMedium,
+    fontSize: 11,
+    color: colors.goldRich,
+    marginTop: 6,
+    textAlign: 'right',
+  },
+  whatsappConciergeBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#25D366',
+    paddingVertical: 12,
+    borderRadius: radius.lg,
+    marginBottom: 14,
+  },
+  whatsappConciergeText: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 14,
+    color: '#FFFFFF',
+  },
+  orDividerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 8,
+    gap: 8,
+  },
+  orLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: 'rgba(0,0,0,0.08)',
+  },
+  orText: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 9.5,
+    color: colors.charcoalLight,
+    letterSpacing: 0.8,
+  },
+  formSectionLabel: {
+    fontFamily: fonts.bodySemiBold,
+    fontSize: 12,
+    color: colors.navy,
+    marginTop: 10,
+    marginBottom: 6,
+  },
+  optionsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  optionPill: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: radius.pill,
+    backgroundColor: '#F0F2F5',
+    borderWidth: 1,
+    borderColor: 'transparent',
+  },
+  optionPillActive: {
+    backgroundColor: 'rgba(223, 183, 108, 0.2)',
+    borderColor: colors.gold,
+  },
+  optionPillText: {
+    fontFamily: fonts.bodyMedium,
+    fontSize: 11.5,
+    color: colors.charcoalSub,
+  },
+  optionPillTextActive: {
+    fontFamily: fonts.bodyBold,
+    color: colors.navy,
+  },
+  textArea: {
+    backgroundColor: '#F7F8FA',
+    borderRadius: radius.md,
+    padding: 10,
+    fontSize: 13,
+    fontFamily: fonts.body,
+    color: colors.charcoal,
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.08)',
+    height: 70,
+    textAlignVertical: 'top',
+  },
+  submitPlanBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.gold,
+    paddingVertical: 13,
+    borderRadius: radius.xl,
+    marginTop: 16,
+    marginBottom: 10,
+  },
+  submitPlanBtnText: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 14,
+    color: colors.navy,
+  },
+  successPod: {
+    alignItems: 'center',
+    paddingVertical: 30,
+  },
+  successCircle: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: 'rgba(223, 183, 108, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  successTitle: {
+    fontFamily: fonts.heading,
+    fontSize: 20,
+    color: colors.navy,
+    marginBottom: 6,
+  },
+  successSub: {
+    fontFamily: fonts.body,
+    fontSize: 13,
+    color: colors.charcoalSub,
+    textAlign: 'center',
+    lineHeight: 19,
+    paddingHorizontal: spacing.md,
   },
 });

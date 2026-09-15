@@ -257,29 +257,143 @@ export default function SavedScreen() {
         })}
 
         {filteredItems.length === 0 && (
-          <View style={styles.empty}>
-            <View style={styles.emptyIconBg}>
-              <Ionicons name="bookmark-outline" size={40} color={colors.navy} />
+          <View style={styles.emptyContainer}>
+            {/* 1. Concentric Glowing Gold Badge */}
+            <View style={styles.emptyGlowOuter}>
+              <View style={styles.emptyGlowMiddle}>
+                <View style={styles.emptyGlowCore}>
+                  <Ionicons name="bookmark" size={30} color={colors.goldRich} />
+                </View>
+              </View>
             </View>
-            <Text style={styles.emptyTitle}>Nothing saved yet</Text>
-            <Text style={styles.emptyText}>
-              Tap the bookmark icon on any destination, service, or event to save it here for instant access.
+
+            {/* 2. Headline & Narrative */}
+            <View style={styles.emptyEyebrowBadge}>
+              <Ionicons name="sparkles" size={11} color={colors.goldRich} />
+              <Text style={styles.emptyEyebrowText}>YOUR PERSONAL COLLECTION</Text>
+            </View>
+            
+            <Text style={styles.emptyHeadline}>
+              {filter === 'destination'
+                ? 'No Places Bookmarked'
+                : filter === 'service'
+                ? 'No Partners Bookmarked'
+                : filter === 'event'
+                ? 'No Events Saved'
+                : 'Nothing Saved Yet'}
             </Text>
-            <View style={{ flexDirection: 'row', gap: 10, marginTop: 16 }}>
+
+            <Text style={styles.emptySubtext}>
+              {filter === 'destination'
+                ? 'Bookmark UNESCO world heritage sites, highland treks, and historical landmarks to organize your itinerary.'
+                : filter === 'service'
+                ? 'Save trusted relocation partners, legal counsel, and banking concierges for instant offline reference.'
+                : filter === 'event'
+                ? 'Save Ethiopian cultural festivals, business summits, and diaspora forums to receive schedule reminders.'
+                : 'As you discover Ethiopia’s timeless heritage, vetted diaspora services, and cultural events, tap the bookmark icon to curate your personal collection here.'}
+            </Text>
+
+            {/* 3. Quick Action Exploration Cards */}
+            <View style={styles.emptyActionsGrid}>
               <TouchableOpacity
-                style={styles.exploreButton}
+                style={styles.emptyActionCard}
                 onPress={() => router.push('/(tabs)/explore')}
-                activeOpacity={0.85}
+                activeOpacity={0.88}
               >
-                <Text style={styles.exploreButtonText}>Explore Places</Text>
+                <View style={styles.emptyActionIconCircle}>
+                  <Ionicons name="compass" size={20} color={colors.navy} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.emptyActionTitle}>Explore Heritage</Text>
+                  <Text style={styles.emptyActionDesc}>Lalibela, Simien, Addis & Harar</Text>
+                </View>
+                <Ionicons name="arrow-forward" size={16} color={colors.goldRich} />
               </TouchableOpacity>
+
               <TouchableOpacity
-                style={[styles.exploreButton, { backgroundColor: colors.gold }]}
-                onPress={() => router.push('/events')}
-                activeOpacity={0.85}
+                style={styles.emptyActionCard}
+                onPress={() => router.push('/(tabs)/services')}
+                activeOpacity={0.88}
               >
-                <Text style={[styles.exploreButtonText, { color: colors.navy }]}>View Events</Text>
+                <View style={styles.emptyActionIconCircle}>
+                  <Ionicons name="briefcase" size={19} color={colors.navy} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.emptyActionTitle}>Vetted Services</Text>
+                  <Text style={styles.emptyActionDesc}>Relocation, legal, banking & tours</Text>
+                </View>
+                <Ionicons name="arrow-forward" size={16} color={colors.goldRich} />
               </TouchableOpacity>
+            </View>
+
+            {/* 4. Suggested Starters Carousel */}
+            <View style={styles.suggestedSection}>
+              <View style={styles.suggestedHeaderRow}>
+                <Ionicons name="star" size={13} color={colors.goldRich} />
+                <Text style={styles.suggestedHeaderTitle}>Popular to Start Your Collection</Text>
+              </View>
+
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.suggestedScrollContent}
+              >
+                {allDestinations.slice(0, 2).map((d) => (
+                  <TouchableOpacity
+                    key={d.id}
+                    style={styles.suggestedCard}
+                    onPress={() => router.push({ pathname: '/destination/[id]', params: { id: d.id } })}
+                    activeOpacity={0.9}
+                  >
+                    <Image source={{ uri: d.image }} style={styles.suggestedImage} />
+                    <View style={styles.suggestedOverlay} />
+                    <View style={styles.suggestedBody}>
+                      <View style={styles.suggestedPill}>
+                        <Text style={styles.suggestedPillText}>{d.region}</Text>
+                      </View>
+                      <Text style={styles.suggestedName}>{d.name}</Text>
+                      <TouchableOpacity
+                        style={styles.suggestedSaveBtn}
+                        onPress={(e) => {
+                          e.stopPropagation?.();
+                          toggleFavorite('destination', d.id);
+                        }}
+                      >
+                        <Ionicons name="bookmark-outline" size={13} color={colors.navy} />
+                        <Text style={styles.suggestedSaveBtnText}>Save</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </TouchableOpacity>
+                ))}
+
+                {allServices.slice(0, 1).map((s) => (
+                  <TouchableOpacity
+                    key={s.id}
+                    style={styles.suggestedCard}
+                    onPress={() => router.push({ pathname: '/service/[id]', params: { id: s.id } })}
+                    activeOpacity={0.9}
+                  >
+                    <Image source={{ uri: s.image }} style={styles.suggestedImage} />
+                    <View style={styles.suggestedOverlay} />
+                    <View style={styles.suggestedBody}>
+                      <View style={styles.suggestedPill}>
+                        <Text style={styles.suggestedPillText}>{s.category}</Text>
+                      </View>
+                      <Text style={styles.suggestedName} numberOfLines={1}>{s.name}</Text>
+                      <TouchableOpacity
+                        style={styles.suggestedSaveBtn}
+                        onPress={(e) => {
+                          e.stopPropagation?.();
+                          toggleFavorite('service', s.id);
+                        }}
+                      >
+                        <Ionicons name="bookmark-outline" size={13} color={colors.navy} />
+                        <Text style={styles.suggestedSaveBtnText}>Save</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
             </View>
           </View>
         )}
@@ -433,46 +547,202 @@ const styles = StyleSheet.create({
     padding: 10,
   },
 
-  empty: {
+  // ── 10x Empty State Styles ─────────────────────────
+  emptyContainer: {
+    paddingHorizontal: 20,
+    paddingTop: 36,
+    paddingBottom: 40,
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 24,
-    paddingVertical: 60,
-    gap: 12,
   },
-  emptyIconBg: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: '#FFFFFF',
-    alignItems: 'center',
+  emptyGlowOuter: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    backgroundColor: 'rgba(223, 183, 108, 0.1)',
     justifyContent: 'center',
+    alignItems: 'center',
     borderWidth: 1.5,
-    borderColor: colors.border,
-    marginBottom: 4,
+    borderColor: 'rgba(223, 183, 108, 0.25)',
+    marginBottom: 16,
   },
-  emptyTitle: {
+  emptyGlowMiddle: {
+    width: 76,
+    height: 76,
+    borderRadius: 38,
+    backgroundColor: 'rgba(223, 183, 108, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  emptyGlowCore: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#FFFFFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: colors.gold,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  emptyEyebrowBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(223, 183, 108, 0.15)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: radius.pill,
+    gap: 5,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(223, 183, 108, 0.35)',
+  },
+  emptyEyebrowText: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 10,
+    color: colors.goldRich,
+    letterSpacing: 1,
+  },
+  emptyHeadline: {
     fontFamily: fonts.heading,
-    fontSize: 22,
-    color: colors.charcoal,
+    fontSize: 26,
+    color: colors.navy,
+    textAlign: 'center',
+    marginBottom: 8,
   },
-  emptyText: {
+  emptySubtext: {
     fontFamily: fonts.body,
-    fontSize: 14,
+    fontSize: 13.5,
     color: colors.charcoalSub,
     textAlign: 'center',
     lineHeight: 21,
+    paddingHorizontal: 10,
+    marginBottom: 24,
   },
-  exploreButton: {
-    backgroundColor: colors.gold,
-    paddingHorizontal: 22,
-    paddingVertical: 12,
-    borderRadius: 14,
-    marginTop: 8,
+
+  // Action Cards Grid
+  emptyActionsGrid: {
+    width: '100%',
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 30,
   },
-  exploreButtonText: {
+  emptyActionCard: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+    borderRadius: radius.xl,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.06)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
+    alignItems: 'flex-start',
+    gap: 8,
+  },
+  emptyActionIconCircle: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: colors.surface,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  emptyActionTitle: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 13.5,
+    color: colors.navy,
+  },
+  emptyActionDesc: {
+    fontFamily: fonts.body,
+    fontSize: 11,
+    color: colors.charcoalSub,
+    marginTop: 2,
+    lineHeight: 15,
+  },
+
+  // Suggested Starters Section
+  suggestedSection: {
+    width: '100%',
+    backgroundColor: '#FFFFFF',
+    borderRadius: radius.xl,
+    paddingVertical: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.05)',
+  },
+  suggestedHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    marginBottom: 12,
+    gap: 6,
+  },
+  suggestedHeaderTitle: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 13,
+    color: colors.navy,
+  },
+  suggestedScrollContent: {
+    paddingHorizontal: 16,
+    gap: 12,
+  },
+  suggestedCard: {
+    width: 170,
+    height: 180,
+    borderRadius: radius.lg,
+    overflow: 'hidden',
+    position: 'relative',
+    backgroundColor: colors.navy,
+  },
+  suggestedImage: {
+    width: '100%',
+    height: '100%',
+  },
+  suggestedOverlay: {
+    ...StyleSheet.absoluteFill,
+    backgroundColor: 'rgba(7, 21, 43, 0.48)',
+  },
+  suggestedBody: {
+    position: 'absolute',
+    bottom: 10,
+    left: 10,
+    right: 10,
+  },
+  suggestedPill: {
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(255, 255, 255, 0.25)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: radius.pill,
+    marginBottom: 4,
+  },
+  suggestedPillText: {
     fontFamily: fonts.bodySemiBold,
-    fontSize: 14,
+    fontSize: 9.5,
     color: '#FFFFFF',
+  },
+  suggestedName: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 13,
+    color: '#FFFFFF',
+    marginBottom: 6,
+  },
+  suggestedSaveBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    backgroundColor: colors.gold,
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    borderRadius: radius.pill,
+    gap: 4,
+  },
+  suggestedSaveBtnText: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 10.5,
+    color: colors.navy,
   },
 });

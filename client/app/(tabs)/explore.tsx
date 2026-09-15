@@ -127,6 +127,8 @@ export default function ExploreScreen() {
             onBlur={() => setIsSearchFocused(false)}
             returnKeyType="search"
             clearButtonMode="never"
+            autoCorrect={false}
+            autoCapitalize="none"
           />
 
           {searchQuery.length > 0 ? (
@@ -178,6 +180,8 @@ export default function ExploreScreen() {
         style={{ flex: 1 }}
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
         refreshControl={
           <RefreshControl
             refreshing={isRefreshing}
@@ -303,11 +307,7 @@ const styles = StyleSheet.create({
   searchBarPodFocused: {
     borderColor: colors.gold,
     backgroundColor: '#FFFFFF',
-    shadowColor: colors.gold,
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 4,
+    borderWidth: 2,
   },
   searchIconCircle: {
     width: 32,

@@ -19,6 +19,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { services as sampleServices } from '../../assets/data/sample';
 import { contentApi, Service, ServiceInquiryPayload } from '../../lib/api';
 import { useAuth } from '../../lib/auth-context';
@@ -29,6 +30,7 @@ const TIMEFRAMES = ['Urgent (<48h)', 'Next 2 Weeks', 'Within 1-3 Months', 'Gener
 
 export default function ServiceDetailScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { isFavorite, toggleFavorite } = useFavorites();
   const { user, token } = useAuth();
@@ -181,8 +183,8 @@ export default function ServiceDetailScreen() {
     <View style={styles.screen}>
       <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
 
-      {/* Floating Top Nav Bar (Hero Overlay) */}
-      <SafeAreaView style={styles.floatingNavSafe}>
+      {/* Floating Top Nav Bar (Hero Overlay with generous Safe Area padding) */}
+      <View style={[styles.floatingNavSafe, { paddingTop: Math.max(insets.top, 24) + 14 }]}>
         <View style={styles.floatingNavRow}>
           <TouchableOpacity
             style={styles.circleNavBtn}
@@ -214,7 +216,7 @@ export default function ServiceDetailScreen() {
             </TouchableOpacity>
           </View>
         </View>
-      </SafeAreaView>
+      </View>
 
       <ScrollView
         style={styles.scrollView}
@@ -634,7 +636,7 @@ const styles = StyleSheet.create({
   // Hero Container
   heroContainer: {
     width: '100%',
-    height: 360,
+    height: 400,
     position: 'relative',
     backgroundColor: '#07152B',
   },
