@@ -303,7 +303,7 @@ export default function SavedScreen() {
                 <TouchableOpacity
                   style={styles.card}
                   activeOpacity={0.92}
-                  onPress={() => router.push('/events')}
+                  onPress={() => router.push({ pathname: '/event/[id]', params: { id: item.id } })}
                 >
                   <Image source={{ uri: item.image }} style={styles.cardImage} resizeMode="cover" />
                   <View style={styles.cardBody}>

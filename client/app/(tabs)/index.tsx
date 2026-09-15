@@ -262,7 +262,12 @@ export default function Home() {
           const fav = isFavorite('event', e.id);
           const dateStr = typeof e.date === 'string' ? e.date.split('T')[0] : 'Upcoming';
           return (
-            <TouchableOpacity key={e.id} activeOpacity={0.85} style={styles.eventCard}>
+            <TouchableOpacity
+              key={e.id}
+              activeOpacity={0.85}
+              style={styles.eventCard}
+              onPress={() => router.push({ pathname: '/event/[id]', params: { id: e.id } })}
+            >
               <Image source={{ uri: e.image }} style={styles.eventImage} />
               <View style={{ flex: 1, marginLeft: 14 }}>
                 <Text style={styles.eventTitle}>{e.title}</Text>
@@ -276,7 +281,10 @@ export default function Home() {
 
               <TouchableOpacity
                 style={styles.cardBookmarkBtn}
-                onPress={() => toggleFavorite('event', e.id)}
+                onPress={(evt) => {
+                  evt.stopPropagation?.();
+                  toggleFavorite('event', e.id);
+                }}
                 activeOpacity={0.7}
               >
                 <Ionicons

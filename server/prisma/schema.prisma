@@ -37,6 +37,7 @@ model User {
   passwordResets      PasswordReset[]
   serviceInquiries    ServiceInquiry[]
   investmentInquiries InvestmentInquiry[]
+  eventRsvps          EventRsvp[]
 }
 
 model Destination {
@@ -95,13 +96,40 @@ model ServiceInquiry {
 }
 
 model EventItem {
-  id        String   @id @default(uuid())
-  title     String
-  date      DateTime
-  city      String
-  category  String
-  image     String
-  createdAt DateTime @default(now())
+  id          String      @id @default(uuid())
+  title       String
+  date        DateTime
+  time        String?
+  city        String
+  venue       String?
+  category    String
+  price       String?     @default("Free")
+  organizer   String?
+  blurb       String?
+  description String?
+  agenda      String?
+  capacity    Int?
+  verified    Boolean     @default(true)
+  image       String
+  createdAt   DateTime    @default(now())
+
+  rsvps       EventRsvp[]
+}
+
+model EventRsvp {
+  id           String    @id @default(uuid())
+  eventId      String
+  userId       String?
+  fullName     String
+  email        String
+  phone        String?
+  ticketsCount Int       @default(1)
+  notes        String?
+  status       String    @default("confirmed")
+  createdAt    DateTime  @default(now())
+
+  event        EventItem @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user         User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
 }
 
 enum FavoriteType {

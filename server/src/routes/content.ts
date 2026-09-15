@@ -126,13 +126,80 @@ contentRouter.post('/services/:id/inquiry', async (req: Request, res: Response) 
 
 // --- Events ---
 
-contentRouter.get('/events', async (_req: Request, res: Response) => {
+contentRouter.get('/events', async (req: Request, res: Response) => {
   try {
-    const events = await prisma.eventItem.findMany({ orderBy: { date: 'asc' } });
+    const { category } = req.query;
+    const events = await prisma.eventItem.findMany({
+      where: category && category !== 'All' ? { category: String(category) } : undefined,
+      orderBy: { date: 'asc' },
+    });
     res.json(events);
   } catch (error) {
     console.error('Error fetching events:', error);
     res.status(500).json({ error: 'Failed to fetch events' });
+  }
+});
+
+contentRouter.get('/events/:id', async (req: Request, res: Response) => {
+  try {
+    const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+    const event = await prisma.eventItem.findUnique({
+      where: { id },
+      include: {
+        _count: {
+          select: { rsvps: true },
+        },
+      },
+    });
+
+    if (!event) {
+      return res.status(404).json({ error: 'Event not found' });
+    }
+
+    res.json(event);
+  } catch (error) {
+    console.error('Error fetching event by id:', error);
+    res.status(500).json({ error: 'Failed to fetch event details' });
+  }
+});
+
+contentRouter.post('/events/:id/rsvp', async (req: Request, res: Response) => {
+  try {
+    const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+    const { fullName, email, phone, ticketsCount, notes } = req.body;
+
+    if (!fullName || !email) {
+      return res.status(400).json({ error: 'Full name and email address are required' });
+    }
+
+    const event = await prisma.eventItem.findUnique({ where: { id } });
+    if (!event) {
+      return res.status(404).json({ error: 'Event not found' });
+    }
+
+    const userId = getOptionalUserId(req);
+
+    const rsvp = await prisma.eventRsvp.create({
+      data: {
+        eventId: id,
+        userId: userId ?? null,
+        fullName: String(fullName).trim(),
+        email: String(email).trim().toLowerCase(),
+        phone: phone ? String(phone).trim() : null,
+        ticketsCount: Number(ticketsCount) > 0 ? Math.min(Number(ticketsCount), 10) : 1,
+        notes: notes ? String(notes).trim() : null,
+        status: 'confirmed',
+      },
+    });
+
+    res.status(201).json({
+      success: true,
+      message: 'Your RSVP has been confirmed! An invitation confirmation has been registered.',
+      rsvp,
+    });
+  } catch (error) {
+    console.error('Error creating event RSVP:', error);
+    res.status(500).json({ error: 'Failed to register RSVP' });
   }
 });
 

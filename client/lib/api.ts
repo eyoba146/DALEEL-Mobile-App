@@ -181,9 +181,27 @@ export type EventItem = {
   id: string;
   title: string;
   date: string;
+  time?: string | null;
   city: string;
+  venue?: string | null;
   category: string;
+  price?: string | null;
+  organizer?: string | null;
+  blurb?: string | null;
+  description?: string | null;
+  agenda?: string | null;
+  capacity?: number | null;
+  verified?: boolean;
   image: string;
+  _count?: { rsvps: number };
+};
+
+export type EventRsvpPayload = {
+  fullName: string;
+  email: string;
+  phone?: string;
+  ticketsCount?: number;
+  notes?: string;
 };
 
 export type InvestmentOpportunity = {
@@ -247,7 +265,15 @@ export const contentApi = {
       body: data,
       token,
     }),
-  events: () => apiRequest<EventItem[]>('/events'),
+  events: (category?: string) =>
+    apiRequest<EventItem[]>(category && category !== 'All' ? `/events?category=${encodeURIComponent(category)}` : '/events'),
+  event: (id: string) => apiRequest<EventItem>(`/events/${id}`),
+  createEventRsvp: (eventId: string, data: EventRsvpPayload, token?: string | null) =>
+    apiRequest<{ success: boolean; message: string; rsvp: any }>(`/events/${eventId}/rsvp`, {
+      method: 'POST',
+      body: data,
+      token,
+    }),
   investments: (sector?: string) =>
     apiRequest<InvestmentOpportunity[]>(sector ? `/investments?sector=${encodeURIComponent(sector)}` : '/investments'),
   investment: (id: string) => apiRequest<InvestmentOpportunity>(`/investments/${id}`),
