@@ -186,10 +186,42 @@ export type EventItem = {
   image: string;
 };
 
+export type InvestmentOpportunity = {
+  id: string;
+  title: string;
+  sector: string;
+  location: string;
+  minInvestment: number;
+  currency: string;
+  expectedReturn?: string | null;
+  investmentModel?: string | null;
+  timeline?: string | null;
+  verified: boolean;
+  blurb: string;
+  image: string;
+  description?: string | null;
+  highlights?: string | null;
+  incentives?: string | null;
+  contactEmail?: string | null;
+  contactPhone?: string | null;
+  status: string;
+  createdAt?: string;
+};
+
+export type InvestmentInquiryPayload = {
+  fullName: string;
+  contactEmail: string;
+  contactPhone?: string;
+  contactWhatsapp?: string;
+  investmentBudget?: string;
+  timeframe?: string;
+  message: string;
+};
+
 export type Favorite = {
   id: string;
   userId: string;
-  itemType: 'destination' | 'service' | 'event';
+  itemType: 'destination' | 'service' | 'event' | 'investment';
   itemId: string;
   createdAt: string;
 };
@@ -216,15 +248,24 @@ export const contentApi = {
       token,
     }),
   events: () => apiRequest<EventItem[]>('/events'),
+  investments: (sector?: string) =>
+    apiRequest<InvestmentOpportunity[]>(sector ? `/investments?sector=${encodeURIComponent(sector)}` : '/investments'),
+  investment: (id: string) => apiRequest<InvestmentOpportunity>(`/investments/${id}`),
+  createInvestmentInquiry: (opportunityId: string, data: InvestmentInquiryPayload, token?: string | null) =>
+    apiRequest<{ success: boolean; message: string; inquiry: any }>(`/investments/${opportunityId}/inquiry`, {
+      method: 'POST',
+      body: data,
+      token,
+    }),
 };
 
 export const favoritesApi = {
   list: (token: string) => apiRequest<Favorite[]>('/favorites', { token }),
-  add: (token: string, itemType: 'destination' | 'service' | 'event', itemId: string) =>
+  add: (token: string, itemType: 'destination' | 'service' | 'event' | 'investment', itemId: string) =>
     apiRequest<Favorite>('/favorites', { method: 'POST', body: { itemType, itemId }, token }),
   remove: (token: string, id: string) =>
     apiRequest<void>(`/favorites/${id}`, { method: 'DELETE', token }),
-  removeByItem: (token: string, itemType: 'destination' | 'service' | 'event', itemId: string) =>
+  removeByItem: (token: string, itemType: 'destination' | 'service' | 'event' | 'investment', itemId: string) =>
     apiRequest<void>('/favorites', { method: 'DELETE', body: { itemType, itemId }, token }),
 };
 

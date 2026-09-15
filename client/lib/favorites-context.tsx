@@ -2,11 +2,13 @@ import React, { createContext, useContext, useEffect, useState, useCallback } fr
 import { Favorite, favoritesApi } from './api';
 import { useAuth } from './auth-context';
 
+export type FavoriteItemType = 'destination' | 'service' | 'event' | 'investment';
+
 type FavoritesContextType = {
   favorites: Favorite[];
   isLoading: boolean;
-  isFavorite: (itemType: 'destination' | 'service' | 'event', itemId: string) => boolean;
-  toggleFavorite: (itemType: 'destination' | 'service' | 'event', itemId: string) => Promise<boolean>;
+  isFavorite: (itemType: FavoriteItemType, itemId: string) => boolean;
+  toggleFavorite: (itemType: FavoriteItemType, itemId: string) => Promise<boolean>;
   refreshFavorites: () => Promise<void>;
 };
 
@@ -38,14 +40,14 @@ export function FavoritesProvider({ children }: { children: React.ReactNode }) {
   }, [refreshFavorites]);
 
   const isFavorite = useCallback(
-    (itemType: 'destination' | 'service' | 'event', itemId: string) => {
+    (itemType: FavoriteItemType, itemId: string) => {
       return favorites.some((f) => f.itemType === itemType && f.itemId === itemId);
     },
     [favorites]
   );
 
   const toggleFavorite = useCallback(
-    async (itemType: 'destination' | 'service' | 'event', itemId: string) => {
+    async (itemType: FavoriteItemType, itemId: string) => {
       if (!token) return false;
 
       const currentlyFav = favorites.some((f) => f.itemType === itemType && f.itemId === itemId);

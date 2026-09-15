@@ -12,8 +12,8 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { destinations as sampleDestinations, events as sampleEvents, services as sampleServices } from '../../assets/data/sample';
-import { contentApi, Destination, EventItem, resolveMediaUrl, Service } from '../../lib/api';
+import { destinations as sampleDestinations, events as sampleEvents, investments as sampleInvestments, services as sampleServices } from '../../assets/data/sample';
+import { contentApi, Destination, EventItem, InvestmentOpportunity, resolveMediaUrl, Service } from '../../lib/api';
 import { useAuth } from '../../lib/auth-context';
 import { useFavorites } from '../../lib/favorites-context';
 import { colors, fonts, radius, spacing } from '../../theme/tokens';
@@ -28,16 +28,18 @@ export default function Home() {
   const [destinations, setDestinations] = useState<Destination[]>(sampleDestinations as any);
   const [services, setServices] = useState<Service[]>(sampleServices as any);
   const [events, setEvents] = useState<EventItem[]>(sampleEvents as any);
+  const [investments, setInvestments] = useState<InvestmentOpportunity[]>(sampleInvestments as any);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   const firstName = user?.name?.split(' ')[0] ?? 'there';
 
   const loadData = useCallback(async () => {
     try {
-      const [destRes, servRes, eventRes] = await Promise.allSettled([
+      const [destRes, servRes, eventRes, invRes] = await Promise.allSettled([
         contentApi.destinations(),
         contentApi.services(),
         contentApi.events(),
+        contentApi.investments(),
       ]);
 
       if (destRes.status === 'fulfilled' && destRes.value.length > 0) {
@@ -48,6 +50,9 @@ export default function Home() {
       }
       if (eventRes.status === 'fulfilled' && eventRes.value.length > 0) {
         setEvents(eventRes.value);
+      }
+      if (invRes.status === 'fulfilled' && invRes.value.length > 0) {
+        setInvestments(invRes.value);
       }
     } catch (err) {
       console.warn('Error loading home data:', err);
@@ -132,17 +137,22 @@ export default function Home() {
         </TouchableOpacity>
 
         {/* Announcement Banner */}
-        <View style={styles.banner}>
+        <TouchableOpacity
+          style={styles.banner}
+          activeOpacity={0.88}
+          onPress={() => router.push('/investments')}
+        >
           <View style={styles.bannerIcon}>
             <Ionicons name="sparkles" size={18} color={colors.gold} />
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={styles.bannerTitle}>Diaspora Concierge</Text>
+            <Text style={styles.bannerTitle}>Diaspora Investment Hub</Text>
             <Text style={styles.bannerText}>
-              Verified investment opportunities and relocation services now live.
+              Explore verified real estate, commercial agriculture & startup opportunities.
             </Text>
           </View>
-        </View>
+          <Ionicons name="arrow-forward" size={17} color={colors.navy} style={{ marginLeft: 6 }} />
+        </TouchableOpacity>
 
         {/* Destinations */}
         <SectionHeader
@@ -278,6 +288,81 @@ export default function Home() {
             </TouchableOpacity>
           );
         })}
+
+        {/* Investment Opportunities */}
+        <SectionHeader
+          title="Diaspora Investment Hub"
+          onSeeAll={() => router.push('/investments')}
+        />
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.hScroll}
+          contentContainerStyle={{ paddingHorizontal: spacing.lg }}
+        >
+          {investments.map((inv) => {
+            const fav = isFavorite('investment', inv.id);
+            const formattedMin = new Intl.NumberFormat('en-US', {
+              style: 'currency',
+              currency: inv.currency || 'USD',
+              maximumFractionDigits: 0,
+            }).format(inv.minInvestment);
+
+            return (
+              <TouchableOpacity
+                key={inv.id}
+                style={styles.invCard}
+                activeOpacity={0.88}
+                onPress={() => router.push({ pathname: '/investment/[id]', params: { id: inv.id } })}
+              >
+                <Image source={{ uri: inv.image }} style={styles.invImage} />
+                <View style={styles.invSectorBadge}>
+                  <Text style={styles.invSectorText}>{inv.sector.toUpperCase()}</Text>
+                </View>
+
+                <TouchableOpacity
+                  style={styles.invBookmarkBtn}
+                  onPress={(e) => {
+                    e.stopPropagation?.();
+                    toggleFavorite('investment', inv.id);
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons
+                    name={fav ? 'bookmark' : 'bookmark-outline'}
+                    size={17}
+                    color={fav ? colors.gold : '#FFFFFF'}
+                  />
+                </TouchableOpacity>
+
+                <View style={styles.invBody}>
+                  <Text style={styles.invTitle} numberOfLines={1}>
+                    {inv.title}
+                  </Text>
+                  <Text style={styles.invLocation} numberOfLines={1}>
+                    <Ionicons name="location-sharp" size={11} color={colors.gold} /> {inv.location}
+                  </Text>
+
+                  <View style={styles.invMetaRow}>
+                    <View>
+                      <Text style={styles.invLabel}>MIN ENTRY</Text>
+                      <Text style={styles.invValue}>{formattedMin}</Text>
+                    </View>
+
+                    {inv.expectedReturn && (
+                      <View style={{ alignItems: 'flex-end' }}>
+                        <Text style={styles.invLabel}>EST. RETURN</Text>
+                        <Text style={[styles.invValue, { color: colors.goldRich }]}>
+                          {inv.expectedReturn.split(' ')[0]}
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+                </View>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
 
         <View style={{ height: 40 }} />
       </ScrollView>
@@ -641,6 +726,91 @@ const styles = StyleSheet.create({
   categoryTagText: {
     fontFamily: fonts.bodyMedium,
     fontSize: 11,
+    color: colors.navy,
+  },
+
+  // ── Home Investment Card ────────────────────────────
+  invCard: {
+    width: 250,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    marginRight: 16,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 3,
+  },
+  invImage: {
+    width: '100%',
+    height: 140,
+  },
+  invSectorBadge: {
+    position: 'absolute',
+    top: 10,
+    left: 10,
+    backgroundColor: 'rgba(7, 21, 43, 0.88)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(223, 183, 108, 0.4)',
+  },
+  invSectorText: {
+    fontFamily: fonts.bodySemiBold,
+    fontSize: 9.5,
+    color: colors.gold,
+    letterSpacing: 0.6,
+  },
+  invBookmarkBtn: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(7, 21, 43, 0.85)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(223, 183, 108, 0.3)',
+  },
+  invBody: {
+    padding: 14,
+  },
+  invTitle: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 14.5,
+    color: colors.charcoal,
+    marginBottom: 4,
+  },
+  invLocation: {
+    fontFamily: fonts.body,
+    fontSize: 12,
+    color: colors.charcoalSub,
+    marginBottom: 12,
+  },
+  invMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingTop: 10,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.border,
+  },
+  invLabel: {
+    fontFamily: fonts.bodySemiBold,
+    fontSize: 9,
+    color: colors.charcoalSub,
+    letterSpacing: 0.5,
+    marginBottom: 2,
+  },
+  invValue: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 12.5,
     color: colors.navy,
   },
 });

@@ -36,6 +36,7 @@ model User {
   emailVerifications  EmailVerification[]
   passwordResets      PasswordReset[]
   serviceInquiries    ServiceInquiry[]
+  investmentInquiries InvestmentInquiry[]
 }
 
 model Destination {
@@ -107,6 +108,49 @@ enum FavoriteType {
   destination
   service
   event
+  investment
+}
+
+model InvestmentOpportunity {
+  id              String   @id @default(uuid())
+  title           String
+  sector          String
+  location        String
+  minInvestment   Float
+  currency        String   @default("USD")
+  expectedReturn  String?
+  investmentModel String?
+  timeline        String?
+  verified        Boolean  @default(true)
+  blurb           String
+  image           String
+  description     String?
+  highlights      String?
+  incentives      String?
+  contactEmail    String?
+  contactPhone    String?
+  status          String   @default("open")
+  createdAt       DateTime @default(now())
+
+  inquiries       InvestmentInquiry[]
+}
+
+model InvestmentInquiry {
+  id               String   @id @default(uuid())
+  opportunityId    String
+  userId           String?
+  fullName         String
+  contactEmail     String
+  contactPhone     String?
+  contactWhatsapp  String?
+  investmentBudget String?
+  timeframe        String?
+  message          String
+  status           String   @default("pending")
+  createdAt        DateTime @default(now())
+
+  opportunity InvestmentOpportunity @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
+  user        User?                 @relation(fields: [userId], references: [id], onDelete: SetNull)
 }
 
 model Favorite {

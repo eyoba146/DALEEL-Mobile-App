@@ -135,3 +135,89 @@ contentRouter.get('/events', async (_req: Request, res: Response) => {
     res.status(500).json({ error: 'Failed to fetch events' });
   }
 });
+
+// --- Investment Opportunities ---
+
+contentRouter.get('/investments', async (req: Request, res: Response) => {
+  try {
+    const { sector } = req.query;
+    const opportunities = await prisma.investmentOpportunity.findMany({
+      where: sector && sector !== 'All' ? { sector: String(sector) } : undefined,
+      orderBy: { createdAt: 'desc' },
+    });
+    res.json(opportunities);
+  } catch (error) {
+    console.error('Error fetching investment opportunities:', error);
+    res.status(500).json({ error: 'Failed to fetch investment opportunities' });
+  }
+});
+
+contentRouter.get('/investments/:id', async (req: Request, res: Response) => {
+  try {
+    const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+    const opportunity = await prisma.investmentOpportunity.findUnique({
+      where: { id },
+    });
+
+    if (!opportunity) {
+      return res.status(404).json({ error: 'Investment opportunity not found' });
+    }
+
+    res.json(opportunity);
+  } catch (error) {
+    console.error('Error fetching investment opportunity by id:', error);
+    res.status(500).json({ error: 'Failed to fetch investment opportunity details' });
+  }
+});
+
+contentRouter.post('/investments/:id/inquiry', async (req: Request, res: Response) => {
+  try {
+    const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+    const {
+      fullName,
+      contactEmail,
+      contactPhone,
+      contactWhatsapp,
+      investmentBudget,
+      timeframe,
+      message,
+    } = req.body;
+
+    if (!fullName || !contactEmail || !message) {
+      return res.status(400).json({
+        error: 'Full name, email address, and inquiry message are required',
+      });
+    }
+
+    const opportunity = await prisma.investmentOpportunity.findUnique({ where: { id } });
+    if (!opportunity) {
+      return res.status(404).json({ error: 'Investment opportunity not found' });
+    }
+
+    const userId = getOptionalUserId(req);
+
+    const inquiry = await prisma.investmentInquiry.create({
+      data: {
+        opportunityId: id,
+        userId: userId ?? null,
+        fullName: String(fullName).trim(),
+        contactEmail: String(contactEmail).trim().toLowerCase(),
+        contactPhone: contactPhone ? String(contactPhone).trim() : null,
+        contactWhatsapp: contactWhatsapp ? String(contactWhatsapp).trim() : null,
+        investmentBudget: investmentBudget ? String(investmentBudget).trim() : null,
+        timeframe: timeframe ? String(timeframe).trim() : null,
+        message: String(message).trim(),
+      },
+    });
+
+    res.status(201).json({
+      success: true,
+      message: 'Your prospectus request and investment inquiry have been transmitted securely.',
+      inquiry,
+    });
+  } catch (error) {
+    console.error('Error creating investment inquiry:', error);
+    res.status(500).json({ error: 'Failed to submit investment inquiry' });
+  }
+});
+

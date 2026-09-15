@@ -17,16 +17,17 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   destinations as sampleDestinations,
   events as sampleEvents,
+  investments as sampleInvestments,
   services as sampleServices,
 } from '../../assets/data/sample';
-import { contentApi, Destination, EventItem, Service } from '../../lib/api';
+import { contentApi, Destination, EventItem, InvestmentOpportunity, Service } from '../../lib/api';
 import ScreenHeader from '../../components/ScreenHeader';
 import { useFavorites } from '../../lib/favorites-context';
 import { colors, fonts, radius, spacing } from '../../theme/tokens';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
-type FilterType = 'all' | 'destination' | 'service' | 'event';
+type FilterType = 'all' | 'destination' | 'service' | 'event' | 'investment';
 
 function AnimatedCardWrapper({
   index,
@@ -99,13 +100,15 @@ export default function SavedScreen() {
   const [allDestinations, setAllDestinations] = useState<Destination[]>(sampleDestinations as any);
   const [allServices, setAllServices] = useState<Service[]>(sampleServices as any);
   const [allEvents, setAllEvents] = useState<EventItem[]>(sampleEvents as any);
+  const [allInvestments, setAllInvestments] = useState<InvestmentOpportunity[]>(sampleInvestments as any);
 
   const loadAllContent = useCallback(async () => {
     try {
-      const [destRes, servRes, eventRes] = await Promise.allSettled([
+      const [destRes, servRes, eventRes, invRes] = await Promise.allSettled([
         contentApi.destinations(),
         contentApi.services(),
         contentApi.events(),
+        contentApi.investments(),
       ]);
       if (destRes.status === 'fulfilled' && destRes.value.length > 0) {
         setAllDestinations(destRes.value);
@@ -115,6 +118,9 @@ export default function SavedScreen() {
       }
       if (eventRes.status === 'fulfilled' && eventRes.value.length > 0) {
         setAllEvents(eventRes.value);
+      }
+      if (invRes.status === 'fulfilled' && invRes.value.length > 0) {
+        setAllInvestments(invRes.value);
       }
     } catch (err) {
       console.warn('Failed to load content for saved screen:', err);
@@ -146,12 +152,17 @@ export default function SavedScreen() {
         const item = allEvents.find((e) => e.id === fav.itemId);
         return item ? { ...item, _type: 'event' as const } : null;
       }
+      if (fav.itemType === 'investment') {
+        const item = allInvestments.find((inv) => inv.id === fav.itemId);
+        return item ? { ...item, _type: 'investment' as const } : null;
+      }
       return null;
     })
     .filter(Boolean) as Array<
     | (Destination & { _type: 'destination' })
     | (Service & { _type: 'service' })
     | (EventItem & { _type: 'event' })
+    | (InvestmentOpportunity & { _type: 'investment' })
   >;
 
   const filteredItems = filter === 'all' ? savedItems : savedItems.filter((i) => i._type === filter);
@@ -172,6 +183,7 @@ export default function SavedScreen() {
             { key: 'destination', label: 'Places' },
             { key: 'service', label: 'Services' },
             { key: 'event', label: 'Events' },
+            { key: 'investment', label: 'Investments' },
           ] as const
         ).map((t) => {
           const isActive = filter === t.key;
@@ -322,6 +334,42 @@ export default function SavedScreen() {
             );
           }
 
+          if (item._type === 'investment') {
+            return (
+              <AnimatedCardWrapper key={`inv-${item.id}`} index={index} filterKey={filter}>
+                <TouchableOpacity
+                  style={styles.card}
+                  activeOpacity={0.92}
+                  onPress={() => router.push({ pathname: '/investment/[id]', params: { id: item.id } })}
+                >
+                  <Image source={{ uri: item.image }} style={styles.cardImage} resizeMode="cover" />
+                  <View style={styles.cardBody}>
+                    <View style={[styles.typeBadge, { backgroundColor: '#EBF8FF' }]}>
+                      <Text style={[styles.typeBadgeText, { color: '#2B6CB0' }]}>INVESTMENT</Text>
+                    </View>
+                    <Text style={styles.cardName}>{item.title}</Text>
+                    <Text style={styles.cardCategory}>{item.sector}</Text>
+                    <View style={styles.metaRow}>
+                      <Ionicons name="location-outline" size={13} color="#718096" />
+                      <Text style={styles.metaText}>{item.location}</Text>
+                    </View>
+                  </View>
+
+                  <TouchableOpacity
+                    style={styles.bookmarkBtn}
+                    onPress={(e) => {
+                      e.stopPropagation?.();
+                      toggleFavorite('investment', item.id);
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons name="bookmark" size={20} color={colors.gold} />
+                  </TouchableOpacity>
+                </TouchableOpacity>
+              </AnimatedCardWrapper>
+            );
+          }
+
           return null;
         })}
 
@@ -349,6 +397,8 @@ export default function SavedScreen() {
                 ? 'No Partners Bookmarked'
                 : filter === 'event'
                 ? 'No Events Saved'
+                : filter === 'investment'
+                ? 'No Investments Saved'
                 : 'Nothing Saved Yet'}
             </Text>
 
@@ -359,6 +409,8 @@ export default function SavedScreen() {
                 ? 'Save trusted relocation partners, legal counsel, and banking concierges for instant offline reference.'
                 : filter === 'event'
                 ? 'Save Ethiopian cultural festivals, business summits, and diaspora forums to receive schedule reminders.'
+                : filter === 'investment'
+                ? 'Bookmark vetted real estate developments, commercial agriculture projects, and startups to build your portfolio.'
                 : 'As you discover Ethiopia’s timeless heritage, vetted diaspora services, and cultural events, tap the bookmark icon to curate your personal collection here.'}
             </Text>
 
