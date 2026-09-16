@@ -258,7 +258,7 @@ export default function Home() {
           title="Upcoming Events"
           onSeeAll={() => router.push('/events')}
         />
-        {events.map((e) => {
+        {events.slice(0, 3).map((e) => {
           const fav = isFavorite('event', e.id);
           const dateStr = typeof e.date === 'string' ? e.date.split('T')[0] : 'Upcoming';
           return (
