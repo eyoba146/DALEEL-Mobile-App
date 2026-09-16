@@ -12,7 +12,7 @@ favoritesRouter.get('/', async (req, res) => {
 });
 
 const addSchema = z.object({
-  itemType: z.enum(['destination', 'service', 'event', 'investment']),
+  itemType: z.enum(['destination', 'service', 'event', 'investment', 'product']),
   itemId: z.string().min(1),
 });
 

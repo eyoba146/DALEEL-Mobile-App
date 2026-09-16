@@ -38,6 +38,7 @@ model User {
   serviceInquiries    ServiceInquiry[]
   investmentInquiries InvestmentInquiry[]
   eventRsvps          EventRsvp[]
+  productOrderInquiries ProductOrderInquiry[]
 }
 
 model Destination {
@@ -137,6 +138,7 @@ enum FavoriteType {
   service
   event
   investment
+  product
 }
 
 model InvestmentOpportunity {
@@ -215,4 +217,46 @@ model PasswordReset {
   createdAt DateTime @default(now())
   
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Product {
+  id             String                @id @default(uuid())
+  title          String
+  price          Float
+  currency       String                @default("ETB")
+  category       String
+  sellerName     String
+  sellerVerified Boolean               @default(true)
+  sellerLocation String
+  sellerPhone    String?
+  sellerWhatsapp String?
+  image          String
+  images         String?
+  blurb          String
+  description    String?
+  materials      String?
+  origin         String?
+  inStock        Boolean               @default(true)
+  status         String                @default("active")
+  createdAt      DateTime              @default(now())
+
+  inquiries      ProductOrderInquiry[]
+}
+
+model ProductOrderInquiry {
+  id              String   @id @default(uuid())
+  productId       String
+  userId          String?
+  fullName        String
+  email           String
+  phone           String?
+  whatsapp        String?
+  quantity        Int      @default(1)
+  deliveryAddress String
+  notes           String?
+  status          String   @default("pending")
+  createdAt       DateTime @default(now())
+
+  product         Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  user            User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
 }

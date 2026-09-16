@@ -288,3 +288,92 @@ contentRouter.post('/investments/:id/inquiry', async (req: Request, res: Respons
   }
 });
 
+// --- Artisan Marketplace Products ---
+
+contentRouter.get('/products', async (req: Request, res: Response) => {
+  try {
+    const { category } = req.query;
+    const products = await prisma.product.findMany({
+      where: {
+        status: 'active',
+        ...(category && category !== 'All' ? { category: String(category) } : {}),
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+    res.json(products);
+  } catch (error) {
+    console.error('Error fetching marketplace products:', error);
+    res.status(500).json({ error: 'Failed to fetch products' });
+  }
+});
+
+contentRouter.get('/products/:id', async (req: Request, res: Response) => {
+  try {
+    const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+    const product = await prisma.product.findUnique({
+      where: { id },
+    });
+
+    if (!product) {
+      return res.status(404).json({ error: 'Product not found' });
+    }
+
+    res.json(product);
+  } catch (error) {
+    console.error('Error fetching product by id:', error);
+    res.status(500).json({ error: 'Failed to fetch product details' });
+  }
+});
+
+contentRouter.post('/products/:id/order-inquiry', async (req: Request, res: Response) => {
+  try {
+    const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+    const {
+      fullName,
+      email,
+      phone,
+      whatsapp,
+      quantity,
+      deliveryAddress,
+      notes,
+    } = req.body;
+
+    if (!fullName || !email || !deliveryAddress) {
+      return res.status(400).json({
+        error: 'Full name, email address, and delivery address are required',
+      });
+    }
+
+    const product = await prisma.product.findUnique({ where: { id } });
+    if (!product) {
+      return res.status(404).json({ error: 'Product not found' });
+    }
+
+    const userId = getOptionalUserId(req);
+    const parsedQty = Number(quantity) > 0 ? Math.floor(Number(quantity)) : 1;
+
+    const inquiry = await prisma.productOrderInquiry.create({
+      data: {
+        productId: id,
+        userId: userId ?? null,
+        fullName: String(fullName).trim(),
+        email: String(email).trim().toLowerCase(),
+        phone: phone ? String(phone).trim() : null,
+        whatsapp: whatsapp ? String(whatsapp).trim() : null,
+        quantity: parsedQty,
+        deliveryAddress: String(deliveryAddress).trim(),
+        notes: notes ? String(notes).trim() : null,
+      },
+    });
+
+    res.status(201).json({
+      success: true,
+      message: 'Your product order inquiry has been transmitted to the artisan merchant.',
+      inquiry,
+    });
+  } catch (error) {
+    console.error('Error creating product order inquiry:', error);
+    res.status(500).json({ error: 'Failed to submit product order inquiry' });
+  }
+});
+

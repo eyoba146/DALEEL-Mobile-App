@@ -18,16 +18,17 @@ import {
   destinations as sampleDestinations,
   events as sampleEvents,
   investments as sampleInvestments,
+  products as sampleProducts,
   services as sampleServices,
 } from '../../assets/data/sample';
-import { contentApi, Destination, EventItem, InvestmentOpportunity, Service } from '../../lib/api';
+import { contentApi, Destination, EventItem, InvestmentOpportunity, Product, Service } from '../../lib/api';
 import ScreenHeader from '../../components/ScreenHeader';
 import { useFavorites } from '../../lib/favorites-context';
 import { colors, fonts, radius, spacing } from '../../theme/tokens';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
-type FilterType = 'all' | 'destination' | 'service' | 'event' | 'investment';
+type FilterType = 'all' | 'destination' | 'service' | 'event' | 'investment' | 'product';
 
 function AnimatedCardWrapper({
   index,
@@ -101,14 +102,16 @@ export default function SavedScreen() {
   const [allServices, setAllServices] = useState<Service[]>(sampleServices as any);
   const [allEvents, setAllEvents] = useState<EventItem[]>(sampleEvents as any);
   const [allInvestments, setAllInvestments] = useState<InvestmentOpportunity[]>(sampleInvestments as any);
+  const [allProducts, setAllProducts] = useState<Product[]>(sampleProducts as any);
 
   const loadAllContent = useCallback(async () => {
     try {
-      const [destRes, servRes, eventRes, invRes] = await Promise.allSettled([
+      const [destRes, servRes, eventRes, invRes, prodRes] = await Promise.allSettled([
         contentApi.destinations(),
         contentApi.services(),
         contentApi.events(),
         contentApi.investments(),
+        contentApi.products(),
       ]);
       if (destRes.status === 'fulfilled' && destRes.value.length > 0) {
         setAllDestinations(destRes.value);
@@ -121,6 +124,9 @@ export default function SavedScreen() {
       }
       if (invRes.status === 'fulfilled' && invRes.value.length > 0) {
         setAllInvestments(invRes.value);
+      }
+      if (prodRes.status === 'fulfilled' && prodRes.value.length > 0) {
+        setAllProducts(prodRes.value);
       }
     } catch (err) {
       console.warn('Failed to load content for saved screen:', err);
@@ -156,6 +162,10 @@ export default function SavedScreen() {
         const item = allInvestments.find((inv) => inv.id === fav.itemId);
         return item ? { ...item, _type: 'investment' as const } : null;
       }
+      if (fav.itemType === 'product') {
+        const item = allProducts.find((p) => p.id === fav.itemId);
+        return item ? { ...item, _type: 'product' as const } : null;
+      }
       return null;
     })
     .filter(Boolean) as Array<
@@ -163,6 +173,7 @@ export default function SavedScreen() {
     | (Service & { _type: 'service' })
     | (EventItem & { _type: 'event' })
     | (InvestmentOpportunity & { _type: 'investment' })
+    | (Product & { _type: 'product' })
   >;
 
   const filteredItems = filter === 'all' ? savedItems : savedItems.filter((i) => i._type === filter);
@@ -184,6 +195,7 @@ export default function SavedScreen() {
             { key: 'service', label: 'Services' },
             { key: 'event', label: 'Events' },
             { key: 'investment', label: 'Investments' },
+            { key: 'product', label: 'Marketplace' },
           ] as const
         ).map((t) => {
           const isActive = filter === t.key;
@@ -370,6 +382,44 @@ export default function SavedScreen() {
             );
           }
 
+          if (item._type === 'product') {
+            return (
+              <AnimatedCardWrapper key={`prod-${item.id}`} index={index} filterKey={filter}>
+                <TouchableOpacity
+                  style={styles.card}
+                  activeOpacity={0.92}
+                  onPress={() => router.push({ pathname: '/product/[id]', params: { id: item.id } })}
+                >
+                  <Image source={{ uri: item.image }} style={styles.cardImage} resizeMode="cover" />
+                  <View style={styles.cardBody}>
+                    <View style={[styles.typeBadge, { backgroundColor: 'rgba(198, 148, 10, 0.15)' }]}>
+                      <Text style={[styles.typeBadgeText, { color: colors.goldRich }]}>ARTISAN CRAFT</Text>
+                    </View>
+                    <Text style={styles.cardName} numberOfLines={1}>{item.title}</Text>
+                    <Text style={styles.cardCategory}>
+                      {item.price.toLocaleString()} {item.currency} • {item.category}
+                    </Text>
+                    <View style={styles.metaRow}>
+                      <Ionicons name="storefront-outline" size={13} color="#718096" />
+                      <Text style={styles.metaText} numberOfLines={1}>{item.sellerName}</Text>
+                    </View>
+                  </View>
+
+                  <TouchableOpacity
+                    style={styles.bookmarkBtn}
+                    onPress={(e) => {
+                      e.stopPropagation?.();
+                      toggleFavorite('product', item.id);
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons name="bookmark" size={20} color={colors.gold} />
+                  </TouchableOpacity>
+                </TouchableOpacity>
+              </AnimatedCardWrapper>
+            );
+          }
+
           return null;
         })}
 
@@ -399,6 +449,8 @@ export default function SavedScreen() {
                 ? 'No Events Saved'
                 : filter === 'investment'
                 ? 'No Investments Saved'
+                : filter === 'product'
+                ? 'No Artisan Crafts Saved'
                 : 'Nothing Saved Yet'}
             </Text>
 
@@ -411,6 +463,8 @@ export default function SavedScreen() {
                 ? 'Save Ethiopian cultural festivals, business summits, and diaspora forums to receive schedule reminders.'
                 : filter === 'investment'
                 ? 'Bookmark vetted real estate developments, commercial agriculture projects, and startups to build your portfolio.'
+                : filter === 'product'
+                ? 'Save handwoven Habesha Kemis, specialty single-origin coffees, leather goods, and jewelry to order anytime.'
                 : 'As you discover Ethiopia’s timeless heritage, vetted diaspora services, and cultural events, tap the bookmark icon to curate your personal collection here.'}
             </Text>
 

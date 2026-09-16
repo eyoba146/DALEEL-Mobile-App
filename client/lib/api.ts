@@ -236,10 +236,42 @@ export type InvestmentInquiryPayload = {
   message: string;
 };
 
+export type Product = {
+  id: string;
+  title: string;
+  price: number;
+  currency: string;
+  category: string;
+  sellerName: string;
+  sellerVerified: boolean;
+  sellerLocation: string;
+  sellerPhone?: string | null;
+  sellerWhatsapp?: string | null;
+  image: string;
+  images?: string | null;
+  blurb: string;
+  description?: string | null;
+  materials?: string | null;
+  origin?: string | null;
+  inStock: boolean;
+  status: string;
+  createdAt?: string;
+};
+
+export type ProductOrderInquiryPayload = {
+  fullName: string;
+  email: string;
+  phone?: string;
+  whatsapp?: string;
+  quantity: number;
+  deliveryAddress: string;
+  notes?: string;
+};
+
 export type Favorite = {
   id: string;
   userId: string;
-  itemType: 'destination' | 'service' | 'event' | 'investment';
+  itemType: 'destination' | 'service' | 'event' | 'investment' | 'product';
   itemId: string;
   createdAt: string;
 };
@@ -283,15 +315,24 @@ export const contentApi = {
       body: data,
       token,
     }),
+  products: (category?: string) =>
+    apiRequest<Product[]>(category && category !== 'All' ? `/products?category=${encodeURIComponent(category)}` : '/products'),
+  product: (id: string) => apiRequest<Product>(`/products/${id}`),
+  createProductOrderInquiry: (productId: string, data: ProductOrderInquiryPayload, token?: string | null) =>
+    apiRequest<{ success: boolean; message: string; inquiry: any }>(`/products/${productId}/order-inquiry`, {
+      method: 'POST',
+      body: data,
+      token,
+    }),
 };
 
 export const favoritesApi = {
   list: (token: string) => apiRequest<Favorite[]>('/favorites', { token }),
-  add: (token: string, itemType: 'destination' | 'service' | 'event' | 'investment', itemId: string) =>
+  add: (token: string, itemType: 'destination' | 'service' | 'event' | 'investment' | 'product', itemId: string) =>
     apiRequest<Favorite>('/favorites', { method: 'POST', body: { itemType, itemId }, token }),
   remove: (token: string, id: string) =>
     apiRequest<void>(`/favorites/${id}`, { method: 'DELETE', token }),
-  removeByItem: (token: string, itemType: 'destination' | 'service' | 'event' | 'investment', itemId: string) =>
+  removeByItem: (token: string, itemType: 'destination' | 'service' | 'event' | 'investment' | 'product', itemId: string) =>
     apiRequest<void>('/favorites', { method: 'DELETE', body: { itemType, itemId }, token }),
 };
 

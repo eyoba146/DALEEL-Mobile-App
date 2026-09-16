@@ -12,8 +12,22 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { destinations as sampleDestinations, events as sampleEvents, investments as sampleInvestments, services as sampleServices } from '../../assets/data/sample';
-import { contentApi, Destination, EventItem, InvestmentOpportunity, resolveMediaUrl, Service } from '../../lib/api';
+import {
+  destinations as sampleDestinations,
+  events as sampleEvents,
+  investments as sampleInvestments,
+  products as sampleProducts,
+  services as sampleServices,
+} from '../../assets/data/sample';
+import {
+  contentApi,
+  Destination,
+  EventItem,
+  InvestmentOpportunity,
+  Product,
+  resolveMediaUrl,
+  Service,
+} from '../../lib/api';
 import { useAuth } from '../../lib/auth-context';
 import { useFavorites } from '../../lib/favorites-context';
 import { colors, fonts, radius, spacing } from '../../theme/tokens';
@@ -29,17 +43,19 @@ export default function Home() {
   const [services, setServices] = useState<Service[]>(sampleServices as any);
   const [events, setEvents] = useState<EventItem[]>(sampleEvents as any);
   const [investments, setInvestments] = useState<InvestmentOpportunity[]>(sampleInvestments as any);
+  const [products, setProducts] = useState<Product[]>(sampleProducts as any);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   const firstName = user?.name?.split(' ')[0] ?? 'there';
 
   const loadData = useCallback(async () => {
     try {
-      const [destRes, servRes, eventRes, invRes] = await Promise.allSettled([
+      const [destRes, servRes, eventRes, invRes, prodRes] = await Promise.allSettled([
         contentApi.destinations(),
         contentApi.services(),
         contentApi.events(),
         contentApi.investments(),
+        contentApi.products(),
       ]);
 
       if (destRes.status === 'fulfilled' && destRes.value.length > 0) {
@@ -53,6 +69,9 @@ export default function Home() {
       }
       if (invRes.status === 'fulfilled' && invRes.value.length > 0) {
         setInvestments(invRes.value);
+      }
+      if (prodRes.status === 'fulfilled' && prodRes.value.length > 0) {
+        setProducts(prodRes.value);
       }
     } catch (err) {
       console.warn('Error loading home data:', err);
@@ -136,7 +155,7 @@ export default function Home() {
           <Text style={styles.searchPlaceholder}>Search services, places, events…</Text>
         </TouchableOpacity>
 
-        {/* Announcement Banner */}
+        {/* Announcement Banners */}
         <TouchableOpacity
           style={styles.banner}
           activeOpacity={0.88}
@@ -149,6 +168,23 @@ export default function Home() {
             <Text style={styles.bannerTitle}>Diaspora Investment Hub</Text>
             <Text style={styles.bannerText}>
               Explore verified real estate, commercial agriculture & startup opportunities.
+            </Text>
+          </View>
+          <Ionicons name="arrow-forward" size={17} color={colors.navy} style={{ marginLeft: 6 }} />
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.banner, { marginTop: 10, borderColor: 'rgba(198, 148, 10, 0.38)' }]}
+          activeOpacity={0.88}
+          onPress={() => router.push('/marketplace')}
+        >
+          <View style={[styles.bannerIcon, { backgroundColor: 'rgba(198, 148, 10, 0.18)' }]}>
+            <Ionicons name="shirt-outline" size={18} color={colors.navy} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.bannerTitle}>Artisan Marketplace</Text>
+            <Text style={styles.bannerText}>
+              Handcrafted Habesha Kemis, Guji coffee, leather goods & certified jewelry.
             </Text>
           </View>
           <Ionicons name="arrow-forward" size={17} color={colors.navy} style={{ marginLeft: 6 }} />
@@ -366,6 +402,58 @@ export default function Home() {
                       </View>
                     )}
                   </View>
+                </View>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
+
+        {/* Artisan Marketplace */}
+        <SectionHeader
+          title="Artisan Marketplace"
+          onSeeAll={() => router.push('/marketplace')}
+        />
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.hScroll}
+          contentContainerStyle={{ paddingHorizontal: spacing.lg }}
+        >
+          {products.map((p) => {
+            const fav = isFavorite('product', p.id);
+            return (
+              <TouchableOpacity
+                key={p.id}
+                style={styles.productCard}
+                activeOpacity={0.88}
+                onPress={() => router.push({ pathname: '/product/[id]', params: { id: p.id } })}
+              >
+                <Image source={{ uri: p.image }} style={styles.productImage} />
+                <View style={styles.productPriceBadge}>
+                  <Text style={styles.productPriceText}>{p.price.toLocaleString()} {p.currency}</Text>
+                </View>
+                <TouchableOpacity
+                  style={styles.productBookmarkBtn}
+                  onPress={(e) => {
+                    e.stopPropagation?.();
+                    toggleFavorite('product', p.id);
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons
+                    name={fav ? 'bookmark' : 'bookmark-outline'}
+                    size={16}
+                    color={fav ? colors.gold : '#FFFFFF'}
+                  />
+                </TouchableOpacity>
+                <View style={styles.productBody}>
+                  <Text style={styles.productCategory}>{p.category.toUpperCase()}</Text>
+                  <Text style={styles.productCardTitle} numberOfLines={1}>
+                    {p.title}
+                  </Text>
+                  <Text style={styles.productSeller} numberOfLines={1}>
+                    <Ionicons name="storefront-outline" size={11} color={colors.gold} /> {p.sellerName}
+                  </Text>
                 </View>
               </TouchableOpacity>
             );
@@ -820,5 +908,75 @@ const styles = StyleSheet.create({
     fontFamily: fonts.bodyBold,
     fontSize: 12.5,
     color: colors.navy,
+  },
+
+  // ── Home Marketplace Card ────────────────────────────
+  productCard: {
+    width: 220,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 18,
+    borderWidth: 1.2,
+    borderColor: colors.border,
+    marginRight: 14,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOpacity: 0.05,
+    shadowRadius: 7,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 3,
+  },
+  productImage: {
+    width: '100%',
+    height: 130,
+  },
+  productPriceBadge: {
+    position: 'absolute',
+    top: 10,
+    left: 10,
+    backgroundColor: colors.navy,
+    paddingHorizontal: 8,
+    paddingVertical: 3.5,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(223, 183, 108, 0.4)',
+  },
+  productPriceText: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 11,
+    color: colors.gold,
+  },
+  productBookmarkBtn: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: 'rgba(7, 21, 43, 0.85)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(223, 183, 108, 0.3)',
+  },
+  productBody: {
+    padding: 12,
+  },
+  productCategory: {
+    fontFamily: fonts.bodySemiBold,
+    fontSize: 9.5,
+    color: colors.goldRich,
+    letterSpacing: 0.5,
+    marginBottom: 3,
+  },
+  productCardTitle: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 13.5,
+    color: colors.charcoal,
+    marginBottom: 4,
+  },
+  productSeller: {
+    fontFamily: fonts.body,
+    fontSize: 11.5,
+    color: colors.charcoalSub,
   },
 });

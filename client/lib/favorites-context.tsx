@@ -2,7 +2,7 @@ import React, { createContext, useContext, useEffect, useState, useCallback } fr
 import { Favorite, favoritesApi } from './api';
 import { useAuth } from './auth-context';
 
-export type FavoriteItemType = 'destination' | 'service' | 'event' | 'investment';
+export type FavoriteItemType = 'destination' | 'service' | 'event' | 'investment' | 'product';
 
 type FavoritesContextType = {
   favorites: Favorite[];
