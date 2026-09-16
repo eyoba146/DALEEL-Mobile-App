@@ -404,6 +404,7 @@ const styles = StyleSheet.create({
   mainBodyContainer: {
     flex: 1,
     position: 'relative',
+    overflow: 'hidden',
   },
   scrollContent: {
     paddingTop: HEADER_HEIGHT + 14,
@@ -417,8 +418,8 @@ const styles = StyleSheet.create({
     top: 0,
     left: 0,
     right: 0,
-    zIndex: 30,
-    elevation: 8,
+    zIndex: 20,
+    elevation: 4,
     backgroundColor: colors.background,
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(23, 25, 28, 0.06)',

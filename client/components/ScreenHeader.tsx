@@ -135,6 +135,8 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     borderBottomWidth: 1,
     borderBottomColor: '#0E2243',
+    zIndex: 100,
+    elevation: 12,
   },
   goldWaveContainer: {
     position: 'absolute',
