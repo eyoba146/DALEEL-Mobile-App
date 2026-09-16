@@ -16,6 +16,7 @@ import { useCallback, useEffect } from 'react';
 import { View } from 'react-native';
 import { AuthProvider } from '../lib/auth-context';
 import { FavoritesProvider } from '../lib/favorites-context';
+import { NotificationsProvider } from '../lib/notifications-context';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -47,18 +48,25 @@ export default function RootLayout() {
   return (
     <AuthProvider>
       <FavoritesProvider>
-        <View style={{ flex: 1 }} onLayout={onLayoutRootView}>
-          <StatusBar style="light" />
-          <Stack screenOptions={{ headerShown: false, animation: 'slide_from_right' }}>
-            <Stack.Screen name="index" />
-            <Stack.Screen name="onboarding" />
-            <Stack.Screen name="(auth)" />
-            <Stack.Screen name="(tabs)" />
-            <Stack.Screen name="events" />
-            <Stack.Screen name="destination/[id]" />
-            <Stack.Screen name="service/[id]" />
-          </Stack>
-        </View>
+        <NotificationsProvider>
+          <View style={{ flex: 1 }} onLayout={onLayoutRootView}>
+            <StatusBar style="light" />
+            <Stack screenOptions={{ headerShown: false, animation: 'slide_from_right' }}>
+              <Stack.Screen name="index" />
+              <Stack.Screen name="onboarding" />
+              <Stack.Screen name="(auth)" />
+              <Stack.Screen name="(tabs)" />
+              <Stack.Screen name="events" />
+              <Stack.Screen name="destination/[id]" />
+              <Stack.Screen name="service/[id]" />
+              <Stack.Screen name="marketplace" />
+              <Stack.Screen name="product/[id]" />
+              <Stack.Screen name="investments" />
+              <Stack.Screen name="investment/[id]" />
+              <Stack.Screen name="notifications" />
+            </Stack>
+          </View>
+        </NotificationsProvider>
       </FavoritesProvider>
     </AuthProvider>
   );

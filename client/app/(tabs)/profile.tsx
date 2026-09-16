@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
+import { useRouter } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -8,6 +9,7 @@ import {
   Modal,
   ScrollView,
   StyleSheet,
+  Switch,
   Text,
   TextInput,
   TouchableOpacity,
@@ -15,12 +17,13 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../../lib/auth-context';
-import { resolveMediaUrl } from '../../lib/api';
+import { NotificationPreferences, notificationsApi, resolveMediaUrl } from '../../lib/api';
 import ScreenHeader from '../../components/ScreenHeader';
 import { colors, fonts, radius, shadow, spacing } from '../../theme/tokens';
 
 export default function ProfileScreen() {
-  const { user, updateUser, uploadAvatar, changePassword, logout } = useAuth();
+  const router = useRouter();
+  const { user, token, updateUser, uploadAvatar, changePassword, logout } = useAuth();
   const [localAvatarUri, setLocalAvatarUri] = useState<string | null>(null);
   const avatarUri = localAvatarUri || resolveMediaUrl(user?.avatarUrl);
 
@@ -59,6 +62,53 @@ export default function ProfileScreen() {
 
   // Sign out confirmation modal state
   const [isSignOutModalVisible, setIsSignOutModalVisible] = useState(false);
+
+  // Notification Preferences states
+  const [notifPrefs, setNotifPrefs] = useState<NotificationPreferences>({
+    orders: true,
+    events: true,
+    investments: true,
+    announcements: true,
+  });
+  const [isLoadingPrefs, setIsLoadingPrefs] = useState(false);
+
+  useEffect(() => {
+    let isMounted = true;
+    async function loadPreferences() {
+      if (!token) return;
+      try {
+        setIsLoadingPrefs(true);
+        const res = await notificationsApi.getPreferences(token);
+        if (isMounted && res) {
+          setNotifPrefs(res);
+        }
+      } catch {
+        // Keep defaults on failure
+      } finally {
+        if (isMounted) setIsLoadingPrefs(false);
+      }
+    }
+    loadPreferences();
+    return () => {
+      isMounted = false;
+    };
+  }, [token]);
+
+  const handleTogglePref = async (key: keyof NotificationPreferences) => {
+    const updated = {
+      ...notifPrefs,
+      [key]: !notifPrefs[key],
+    };
+    setNotifPrefs(updated);
+    if (!token) return;
+    try {
+      await notificationsApi.updatePreferences(updated, token);
+      showToast('Notification preference saved', 'success');
+    } catch {
+      setNotifPrefs(notifPrefs);
+      showToast('Could not save preference', 'error');
+    }
+  };
 
   const showToast = (message: string, type: 'success' | 'error' = 'success') => {
     if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
@@ -1045,6 +1095,101 @@ export default function ProfileScreen() {
           )}
         </View>
 
+        {/* Quick Link to Notification Center */}
+        <TouchableOpacity
+          style={styles.notifCenterLink}
+          onPress={() => router.push('/notifications')}
+          activeOpacity={0.8}
+        >
+          <View style={styles.notifCenterLinkLeft}>
+            <View style={[styles.fieldIconCircle, { width: 38, height: 38, borderRadius: 19, backgroundColor: colors.goldSoft }]}>
+              <Ionicons name="notifications" size={18} color={colors.goldText} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.notifCenterLinkTitle}>Notification & Activity Center</Text>
+              <Text style={styles.notifCenterLinkSub}>View past orders, alerts & updates</Text>
+            </View>
+          </View>
+          <Ionicons name="chevron-forward" size={18} color={colors.charcoalLight} />
+        </TouchableOpacity>
+
+        {/* Notification Preferences Card */}
+        <View style={styles.prefsContainerCard}>
+          <View style={styles.prefsHeader}>
+            <View style={[styles.fieldIconCircle, { width: 34, height: 34, borderRadius: 17 }]}>
+              <Ionicons name="options-outline" size={18} color={colors.navy} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.prefsCardTitle}>Push & Notification Preferences</Text>
+              <Text style={styles.prefsCardSubtitle}>Choose which updates you wish to receive</Text>
+            </View>
+          </View>
+
+          <View style={styles.divider} />
+
+          {/* Row 1: Orders */}
+          <View style={styles.prefRow}>
+            <View style={styles.prefTextCol}>
+              <Text style={styles.prefTitle}>Artisan Orders & Inquiries</Text>
+              <Text style={styles.prefDesc}>Delivery tracking, seller replies & inquiry updates</Text>
+            </View>
+            <Switch
+              value={notifPrefs.orders}
+              onValueChange={() => handleTogglePref('orders')}
+              trackColor={{ false: '#E2E8F0', true: colors.gold }}
+              thumbColor={notifPrefs.orders ? colors.navy : '#FFFFFF'}
+            />
+          </View>
+
+          <View style={styles.prefDivider} />
+
+          {/* Row 2: Cultural Events */}
+          <View style={styles.prefRow}>
+            <View style={styles.prefTextCol}>
+              <Text style={styles.prefTitle}>Cultural Events & Festivals</Text>
+              <Text style={styles.prefDesc}>Timkat, Meskel, networking summits & RSVP reminders</Text>
+            </View>
+            <Switch
+              value={notifPrefs.events}
+              onValueChange={() => handleTogglePref('events')}
+              trackColor={{ false: '#E2E8F0', true: colors.gold }}
+              thumbColor={notifPrefs.events ? colors.navy : '#FFFFFF'}
+            />
+          </View>
+
+          <View style={styles.prefDivider} />
+
+          {/* Row 3: Diaspora Investments */}
+          <View style={styles.prefRow}>
+            <View style={styles.prefTextCol}>
+              <Text style={styles.prefTitle}>Investment & Real Estate Alerts</Text>
+              <Text style={styles.prefDesc}>Certified projects, residential launches & yield updates</Text>
+            </View>
+            <Switch
+              value={notifPrefs.investments}
+              onValueChange={() => handleTogglePref('investments')}
+              trackColor={{ false: '#E2E8F0', true: colors.gold }}
+              thumbColor={notifPrefs.investments ? colors.navy : '#FFFFFF'}
+            />
+          </View>
+
+          <View style={styles.prefDivider} />
+
+          {/* Row 4: Community Announcements */}
+          <View style={styles.prefRow}>
+            <View style={styles.prefTextCol}>
+              <Text style={styles.prefTitle}>Community & Embassy Notices</Text>
+              <Text style={styles.prefDesc}>Consular circulars, Ethiopian Yellow Card assistance & news</Text>
+            </View>
+            <Switch
+              value={notifPrefs.announcements}
+              onValueChange={() => handleTogglePref('announcements')}
+              trackColor={{ false: '#E2E8F0', true: colors.gold }}
+              thumbColor={notifPrefs.announcements ? colors.navy : '#FFFFFF'}
+            />
+          </View>
+        </View>
+
         {/* Sign Out Button */}
         <TouchableOpacity
           style={styles.signOutButton}
@@ -1727,5 +1872,93 @@ const styles = StyleSheet.create({
     fontFamily: fonts.bodySemiBold,
     fontSize: 15,
     color: '#FFFFFF',
+  },
+
+  // Notification Center quick link
+  notifCenterLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#FFFFFF',
+    borderRadius: radius.lg,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(223, 183, 108, 0.35)',
+    ...shadow.card,
+  },
+  notifCenterLinkLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    flex: 1,
+  },
+  notifCenterLinkTitle: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 15,
+    color: colors.charcoal,
+    letterSpacing: -0.2,
+  },
+  notifCenterLinkSub: {
+    fontFamily: fonts.body,
+    fontSize: 12,
+    color: colors.charcoalSub,
+    marginTop: 2,
+  },
+
+  // Notification Preferences
+  prefsContainerCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: radius.lg,
+    padding: 18,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: colors.border,
+    ...shadow.card,
+  },
+  prefsHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  prefsCardTitle: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 16,
+    color: colors.charcoal,
+    letterSpacing: -0.2,
+  },
+  prefsCardSubtitle: {
+    fontFamily: fonts.body,
+    fontSize: 12,
+    color: colors.charcoalSub,
+    marginTop: 2,
+  },
+  prefRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 12,
+    gap: 12,
+  },
+  prefTextCol: {
+    flex: 1,
+    paddingRight: 8,
+  },
+  prefTitle: {
+    fontFamily: fonts.bodySemiBold,
+    fontSize: 14,
+    color: colors.charcoal,
+    marginBottom: 2,
+  },
+  prefDesc: {
+    fontFamily: fonts.body,
+    fontSize: 12,
+    color: colors.charcoalSub,
+    lineHeight: 16,
+  },
+  prefDivider: {
+    height: 1,
+    backgroundColor: colors.separator,
+    marginVertical: 4,
   },
 });

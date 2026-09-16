@@ -383,3 +383,53 @@ export const favoritesApi = {
     apiRequest<void>('/favorites', { method: 'DELETE', body: { itemType, itemId }, token }),
 };
 
+export type AppNotification = {
+  id: string;
+  userId?: string | null;
+  title: string;
+  message: string;
+  type: 'order' | 'event' | 'investment' | 'system' | 'service' | string;
+  actionUrl?: string | null;
+  isRead: boolean;
+  createdAt: string;
+};
+
+export type NotificationPreferences = {
+  orders: boolean;
+  events: boolean;
+  investments: boolean;
+  announcements: boolean;
+};
+
+export const notificationsApi = {
+  list: (token?: string | null, category?: string) =>
+    apiRequest<{ notifications: AppNotification[]; unreadCount: number }>(
+      category && category !== 'All'
+        ? `/notifications?category=${encodeURIComponent(category)}`
+        : '/notifications',
+      { token }
+    ),
+  markAsRead: (id: string, token?: string | null) =>
+    apiRequest<{ success: boolean; notification: AppNotification }>(
+      `/notifications/${id}/read`,
+      { method: 'PATCH', token }
+    ),
+  markAllAsRead: (token?: string | null) =>
+    apiRequest<{ success: boolean; message: string }>(
+      '/notifications/read-all',
+      { method: 'PATCH', token }
+    ),
+  dismiss: (id: string, token?: string | null) =>
+    apiRequest<{ success: boolean; message: string }>(
+      `/notifications/${id}`,
+      { method: 'DELETE', token }
+    ),
+  getPreferences: (token?: string | null) =>
+    apiRequest<NotificationPreferences>('/notifications/preferences', { token }),
+  updatePreferences: (data: Partial<NotificationPreferences>, token?: string | null) =>
+    apiRequest<{ success: boolean; preferences: NotificationPreferences }>(
+      '/notifications/preferences',
+      { method: 'PATCH', body: data, token }
+    ),
+};
+

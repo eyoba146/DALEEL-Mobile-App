@@ -30,6 +30,7 @@ import {
 } from '../../lib/api';
 import { useAuth } from '../../lib/auth-context';
 import { useFavorites } from '../../lib/favorites-context';
+import { useNotifications } from '../../lib/notifications-context';
 import { colors, fonts, radius, spacing } from '../../theme/tokens';
 
 export default function Home() {
@@ -38,6 +39,7 @@ export default function Home() {
   const avatarUri = resolveMediaUrl(user?.avatarUrl);
   const router = useRouter();
   const { isFavorite, toggleFavorite } = useFavorites();
+  const { unreadCount } = useNotifications();
 
   const [destinations, setDestinations] = useState<Destination[]>(sampleDestinations as any);
   const [services, setServices] = useState<Service[]>(sampleServices as any);
@@ -106,21 +108,39 @@ export default function Home() {
             <Text style={styles.headerLogo}>DALEEL</Text>
           </View>
 
-          <TouchableOpacity
-            style={styles.avatarBtn}
-            onPress={() => router.push('/(tabs)/profile')}
-            activeOpacity={0.8}
-          >
-            {avatarUri ? (
-              <Image source={{ uri: avatarUri }} style={styles.headerAvatar} />
-            ) : (
-              <View style={styles.headerAvatarFallback}>
-                <Text style={styles.headerAvatarText}>
-                  {user?.name?.[0]?.toUpperCase() || 'D'}
-                </Text>
-              </View>
-            )}
-          </TouchableOpacity>
+          <View style={styles.headerActions}>
+            <TouchableOpacity
+              style={styles.notifBtn}
+              onPress={() => router.push('/notifications')}
+              activeOpacity={0.75}
+              accessibilityLabel="Notifications"
+            >
+              <Ionicons name="notifications-outline" size={20} color="#FFFFFF" />
+              {unreadCount > 0 && (
+                <View style={styles.notifBadge}>
+                  <Text style={styles.notifBadgeText}>
+                    {unreadCount > 9 ? '9+' : unreadCount}
+                  </Text>
+                </View>
+              )}
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.avatarBtn}
+              onPress={() => router.push('/(tabs)/profile')}
+              activeOpacity={0.8}
+            >
+              {avatarUri ? (
+                <Image source={{ uri: avatarUri }} style={styles.headerAvatar} />
+              ) : (
+                <View style={styles.headerAvatarFallback}>
+                  <Text style={styles.headerAvatarText}>
+                    {user?.name?.[0]?.toUpperCase() || 'D'}
+                  </Text>
+                </View>
+              )}
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
 
@@ -547,6 +567,42 @@ const styles = StyleSheet.create({
     fontSize: 22,
     color: '#FFFFFF',
     letterSpacing: 1.2,
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  notifBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+    borderWidth: 1,
+    borderColor: 'rgba(223, 183, 108, 0.3)',
+  },
+  notifBadge: {
+    position: 'absolute',
+    top: -3,
+    right: -3,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: colors.error,
+    paddingHorizontal: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1.5,
+    borderColor: colors.navy,
+  },
+  notifBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontFamily: fonts.bodyBold,
+    lineHeight: 12,
   },
   avatarBtn: {
     width: 38,

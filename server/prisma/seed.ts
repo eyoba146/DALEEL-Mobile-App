@@ -480,6 +480,59 @@ async function main() {
     ],
   });
 
+  await prisma.notification.deleteMany({});
+  await prisma.notificationPreference.deleteMany({});
+
+  await prisma.notification.createMany({
+    data: [
+      {
+        id: 'notif1',
+        title: 'Welcome to DALEEL Diaspora Bridge',
+        message: 'Your unified digital bridge for authentic Ethiopian heritage, vetted services, artisan crafts, and investment opportunities.',
+        type: 'system',
+        actionUrl: '/(tabs)/explore',
+        isRead: false,
+        createdAt: new Date(Date.now() - 1000 * 60 * 30),
+      },
+      {
+        id: 'notif2',
+        title: 'Upcoming Cultural Gathering: Timkat Epiphany',
+        message: 'Timkat sacred baptismal celebrations begin in Lalibela and Gondar in 12 days. Check schedule and reserve accommodation.',
+        type: 'event',
+        actionUrl: '/event/e1',
+        isRead: false,
+        createdAt: new Date(Date.now() - 1000 * 60 * 60 * 4),
+      },
+      {
+        id: 'notif3',
+        title: 'Artisan Marketplace: Direct Shipping Available',
+        message: 'Master weavers in Shiro Meda and Bonga micro-roasters now offer international DHL diaspora air cargo dispatch.',
+        type: 'order',
+        actionUrl: '/marketplace',
+        isRead: false,
+        createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24),
+      },
+      {
+        id: 'notif4',
+        title: 'Diaspora Investment Hub: Bole Residences',
+        message: 'Off-plan units in Bole Atlas SkyLine Luxury Residences are open for diaspora syndicate fractional ownership.',
+        type: 'investment',
+        actionUrl: '/investment/inv1',
+        isRead: true,
+        createdAt: new Date(Date.now() - 1000 * 60 * 60 * 48),
+      },
+      {
+        id: 'notif5',
+        title: 'Legal & Relocation Concierge: Yellow Card Assistance',
+        message: 'Verified legal partners in Bole are accepting foreign citizen of Ethiopian origin identity card (Yellow Card) renewals.',
+        type: 'service',
+        actionUrl: '/service/s2',
+        isRead: true,
+        createdAt: new Date(Date.now() - 1000 * 60 * 60 * 72),
+      },
+    ],
+  });
+
   console.log('✅ Seed completed successfully with rich Ethiopian data.');
 }
 

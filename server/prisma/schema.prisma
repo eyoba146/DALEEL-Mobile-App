@@ -39,6 +39,8 @@ model User {
   investmentInquiries InvestmentInquiry[]
   eventRsvps          EventRsvp[]
   productOrderInquiries ProductOrderInquiry[]
+  notifications       Notification[]
+  notificationPreference NotificationPreference?
 }
 
 model Destination {
@@ -259,4 +261,30 @@ model ProductOrderInquiry {
 
   product         Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
   user            User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String?
+  title     String
+  message   String
+  type      String   @default("system") // order, event, investment, system, service
+  actionUrl String?
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user      User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model NotificationPreference {
+  id            String   @id @default(uuid())
+  userId        String   @unique
+  orders        Boolean  @default(true)
+  events        Boolean  @default(true)
+  investments   Boolean  @default(true)
+  announcements Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
