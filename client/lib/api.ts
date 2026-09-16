@@ -268,6 +268,22 @@ export type ProductOrderInquiryPayload = {
   notes?: string;
 };
 
+export type ProductOrderInquiry = {
+  id: string;
+  productId: string;
+  userId?: string | null;
+  fullName: string;
+  email: string;
+  phone?: string | null;
+  whatsapp?: string | null;
+  quantity: number;
+  deliveryAddress: string;
+  notes?: string | null;
+  status: 'pending' | 'confirmed' | 'dispatched' | 'cancelled' | string;
+  createdAt: string;
+  product?: Product;
+};
+
 export type Favorite = {
   id: string;
   userId: string;
@@ -319,11 +335,42 @@ export const contentApi = {
     apiRequest<Product[]>(category && category !== 'All' ? `/products?category=${encodeURIComponent(category)}` : '/products'),
   product: (id: string) => apiRequest<Product>(`/products/${id}`),
   createProductOrderInquiry: (productId: string, data: ProductOrderInquiryPayload, token?: string | null) =>
-    apiRequest<{ success: boolean; message: string; inquiry: any }>(`/products/${productId}/order-inquiry`, {
+    apiRequest<{ success: boolean; message: string; inquiry: ProductOrderInquiry }>(`/products/${productId}/order-inquiry`, {
       method: 'POST',
       body: data,
       token,
     }),
+  getMyProductInquiry: (productId: string, token?: string | null, email?: string) =>
+    apiRequest<ProductOrderInquiry | null>(
+      `/products/${productId}/my-inquiry${email ? `?email=${encodeURIComponent(email)}` : ''}`,
+      { token }
+    ),
+  getMyProductInquiries: (token?: string | null, email?: string) =>
+    apiRequest<ProductOrderInquiry[]>(
+      `/products/inquiries/my${email ? `?email=${encodeURIComponent(email)}` : ''}`,
+      { token }
+    ),
+  updateProductOrderInquiry: (
+    inquiryId: string,
+    data: Partial<ProductOrderInquiryPayload>,
+    token?: string | null
+  ) =>
+    apiRequest<{ success: boolean; message: string; inquiry: ProductOrderInquiry }>(
+      `/products/inquiries/${inquiryId}`,
+      {
+        method: 'PATCH',
+        body: data,
+        token,
+      }
+    ),
+  cancelProductOrderInquiry: (inquiryId: string, token?: string | null) =>
+    apiRequest<{ success: boolean; message: string; inquiry: ProductOrderInquiry }>(
+      `/products/inquiries/${inquiryId}/cancel`,
+      {
+        method: 'PATCH',
+        token,
+      }
+    ),
 };
 
 export const favoritesApi = {

@@ -1,9 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
+  Animated,
   Image,
   KeyboardAvoidingView,
   Linking,
@@ -21,7 +21,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { products as sampleProducts } from '../../assets/data/sample';
-import { contentApi, Product, ProductOrderInquiryPayload } from '../../lib/api';
+import { contentApi, Product, ProductOrderInquiry, ProductOrderInquiryPayload } from '../../lib/api';
 import { useAuth } from '../../lib/auth-context';
 import { useFavorites } from '../../lib/favorites-context';
 import { colors, fonts, radius, spacing } from '../../theme/tokens';
@@ -41,8 +41,17 @@ export default function ProductDetailScreen() {
   const [loading, setLoading] = useState(true);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
 
-  // Order Inquiry Modal State
+  // Active Inquiry State for this product
+  const [activeInquiry, setActiveInquiry] = useState<ProductOrderInquiry | null>(null);
+  const [loadingInquiry, setLoadingInquiry] = useState(false);
+
+  // Order Modal State
   const [orderModalVisible, setOrderModalVisible] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [cancelPromptVisible, setCancelPromptVisible] = useState(false);
+  const [cancellingOrder, setCancellingOrder] = useState(false);
+
+  // Form inputs
   const [quantity, setQuantity] = useState(1);
   const [fullName, setFullName] = useState(user?.name ?? '');
   const [email, setEmail] = useState(user?.email ?? '');
@@ -50,42 +59,87 @@ export default function ProductDetailScreen() {
   const [whatsapp, setWhatsapp] = useState(user?.phone ?? '');
   const [deliveryAddress, setDeliveryAddress] = useState('');
   const [notes, setNotes] = useState('');
+  const [formError, setFormError] = useState<string | null>(null);
   const [submittingOrder, setSubmittingOrder] = useState(false);
   const [orderSuccess, setOrderSuccess] = useState(false);
 
+  // Scroll tracking to hide floating top nav bar on scroll
+  const scrollY = useRef(new Animated.Value(0)).current;
+  const [isScrolledPastHero, setIsScrolledPastHero] = useState(false);
+
+  const navOpacity = scrollY.interpolate({
+    inputRange: [0, 80],
+    outputRange: [1, 0],
+    extrapolate: 'clamp',
+  });
+
+  const navTranslateY = scrollY.interpolate({
+    inputRange: [0, 80],
+    outputRange: [0, -55],
+    extrapolate: 'clamp',
+  });
+
   useEffect(() => {
-    let isMounted = true;
-    async function fetchDetail() {
-      if (!id) return;
-      try {
-        const data = await contentApi.product(id);
-        if (isMounted && data) {
-          setProduct(data);
-        }
-      } catch (err) {
-        const fallback = sampleProducts.find((p) => p.id === id);
-        if (isMounted && fallback) {
-          setProduct(fallback);
-        }
-      } finally {
-        if (isMounted) setLoading(false);
+    const listenerId = scrollY.addListener(({ value }) => {
+      if (value > 70 && !isScrolledPastHero) {
+        setIsScrolledPastHero(true);
+      } else if (value <= 70 && isScrolledPastHero) {
+        setIsScrolledPastHero(false);
       }
+    });
+    return () => {
+      scrollY.removeListener(listenerId);
+    };
+  }, [isScrolledPastHero, scrollY]);
+
+  // Load product & existing user inquiry
+  const loadProductAndInquiry = useCallback(async () => {
+    if (!id) return;
+    try {
+      setLoading(true);
+      const data = await contentApi.product(id);
+      if (data) setProduct(data);
+    } catch {
+      const fallback = sampleProducts.find((p) => p.id === id);
+      if (fallback) setProduct(fallback);
+    } finally {
+      setLoading(false);
     }
 
-    fetchDetail();
-    return () => {
-      isMounted = false;
-    };
-  }, [id]);
+    try {
+      setLoadingInquiry(true);
+      const inq = await contentApi.getMyProductInquiry(id, token, user?.email);
+      if (inq && inq.status !== 'cancelled') {
+        setActiveInquiry(inq);
+        setQuantity(inq.quantity);
+        setDeliveryAddress(inq.deliveryAddress || '');
+        setNotes(inq.notes || '');
+        if (inq.fullName) setFullName(inq.fullName);
+        if (inq.email) setEmail(inq.email);
+        if (inq.phone) setPhone(inq.phone);
+        if (inq.whatsapp) setWhatsapp(inq.whatsapp);
+      } else {
+        setActiveInquiry(null);
+      }
+    } catch {
+      // Offline fallback
+    } finally {
+      setLoadingInquiry(false);
+    }
+  }, [id, token, user?.email]);
 
   useEffect(() => {
-    if (user) {
+    loadProductAndInquiry();
+  }, [loadProductAndInquiry]);
+
+  useEffect(() => {
+    if (user && !activeInquiry) {
       if (!fullName) setFullName(user.name);
       if (!email) setEmail(user.email);
       if (!phone && user.phone) setPhone(user.phone);
       if (!whatsapp && user.phone) setWhatsapp(user.phone);
     }
-  }, [user]);
+  }, [user, activeInquiry]);
 
   const fav = product ? isFavorite('product', product.id) : false;
 
@@ -116,11 +170,12 @@ export default function ProductDetailScreen() {
     Linking.openURL(`tel:${cleanNumber}`);
   };
 
-  const handleWhatsAppSeller = () => {
+  const handleWhatsAppSeller = (referenceId?: string) => {
     if (!product?.sellerWhatsapp) return;
     const cleanNumber = product.sellerWhatsapp.replace(/[^0-9+]/g, '');
+    const refText = referenceId ? ` (Inquiry Ref: #${referenceId.slice(0, 8)})` : '';
     const prefilledText = encodeURIComponent(
-      `Hello ${product.sellerName}, I found your authentic piece "${product.title}" on the DALEEL App and would like to inquire about ordering.`
+      `Hello ${product.sellerName}, I found your authentic piece "${product.title}" on the DALEEL App and would like to check on my order${refText}.`
     );
     Linking.openURL(`https://wa.me/${cleanNumber}?text=${prefilledText}`);
   };
@@ -129,12 +184,12 @@ export default function ProductDetailScreen() {
     setQuantity((prev) => Math.max(1, Math.min(20, prev + delta)));
   };
 
+  // Submit or Update Inquiry
   const handleSubmitOrder = async () => {
+    setFormError(null);
+
     if (!fullName.trim() || !email.trim() || !deliveryAddress.trim()) {
-      Alert.alert(
-        'Required Information',
-        'Please enter your full name, email address, and delivery destination address.'
-      );
+      setFormError('Please provide your full name, email address, and delivery destination address.');
       return;
     }
 
@@ -152,13 +207,57 @@ export default function ProductDetailScreen() {
         notes: notes.trim() || undefined,
       };
 
-      await contentApi.createProductOrderInquiry(product.id, payload, token);
-      setOrderSuccess(true);
+      if (isEditMode && activeInquiry) {
+        const res = await contentApi.updateProductOrderInquiry(activeInquiry.id, payload, token);
+        setActiveInquiry(res.inquiry);
+        setIsEditMode(false);
+        setOrderSuccess(true);
+      } else {
+        const res = await contentApi.createProductOrderInquiry(product.id, payload, token);
+        setActiveInquiry(res.inquiry);
+        setOrderSuccess(true);
+      }
     } catch (err: any) {
-      // In offline / mock mode, show success gracefully
+      // Mock fallback
+      const mockInq: ProductOrderInquiry = {
+        id: activeInquiry?.id || `inq-${Date.now()}`,
+        productId: product.id,
+        userId: user?.id || null,
+        fullName: fullName.trim(),
+        email: email.trim().toLowerCase(),
+        phone: phone.trim() || null,
+        whatsapp: whatsapp.trim() || null,
+        quantity,
+        deliveryAddress: deliveryAddress.trim(),
+        notes: notes.trim() || null,
+        status: 'pending',
+        createdAt: activeInquiry?.createdAt || new Date().toISOString(),
+      };
+      setActiveInquiry(mockInq);
+      setIsEditMode(false);
       setOrderSuccess(true);
     } finally {
       setSubmittingOrder(false);
+    }
+  };
+
+  // Cancel Inquiry
+  const handleCancelInquiry = async () => {
+    if (!activeInquiry) return;
+    setCancellingOrder(true);
+    try {
+      await contentApi.cancelProductOrderInquiry(activeInquiry.id, token);
+      setActiveInquiry(null);
+      setCancelPromptVisible(false);
+      setOrderModalVisible(false);
+      setIsEditMode(false);
+    } catch (err: any) {
+      setActiveInquiry(null);
+      setCancelPromptVisible(false);
+      setOrderModalVisible(false);
+      setIsEditMode(false);
+    } finally {
+      setCancellingOrder(false);
     }
   };
 
@@ -184,13 +283,25 @@ export default function ProductDetailScreen() {
   }
 
   const totalPrice = product.price * quantity;
+  const hasPendingInquiry = activeInquiry && activeInquiry.status === 'pending';
+  const hasActiveInquiry = activeInquiry && activeInquiry.status !== 'cancelled';
 
   return (
     <View style={styles.screen}>
       <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
 
-      {/* Hero Header Navigation Bar */}
-      <View style={[styles.floatingNavBar, { paddingTop: Math.max(insets.top, 16) }]}>
+      {/* Floating Header Navigation Bar (Smoothly hides on scroll down) */}
+      <Animated.View
+        pointerEvents={isScrolledPastHero ? 'none' : 'auto'}
+        style={[
+          styles.floatingNavBar,
+          {
+            paddingTop: Math.max(insets.top, 16),
+            opacity: navOpacity,
+            transform: [{ translateY: navTranslateY }],
+          },
+        ]}
+      >
         <TouchableOpacity
           style={styles.navCircleBtn}
           onPress={() => router.back()}
@@ -220,11 +331,16 @@ export default function ProductDetailScreen() {
             />
           </TouchableOpacity>
         </View>
-      </View>
+      </Animated.View>
 
-      <ScrollView
+      <Animated.ScrollView
         contentContainerStyle={[styles.scrollContent, { paddingBottom: 110 + insets.bottom }]}
         showsVerticalScrollIndicator={false}
+        scrollEventThrottle={16}
+        onScroll={Animated.event(
+          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+          { useNativeDriver: true }
+        )}
       >
         {/* Hero Image Showcase */}
         <View style={styles.heroImageWrap}>
@@ -262,6 +378,57 @@ export default function ProductDetailScreen() {
         </View>
 
         <View style={styles.bodyWrap}>
+          {/* Active Order Status Notification Banner */}
+          {hasActiveInquiry && (
+            <TouchableOpacity
+              style={styles.activeOrderBanner}
+              activeOpacity={0.88}
+              onPress={() => {
+                setOrderSuccess(false);
+                setIsEditMode(false);
+                setCancelPromptVisible(false);
+                setFormError(null);
+                setOrderModalVisible(true);
+              }}
+            >
+              <View style={styles.activeOrderIconBox}>
+                <Ionicons
+                  name={activeInquiry.status === 'pending' ? 'time' : 'checkmark-circle'}
+                  size={20}
+                  color={activeInquiry.status === 'pending' ? colors.gold : colors.success}
+                />
+              </View>
+              <View style={{ flex: 1 }}>
+                <View style={styles.activeOrderTitleRow}>
+                  <Text style={styles.activeOrderTitle}>Active Inquiry</Text>
+                  <View
+                    style={[
+                      styles.statusPill,
+                      activeInquiry.status === 'pending'
+                        ? styles.statusPillPending
+                        : styles.statusPillConfirmed,
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.statusPillText,
+                        activeInquiry.status === 'pending'
+                          ? styles.statusPillTextPending
+                          : styles.statusPillTextConfirmed,
+                      ]}
+                    >
+                      {activeInquiry.status === 'pending' ? 'PENDING APPROVAL' : activeInquiry.status.toUpperCase()}
+                    </Text>
+                  </View>
+                </View>
+                <Text style={styles.activeOrderSub}>
+                  {activeInquiry.quantity} piece(s) requested • Tap to view, edit or cancel
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color={colors.navy} />
+            </TouchableOpacity>
+          )}
+
           {/* Artisan Seller Overview Card */}
           <View style={styles.artisanCard}>
             <View style={styles.artisanIconCircle}>
@@ -297,7 +464,7 @@ export default function ProductDetailScreen() {
               {product.sellerWhatsapp && (
                 <TouchableOpacity
                   style={[styles.contactCircleBtn, styles.whatsappCircleBtn]}
-                  onPress={handleWhatsAppSeller}
+                  onPress={() => handleWhatsAppSeller(activeInquiry?.id)}
                   activeOpacity={0.8}
                 >
                   <Ionicons name="logo-whatsapp" size={16} color="#25D366" />
@@ -374,20 +541,24 @@ export default function ProductDetailScreen() {
             </View>
           </View>
         </View>
-      </ScrollView>
+      </Animated.ScrollView>
 
       {/* Sticky Bottom Ordering Bar */}
       <View style={[styles.bottomBar, { paddingBottom: Math.max(insets.bottom, 14) }]}>
         <View style={styles.bottomPriceCol}>
-          <Text style={styles.bottomPriceLabel}>Price per piece</Text>
-          <Text style={styles.bottomPriceValue}>{formatPrice(product.price, product.currency)}</Text>
+          <Text style={styles.bottomPriceLabel}>
+            {hasActiveInquiry ? 'Your Inquiry Total' : 'Price per piece'}
+          </Text>
+          <Text style={styles.bottomPriceValue}>
+            {formatPrice(hasActiveInquiry ? product.price * activeInquiry.quantity : product.price, product.currency)}
+          </Text>
         </View>
 
         <View style={styles.bottomActionsRow}>
           {product.sellerWhatsapp && (
             <TouchableOpacity
               style={styles.chatWhatsappBtn}
-              onPress={handleWhatsAppSeller}
+              onPress={() => handleWhatsAppSeller(activeInquiry?.id)}
               activeOpacity={0.85}
             >
               <Ionicons name="logo-whatsapp" size={20} color="#25D366" />
@@ -395,24 +566,35 @@ export default function ProductDetailScreen() {
           )}
 
           <TouchableOpacity
-            style={styles.orderMainBtn}
+            style={[styles.orderMainBtn, hasActiveInquiry && styles.orderManageBtn]}
             onPress={() => {
               setOrderSuccess(false);
+              setIsEditMode(false);
+              setCancelPromptVisible(false);
+              setFormError(null);
               setOrderModalVisible(true);
             }}
             activeOpacity={0.88}
           >
-            <Ionicons name="bag-check-outline" size={18} color="#FFFFFF" style={{ marginRight: 6 }} />
-            <Text style={styles.orderMainBtnText}>Request / Order</Text>
+            <Ionicons
+              name={hasActiveInquiry ? 'clipboard-outline' : 'bag-check-outline'}
+              size={18}
+              color="#FFFFFF"
+              style={{ marginRight: 6 }}
+            />
+            <Text style={styles.orderMainBtnText}>
+              {hasActiveInquiry ? 'Manage Order' : 'Request / Order'}
+            </Text>
           </TouchableOpacity>
         </View>
       </View>
 
-      {/* Interactive Order / Inquiry Modal Sheet */}
+      {/* Interactive Order / Inquiry Modal Sheet (True Fullscreen Dark Overlay) */}
       <Modal
         visible={orderModalVisible}
         animationType="slide"
-        transparent
+        transparent={true}
+        statusBarTranslucent={true}
         onRequestClose={() => setOrderModalVisible(false)}
       >
         <KeyboardAvoidingView
@@ -425,34 +607,49 @@ export default function ProductDetailScreen() {
               <View style={styles.modalIndicator} />
               <View style={styles.modalHeaderRow}>
                 <View>
-                  <Text style={styles.modalTitle}>Order Inquiry</Text>
+                  <Text style={styles.modalTitle}>
+                    {hasActiveInquiry && !isEditMode ? 'Order Inquiry Status' : isEditMode ? 'Edit Order Inquiry' : 'New Order Request'}
+                  </Text>
                   <Text style={styles.modalSubtitle} numberOfLines={1}>
                     {product.title}
                   </Text>
                 </View>
                 <TouchableOpacity
                   style={styles.closeModalBtn}
-                  onPress={() => setOrderModalVisible(false)}
+                  onPress={() => {
+                    setOrderModalVisible(false);
+                    setIsEditMode(false);
+                    setCancelPromptVisible(false);
+                  }}
                 >
                   <Ionicons name="close" size={22} color={colors.charcoal} />
                 </TouchableOpacity>
               </View>
             </View>
 
+            {/* View A: Success Receipt State */}
             {orderSuccess ? (
               <ScrollView contentContainerStyle={styles.successContent}>
                 <View style={styles.successIconCircle}>
                   <Ionicons name="checkmark-done" size={42} color={colors.success} />
                 </View>
-                <Text style={styles.successTitle}>Inquiry Transmitted!</Text>
+                <Text style={styles.successTitle}>Inquiry Confirmed!</Text>
                 <Text style={styles.successBody}>
-                  Your order request for {quantity} piece(s) of &quot;{product.title}&quot; has been sent directly to {product.sellerName}.
+                  Your order request has been transmitted directly to {product.sellerName}. It is currently under review.
                 </Text>
 
                 <View style={styles.summaryBox}>
                   <View style={styles.summaryLine}>
+                    <Text style={styles.summaryLabel}>Status:</Text>
+                    <View style={styles.statusPillPending}>
+                      <Text style={styles.statusPillTextPending}>PENDING APPROVAL</Text>
+                    </View>
+                  </View>
+                  <View style={styles.summaryLine}>
                     <Text style={styles.summaryLabel}>Total Estimated Price:</Text>
-                    <Text style={styles.summaryVal}>{formatPrice(totalPrice, product.currency)}</Text>
+                    <Text style={styles.summaryVal}>
+                      {formatPrice(totalPrice, product.currency)} ({quantity} pcs)
+                    </Text>
                   </View>
                   <View style={styles.summaryLine}>
                     <Text style={styles.summaryLabel}>Delivery Destination:</Text>
@@ -471,28 +668,185 @@ export default function ProductDetailScreen() {
                     style={styles.whatsappFollowUpBtn}
                     onPress={() => {
                       setOrderModalVisible(false);
-                      handleWhatsAppSeller();
+                      handleWhatsAppSeller(activeInquiry?.id);
                     }}
                     activeOpacity={0.88}
                   >
                     <Ionicons name="logo-whatsapp" size={18} color="#FFFFFF" style={{ marginRight: 8 }} />
-                    <Text style={styles.whatsappFollowUpText}>Chat on WhatsApp Now</Text>
+                    <Text style={styles.whatsappFollowUpText}>Chat on WhatsApp with Merchant</Text>
                   </TouchableOpacity>
                 )}
 
                 <TouchableOpacity
                   style={styles.doneBtn}
-                  onPress={() => setOrderModalVisible(false)}
+                  onPress={() => {
+                    setOrderSuccess(false);
+                    setOrderModalVisible(false);
+                  }}
                   activeOpacity={0.88}
                 >
                   <Text style={styles.doneBtnText}>Return to Product</Text>
                 </TouchableOpacity>
               </ScrollView>
+            ) : hasActiveInquiry && !isEditMode ? (
+              /* View B: Active Order Management View (Status, Details, Edit & Cancel) */
+              <ScrollView contentContainerStyle={styles.manageContent} showsVerticalScrollIndicator={false}>
+                {/* Live Status Card */}
+                <View style={styles.statusCard}>
+                  <View style={styles.statusHeaderRow}>
+                    <Text style={styles.statusCardTitle}>Current Status</Text>
+                    <View
+                      style={[
+                        styles.statusPill,
+                        activeInquiry.status === 'pending'
+                          ? styles.statusPillPending
+                          : styles.statusPillConfirmed,
+                      ]}
+                    >
+                      <View
+                        style={[
+                          styles.pulsingDot,
+                          { backgroundColor: activeInquiry.status === 'pending' ? colors.gold : colors.success },
+                        ]}
+                      />
+                      <Text
+                        style={[
+                          styles.statusPillText,
+                          activeInquiry.status === 'pending'
+                            ? styles.statusPillTextPending
+                            : styles.statusPillTextConfirmed,
+                        ]}
+                      >
+                        {activeInquiry.status === 'pending' ? 'PENDING APPROVAL' : activeInquiry.status.toUpperCase()}
+                      </Text>
+                    </View>
+                  </View>
+                  <Text style={styles.statusDescription}>
+                    {activeInquiry.status === 'pending'
+                      ? 'Your order inquiry has been submitted and is currently awaiting merchant verification. You can freely edit delivery instructions or cancel until approved.'
+                      : 'Your inquiry has been approved by the merchant. The artisan is preparing your package.'}
+                  </Text>
+                </View>
+
+                {/* Inquiry Order Details */}
+                <View style={styles.summaryBox}>
+                  <View style={styles.summaryLine}>
+                    <Text style={styles.summaryLabel}>Quantity Ordered:</Text>
+                    <Text style={styles.summaryVal}>{activeInquiry.quantity} piece(s)</Text>
+                  </View>
+                  <View style={styles.summaryLine}>
+                    <Text style={styles.summaryLabel}>Estimated Total:</Text>
+                    <Text style={styles.summaryVal}>
+                      {formatPrice(product.price * activeInquiry.quantity, product.currency)}
+                    </Text>
+                  </View>
+                  <View style={styles.summaryLine}>
+                    <Text style={styles.summaryLabel}>Delivery Destination:</Text>
+                    <Text style={styles.summaryVal} numberOfLines={1}>
+                      {activeInquiry.deliveryAddress}
+                    </Text>
+                  </View>
+                  {activeInquiry.notes ? (
+                    <View style={styles.summaryLineCol}>
+                      <Text style={styles.summaryLabel}>Custom Notes / Sizing:</Text>
+                      <Text style={styles.summaryValNote}>{activeInquiry.notes}</Text>
+                    </View>
+                  ) : null}
+                  <View style={styles.summaryLine}>
+                    <Text style={styles.summaryLabel}>Submitted At:</Text>
+                    <Text style={styles.summaryVal}>
+                      {new Date(activeInquiry.createdAt).toLocaleDateString()}
+                    </Text>
+                  </View>
+                </View>
+
+                {/* Inline Cancel Confirmation Box */}
+                {cancelPromptVisible ? (
+                  <View style={styles.cancelConfirmCard}>
+                    <View style={styles.cancelConfirmHeader}>
+                      <Ionicons name="warning-outline" size={18} color="#DC2626" style={{ marginRight: 6 }} />
+                      <Text style={styles.cancelConfirmTitle}>Cancel this Order Inquiry?</Text>
+                    </View>
+                    <Text style={styles.cancelConfirmText}>
+                      This will withdraw your request. You can submit a new inquiry anytime.
+                    </Text>
+                    <View style={styles.cancelActionsRow}>
+                      <TouchableOpacity
+                        style={styles.cancelDismissBtn}
+                        onPress={() => setCancelPromptVisible(false)}
+                        disabled={cancellingOrder}
+                      >
+                        <Text style={styles.cancelDismissText}>Keep Inquiry</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={styles.cancelConfirmBtn}
+                        onPress={handleCancelInquiry}
+                        disabled={cancellingOrder}
+                      >
+                        {cancellingOrder ? (
+                          <ActivityIndicator size="small" color="#FFFFFF" />
+                        ) : (
+                          <Text style={styles.cancelConfirmBtnText}>Confirm Cancel</Text>
+                        )}
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                ) : null}
+
+                {/* Action Buttons for Pending Order */}
+                {hasPendingInquiry && !cancelPromptVisible && (
+                  <View style={styles.manageBtnRow}>
+                    <TouchableOpacity
+                      style={styles.editInquiryBtn}
+                      onPress={() => {
+                        setFormError(null);
+                        setIsEditMode(true);
+                      }}
+                      activeOpacity={0.85}
+                    >
+                      <Ionicons name="create-outline" size={17} color={colors.navy} style={{ marginRight: 6 }} />
+                      <Text style={styles.editInquiryBtnText}>Edit Inquiry Details</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={styles.cancelInquiryBtn}
+                      onPress={() => setCancelPromptVisible(true)}
+                      activeOpacity={0.85}
+                    >
+                      <Ionicons name="trash-outline" size={17} color="#DC2626" style={{ marginRight: 6 }} />
+                      <Text style={styles.cancelInquiryBtnText}>Cancel Order</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+
+                {product.sellerWhatsapp && (
+                  <TouchableOpacity
+                    style={[styles.whatsappFollowUpBtn, { marginTop: 12 }]}
+                    onPress={() => {
+                      setOrderModalVisible(false);
+                      handleWhatsAppSeller(activeInquiry.id);
+                    }}
+                    activeOpacity={0.88}
+                  >
+                    <Ionicons name="logo-whatsapp" size={18} color="#FFFFFF" style={{ marginRight: 8 }} />
+                    <Text style={styles.whatsappFollowUpText}>Chat with Merchant on WhatsApp</Text>
+                  </TouchableOpacity>
+                )}
+              </ScrollView>
             ) : (
+              /* View C: Order Inquiry Form (Both for New Orders and Inline Editing) */
               <ScrollView
                 showsVerticalScrollIndicator={false}
                 contentContainerStyle={styles.formContent}
               >
+                {/* Inline Error Notice (No Alert.alert) */}
+                {formError ? (
+                  <View style={styles.inlineErrorBox}>
+                    <Ionicons name="alert-circle" size={16} color="#DC2626" style={{ marginRight: 8 }} />
+                    <Text style={styles.inlineErrorText}>{formError}</Text>
+                  </View>
+                ) : null}
+
                 {/* Quantity Selector Pod */}
                 <View style={styles.quantityPod}>
                   <View>
@@ -531,7 +885,10 @@ export default function ProductDetailScreen() {
                     placeholder="e.g. Dawit Haile"
                     placeholderTextColor={colors.charcoalSub}
                     value={fullName}
-                    onChangeText={setFullName}
+                    onChangeText={(val) => {
+                      setFullName(val);
+                      if (formError) setFormError(null);
+                    }}
                   />
                 </View>
 
@@ -544,7 +901,10 @@ export default function ProductDetailScreen() {
                     keyboardType="email-address"
                     autoCapitalize="none"
                     value={email}
-                    onChangeText={setEmail}
+                    onChangeText={(val) => {
+                      setEmail(val);
+                      if (formError) setFormError(null);
+                    }}
                   />
                 </View>
 
@@ -580,7 +940,10 @@ export default function ProductDetailScreen() {
                     placeholder="e.g. Bole Medhanialem, Addis Ababa OR Diaspora postal address"
                     placeholderTextColor={colors.charcoalSub}
                     value={deliveryAddress}
-                    onChangeText={setDeliveryAddress}
+                    onChangeText={(val) => {
+                      setDeliveryAddress(val);
+                      if (formError) setFormError(null);
+                    }}
                   />
                 </View>
 
@@ -597,7 +960,7 @@ export default function ProductDetailScreen() {
                   />
                 </View>
 
-                {/* Submit Button */}
+                {/* Submit / Update Button */}
                 <TouchableOpacity
                   style={[styles.submitOrderBtn, submittingOrder && styles.submitOrderBtnDisabled]}
                   onPress={handleSubmitOrder}
@@ -609,12 +972,26 @@ export default function ProductDetailScreen() {
                   ) : (
                     <>
                       <Text style={styles.submitOrderBtnText}>
-                        Submit Inquiry ({formatPrice(totalPrice, product.currency)})
+                        {isEditMode
+                          ? `Save Updated Inquiry (${formatPrice(totalPrice, product.currency)})`
+                          : `Submit Inquiry (${formatPrice(totalPrice, product.currency)})`}
                       </Text>
                       <Ionicons name="arrow-forward" size={16} color="#FFFFFF" style={{ marginLeft: 6 }} />
                     </>
                   )}
                 </TouchableOpacity>
+
+                {isEditMode && (
+                  <TouchableOpacity
+                    style={styles.cancelEditBtn}
+                    onPress={() => {
+                      setFormError(null);
+                      setIsEditMode(false);
+                    }}
+                  >
+                    <Text style={styles.cancelEditText}>Discard Changes</Text>
+                  </TouchableOpacity>
+                )}
 
                 <Text style={styles.disclaimerText}>
                   Payment is settled directly with the artisan cooperative via mobile money, bank transfer, or cash on delivery upon dispatch.
@@ -660,7 +1037,7 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
 
-  // Floating Navigation
+  // Floating Navigation (Hides smoothly on scroll)
   floatingNavBar: {
     position: 'absolute',
     top: 0,
@@ -765,6 +1142,77 @@ const styles = StyleSheet.create({
   },
   bodyWrap: {
     padding: 18,
+  },
+
+  // Active Order Banner on Product Detail Screen
+  activeOrderBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFDF5',
+    borderWidth: 1.5,
+    borderColor: 'rgba(198, 148, 10, 0.4)',
+    borderRadius: radius.lg,
+    padding: 12,
+    marginBottom: 16,
+  },
+  activeOrderIconBox: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(198, 148, 10, 0.12)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
+  },
+  activeOrderTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 2,
+  },
+  activeOrderTitle: {
+    fontSize: 12.5,
+    fontFamily: fonts.body,
+    fontWeight: '700',
+    color: colors.navy,
+  },
+  activeOrderSub: {
+    fontSize: 11.5,
+    fontFamily: fonts.body,
+    color: colors.charcoalSub,
+  },
+
+  // Status Pills
+  statusPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  statusPillPending: {
+    backgroundColor: 'rgba(198, 148, 10, 0.15)',
+  },
+  statusPillConfirmed: {
+    backgroundColor: 'rgba(46, 125, 50, 0.12)',
+  },
+  statusPillText: {
+    fontSize: 9.5,
+    fontFamily: fonts.body,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+  },
+  statusPillTextPending: {
+    color: colors.goldRich,
+  },
+  statusPillTextConfirmed: {
+    color: colors.success,
+  },
+  pulsingDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    marginRight: 4,
   },
 
   // Artisan Card
@@ -1014,6 +1462,9 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
     elevation: 4,
   },
+  orderManageBtn: {
+    backgroundColor: colors.goldRich,
+  },
   orderMainBtnText: {
     fontSize: 13.5,
     fontFamily: fonts.body,
@@ -1021,17 +1472,17 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
 
-  // Modal Sheet
+  // Modal Sheet (True Fullscreen dark overlay with statusBarTranslucent)
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.55)',
+    backgroundColor: 'rgba(0, 0, 0, 0.65)',
     justifyContent: 'flex-end',
   },
   modalSheet: {
     backgroundColor: '#FFFFFF',
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
-    maxHeight: '90%',
+    maxHeight: '92%',
     paddingBottom: 24,
   },
   modalHeader: {
@@ -1074,13 +1525,166 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+
+  // Inline Error Box (Replaces Alert.alert)
+  inlineErrorBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FEE2E2',
+    borderWidth: 1,
+    borderColor: '#F87171',
+    borderRadius: radius.md,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    marginBottom: 14,
+  },
+  inlineErrorText: {
+    flex: 1,
+    fontSize: 12,
+    fontFamily: fonts.body,
+    fontWeight: '600',
+    color: '#B91C1C',
+    lineHeight: 16,
+  },
+
+  // Manage Order View Styles
+  manageContent: {
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 24,
+  },
+  statusCard: {
+    backgroundColor: colors.ivory,
+    borderRadius: radius.lg,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(198, 148, 10, 0.3)',
+    marginBottom: 16,
+  },
+  statusHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  statusCardTitle: {
+    fontSize: 13,
+    fontFamily: fonts.body,
+    fontWeight: '700',
+    color: colors.navy,
+  },
+  statusDescription: {
+    fontSize: 12,
+    fontFamily: fonts.body,
+    color: colors.charcoalSub,
+    lineHeight: 17,
+  },
+  manageBtnRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 8,
+  },
+  editInquiryBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.ivory,
+    borderWidth: 1.2,
+    borderColor: colors.navy,
+    borderRadius: radius.pill,
+    paddingVertical: 12,
+  },
+  editInquiryBtnText: {
+    fontSize: 12.5,
+    fontFamily: fonts.body,
+    fontWeight: '700',
+    color: colors.navy,
+  },
+  cancelInquiryBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FEF2F2',
+    borderWidth: 1.2,
+    borderColor: '#F87171',
+    borderRadius: radius.pill,
+    paddingVertical: 12,
+  },
+  cancelInquiryBtnText: {
+    fontSize: 12.5,
+    fontFamily: fonts.body,
+    fontWeight: '700',
+    color: '#DC2626',
+  },
+
+  // Cancel Confirmation Card
+  cancelConfirmCard: {
+    backgroundColor: '#FEF2F2',
+    borderWidth: 1.2,
+    borderColor: '#F87171',
+    borderRadius: radius.lg,
+    padding: 14,
+    marginTop: 10,
+    marginBottom: 10,
+  },
+  cancelConfirmHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  cancelConfirmTitle: {
+    fontSize: 13,
+    fontFamily: fonts.body,
+    fontWeight: '700',
+    color: '#DC2626',
+  },
+  cancelConfirmText: {
+    fontSize: 11.5,
+    fontFamily: fonts.body,
+    color: colors.charcoalSub,
+    marginBottom: 12,
+    lineHeight: 16,
+  },
+  cancelActionsRow: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 10,
+  },
+  cancelDismissBtn: {
+    paddingVertical: 7,
+    paddingHorizontal: 12,
+    borderRadius: radius.pill,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: 'rgba(23, 25, 28, 0.15)',
+  },
+  cancelDismissText: {
+    fontSize: 11.5,
+    fontFamily: fonts.body,
+    fontWeight: '600',
+    color: colors.charcoal,
+  },
+  cancelConfirmBtn: {
+    paddingVertical: 7,
+    paddingHorizontal: 14,
+    borderRadius: radius.pill,
+    backgroundColor: '#DC2626',
+  },
+  cancelConfirmBtnText: {
+    fontSize: 11.5,
+    fontFamily: fonts.body,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+
+  // Form Content
   formContent: {
     paddingHorizontal: 20,
     paddingTop: 14,
     paddingBottom: 24,
   },
-
-  // Quantity Pod
   quantityPod: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1129,8 +1733,6 @@ const styles = StyleSheet.create({
     minWidth: 26,
     textAlign: 'center',
   },
-
-  // Input Fields
   inputGroup: {
     marginBottom: 12,
   },
@@ -1183,6 +1785,17 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#FFFFFF',
   },
+  cancelEditBtn: {
+    paddingVertical: 10,
+    alignItems: 'center',
+    marginTop: 6,
+  },
+  cancelEditText: {
+    fontSize: 12.5,
+    fontFamily: fonts.body,
+    fontWeight: '600',
+    color: colors.charcoalSub,
+  },
   disclaimerText: {
     fontSize: 11,
     fontFamily: fonts.body,
@@ -1228,13 +1841,16 @@ const styles = StyleSheet.create({
     padding: 14,
     borderWidth: 1,
     borderColor: 'rgba(198, 148, 10, 0.3)',
-    marginBottom: 18,
+    marginBottom: 14,
     gap: 8,
   },
   summaryLine: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+  },
+  summaryLineCol: {
+    marginTop: 2,
   },
   summaryLabel: {
     fontSize: 11.5,
@@ -1246,6 +1862,13 @@ const styles = StyleSheet.create({
     fontFamily: fonts.body,
     fontWeight: '700',
     color: colors.navy,
+  },
+  summaryValNote: {
+    fontSize: 11.5,
+    fontFamily: fonts.body,
+    color: colors.charcoal,
+    fontStyle: 'italic',
+    marginTop: 2,
   },
   whatsappFollowUpBtn: {
     flexDirection: 'row',

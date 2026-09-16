@@ -307,21 +307,143 @@ contentRouter.get('/products', async (req: Request, res: Response) => {
   }
 });
 
-contentRouter.get('/products/:id', async (req: Request, res: Response) => {
+contentRouter.get('/products/inquiries/my', async (req: Request, res: Response) => {
   try {
-    const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
-    const product = await prisma.product.findUnique({
-      where: { id },
-    });
+    const userId = getOptionalUserId(req);
+    const email = req.query.email ? String(req.query.email).trim().toLowerCase() : undefined;
 
-    if (!product) {
-      return res.status(404).json({ error: 'Product not found' });
+    if (!userId && !email) {
+      return res.json([]);
     }
 
-    res.json(product);
+    const inquiries = await prisma.productOrderInquiry.findMany({
+      where: {
+        OR: [
+          ...(userId ? [{ userId }] : []),
+          ...(email ? [{ email }] : []),
+        ],
+      },
+      include: { product: true },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    res.json(inquiries);
   } catch (error) {
-    console.error('Error fetching product by id:', error);
-    res.status(500).json({ error: 'Failed to fetch product details' });
+    console.error('Error fetching user inquiries:', error);
+    res.status(500).json({ error: 'Failed to fetch inquiries' });
+  }
+});
+
+contentRouter.patch('/products/inquiries/:inquiryId', async (req: Request, res: Response) => {
+  try {
+    const inquiryId = Array.isArray(req.params.inquiryId)
+      ? req.params.inquiryId[0]
+      : req.params.inquiryId;
+    const { quantity, deliveryAddress, notes, phone, whatsapp } = req.body;
+
+    const existing = await prisma.productOrderInquiry.findUnique({
+      where: { id: inquiryId },
+    });
+
+    if (!existing) {
+      return res.status(404).json({ error: 'Order inquiry not found' });
+    }
+
+    if (existing.status !== 'pending') {
+      return res.status(400).json({
+        error: `Inquiry cannot be modified because it is already marked as ${existing.status}.`,
+      });
+    }
+
+    const updated = await prisma.productOrderInquiry.update({
+      where: { id: inquiryId },
+      data: {
+        ...(quantity !== undefined ? { quantity: Math.max(1, Math.floor(Number(quantity))) } : {}),
+        ...(deliveryAddress ? { deliveryAddress: String(deliveryAddress).trim() } : {}),
+        ...(notes !== undefined ? { notes: notes ? String(notes).trim() : null } : {}),
+        ...(phone !== undefined ? { phone: phone ? String(phone).trim() : null } : {}),
+        ...(whatsapp !== undefined ? { whatsapp: whatsapp ? String(whatsapp).trim() : null } : {}),
+      },
+      include: { product: true },
+    });
+
+    res.json({
+      success: true,
+      message: 'Inquiry details updated successfully.',
+      inquiry: updated,
+    });
+  } catch (error) {
+    console.error('Error updating inquiry:', error);
+    res.status(500).json({ error: 'Failed to update inquiry' });
+  }
+});
+
+contentRouter.patch('/products/inquiries/:inquiryId/cancel', async (req: Request, res: Response) => {
+  try {
+    const inquiryId = Array.isArray(req.params.inquiryId)
+      ? req.params.inquiryId[0]
+      : req.params.inquiryId;
+
+    const existing = await prisma.productOrderInquiry.findUnique({
+      where: { id: inquiryId },
+    });
+
+    if (!existing) {
+      return res.status(404).json({ error: 'Order inquiry not found' });
+    }
+
+    if (existing.status !== 'pending') {
+      return res.status(400).json({
+        error: `Inquiry cannot be cancelled because it is already marked as ${existing.status}.`,
+      });
+    }
+
+    const cancelled = await prisma.productOrderInquiry.update({
+      where: { id: inquiryId },
+      data: { status: 'cancelled' },
+      include: { product: true },
+    });
+
+    res.json({
+      success: true,
+      message: 'Inquiry cancelled successfully.',
+      inquiry: cancelled,
+    });
+  } catch (error) {
+    console.error('Error cancelling inquiry:', error);
+    res.status(500).json({ error: 'Failed to cancel inquiry' });
+  }
+});
+
+contentRouter.get('/products/:id/my-inquiry', async (req: Request, res: Response) => {
+  try {
+    const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+    const userId = getOptionalUserId(req);
+    const email = req.query.email ? String(req.query.email).trim().toLowerCase() : undefined;
+
+    if (!userId && !email) {
+      return res.json(null);
+    }
+
+    const inquiry = await prisma.productOrderInquiry.findFirst({
+      where: {
+        productId: id,
+        status: { not: 'cancelled' },
+        OR: [
+          ...(userId ? [{ userId }] : []),
+          ...(email ? [{ email }] : []),
+        ],
+      },
+      orderBy: { createdAt: 'desc' },
+      include: {
+        product: true,
+      },
+    });
+
+    res.json(inquiry || null);
+  } catch (error) {
+    console.error('Error fetching my product inquiry:', error);
+    res.status(500).json({ error: 'Failed to fetch product inquiry' });
   }
 });
 
@@ -364,6 +486,9 @@ contentRouter.post('/products/:id/order-inquiry', async (req: Request, res: Resp
         deliveryAddress: String(deliveryAddress).trim(),
         notes: notes ? String(notes).trim() : null,
       },
+      include: {
+        product: true,
+      },
     });
 
     res.status(201).json({
@@ -374,6 +499,24 @@ contentRouter.post('/products/:id/order-inquiry', async (req: Request, res: Resp
   } catch (error) {
     console.error('Error creating product order inquiry:', error);
     res.status(500).json({ error: 'Failed to submit product order inquiry' });
+  }
+});
+
+contentRouter.get('/products/:id', async (req: Request, res: Response) => {
+  try {
+    const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+    const product = await prisma.product.findUnique({
+      where: { id },
+    });
+
+    if (!product) {
+      return res.status(404).json({ error: 'Product not found' });
+    }
+
+    res.json(product);
+  } catch (error) {
+    console.error('Error fetching product by id:', error);
+    res.status(500).json({ error: 'Failed to fetch product details' });
   }
 });
 
