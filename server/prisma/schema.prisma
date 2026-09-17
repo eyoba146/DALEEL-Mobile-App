@@ -290,3 +290,25 @@ model NotificationPreference {
 
   user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
+
+model Category {
+  id        String   @id @default(uuid())
+  type      String   // 'destination' | 'service' | 'event' | 'investment' | 'product'
+  name      String
+  icon      String?  @default("sparkles-outline")
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+
+  @@unique([type, name])
+}
+
+model AnnouncementBanner {
+  id          String   @id @default(uuid())
+  title       String
+  description String
+  icon        String?  @default("sparkles")
+  actionUrl   String?
+  active      Boolean  @default(true)
+  order       Int      @default(0)
+  createdAt   DateTime @default(now())
+}

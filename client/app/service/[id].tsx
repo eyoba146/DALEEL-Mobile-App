@@ -3,7 +3,6 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Image,
   KeyboardAvoidingView,
   Linking,
@@ -48,6 +47,7 @@ export default function ServiceDetailScreen() {
   const [message, setMessage] = useState('');
   const [submittingInquiry, setSubmittingInquiry] = useState(false);
   const [inquirySuccess, setInquirySuccess] = useState(false);
+  const [inquiryError, setInquiryError] = useState<string | null>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -102,9 +102,7 @@ export default function ServiceDetailScreen() {
   const handleCall = () => {
     const rawNumber = service?.phone || '+251911234567';
     const cleaned = rawNumber.replace(/[^0-9+]/g, '');
-    Linking.openURL(`tel:${cleaned}`).catch(() => {
-      Alert.alert('Phone Call', `Could not initiate call to ${rawNumber}`);
-    });
+    Linking.openURL(`tel:${cleaned}`).catch(() => {});
   };
 
   const handleWhatsApp = () => {
@@ -113,19 +111,18 @@ export default function ServiceDetailScreen() {
     const defaultText = encodeURIComponent(
       `Hello ${service?.name}, I found your listing on the DALEEL Diaspora App and would like to inquire about your ${service?.category} services.`
     );
-    Linking.openURL(`https://wa.me/${cleaned}?text=${defaultText}`).catch(() => {
-      Alert.alert('WhatsApp', 'WhatsApp is not installed on this device.');
-    });
+    Linking.openURL(`https://wa.me/${cleaned}?text=${defaultText}`).catch(() => {});
   };
 
   const handleSubmitInquiry = async () => {
     if (!fullName.trim() || !contactEmail.trim() || !message.trim()) {
-      Alert.alert('Missing Information', 'Please provide your full name, email address, and inquiry message.');
+      setInquiryError('Please provide your full name, email address, and inquiry message.');
       return;
     }
 
     if (!service) return;
 
+    setInquiryError(null);
     setSubmittingInquiry(true);
     try {
       const payload: ServiceInquiryPayload = {
@@ -143,9 +140,10 @@ export default function ServiceDetailScreen() {
         setInquirySuccess(false);
         setInquiryModalVisible(false);
         setMessage('');
+        setInquiryError(null);
       }, 2000);
     } catch (err: any) {
-      Alert.alert('Inquiry Note', err?.message || 'Could not submit inquiry at this moment. You can contact them directly via WhatsApp or phone.');
+      setInquiryError(err?.message || 'Could not submit inquiry at this moment. You can contact them directly via WhatsApp or phone.');
     } finally {
       setSubmittingInquiry(false);
     }
@@ -433,6 +431,13 @@ export default function ServiceDetailScreen() {
               </View>
             ) : (
               <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: 480 }}>
+                {inquiryError && (
+                  <View style={styles.errorNoticeBox}>
+                    <Ionicons name="alert-circle-outline" size={16} color="#DC2626" style={{ marginRight: 8 }} />
+                    <Text style={styles.errorNoticeText}>{inquiryError}</Text>
+                  </View>
+                )}
+
                 {/* Full Name */}
                 <Text style={styles.inputLabel}>Full Legal Name *</Text>
                 <TextInput
@@ -1091,5 +1096,21 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 21,
     paddingHorizontal: spacing.md,
+  },
+  errorNoticeBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FEF2F2',
+    borderWidth: 1,
+    borderColor: '#FCA5A5',
+    borderRadius: radius.md,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    marginBottom: 14,
+  },
+  errorNoticeText: {
+    fontSize: 13,
+    color: '#B91C1C',
+    flex: 1,
   },
 });

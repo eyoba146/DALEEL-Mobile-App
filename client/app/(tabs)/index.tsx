@@ -27,12 +27,25 @@ import {
   Product,
   resolveMediaUrl,
   Service,
+  announcementsApi,
+  AnnouncementBanner,
 } from '../../lib/api';
 import { useAuth } from '../../lib/auth-context';
 import { useFavorites } from '../../lib/favorites-context';
 import { useLanguage } from '../../lib/language-context';
 import { useNotifications } from '../../lib/notifications-context';
 import { colors, fonts, radius, spacing } from '../../theme/tokens';
+
+function resolveBannerIcon(icon?: string | null): keyof typeof Ionicons.glyphMap {
+  if (!icon) return 'sparkles';
+  const i = icon.toLowerCase();
+  if (i.includes('invest') || i.includes('spark')) return 'sparkles';
+  if (i.includes('shirt') || i.includes('cloth') || i.includes('market')) return 'shirt-outline';
+  if (i.includes('event') || i.includes('calendar')) return 'calendar-outline';
+  if (i.includes('briefcase') || i.includes('service')) return 'briefcase-outline';
+  if (i.includes('dest') || i.includes('compass')) return 'compass-outline';
+  return 'sparkles';
+}
 
 export default function Home() {
   const insets = useSafeAreaInsets();
@@ -48,18 +61,39 @@ export default function Home() {
   const [events, setEvents] = useState<EventItem[]>(sampleEvents as any);
   const [investments, setInvestments] = useState<InvestmentOpportunity[]>(sampleInvestments as any);
   const [products, setProducts] = useState<Product[]>(sampleProducts as any);
+  const [announcements, setAnnouncements] = useState<AnnouncementBanner[]>([
+    {
+      id: 'default-inv',
+      title: 'Diaspora Investment Hub',
+      description: 'Explore verified real estate, commercial agriculture & startup opportunities.',
+      icon: 'sparkles',
+      actionUrl: '/investments',
+      active: true,
+      order: 1,
+    },
+    {
+      id: 'default-market',
+      title: 'Artisan Marketplace',
+      description: 'Handcrafted Habesha Kemis, Guji coffee, leather goods & certified jewelry.',
+      icon: 'shirt-outline',
+      actionUrl: '/marketplace',
+      active: true,
+      order: 2,
+    },
+  ]);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   const firstName = user?.name?.split(' ')[0] ?? 'there';
 
   const loadData = useCallback(async () => {
     try {
-      const [destRes, servRes, eventRes, invRes, prodRes] = await Promise.allSettled([
+      const [destRes, servRes, eventRes, invRes, prodRes, annRes] = await Promise.allSettled([
         contentApi.destinations(),
         contentApi.services(),
         contentApi.events(),
         contentApi.investments(),
         contentApi.products(),
+        announcementsApi.getAll(),
       ]);
 
       if (destRes.status === 'fulfilled' && destRes.value.length > 0) {
@@ -76,6 +110,9 @@ export default function Home() {
       }
       if (prodRes.status === 'fulfilled' && prodRes.value.length > 0) {
         setProducts(prodRes.value);
+      }
+      if (annRes.status === 'fulfilled' && annRes.value.length > 0) {
+        setAnnouncements(annRes.value);
       }
     } catch (err) {
       console.warn('Error loading home data:', err);
@@ -177,40 +214,28 @@ export default function Home() {
           <Text style={styles.searchPlaceholder}>{t('home.searchPlaceholder', 'Search services, places, events…')}</Text>
         </TouchableOpacity>
 
-        {/* Announcement Banners */}
-        <TouchableOpacity
-          style={styles.banner}
-          activeOpacity={0.88}
-          onPress={() => router.push('/investments')}
-        >
-          <View style={styles.bannerIcon}>
-            <Ionicons name="sparkles" size={18} color={colors.gold} />
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.bannerTitle}>Diaspora Investment Hub</Text>
-            <Text style={styles.bannerText}>
-              Explore verified real estate, commercial agriculture & startup opportunities.
-            </Text>
-          </View>
-          <Ionicons name="arrow-forward" size={17} color={colors.navy} style={{ marginLeft: 6 }} />
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.banner, { marginTop: 10, borderColor: 'rgba(198, 148, 10, 0.38)' }]}
-          activeOpacity={0.88}
-          onPress={() => router.push('/marketplace')}
-        >
-          <View style={[styles.bannerIcon, { backgroundColor: 'rgba(198, 148, 10, 0.18)' }]}>
-            <Ionicons name="shirt-outline" size={18} color={colors.navy} />
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.bannerTitle}>Artisan Marketplace</Text>
-            <Text style={styles.bannerText}>
-              Handcrafted Habesha Kemis, Guji coffee, leather goods & certified jewelry.
-            </Text>
-          </View>
-          <Ionicons name="arrow-forward" size={17} color={colors.navy} style={{ marginLeft: 6 }} />
-        </TouchableOpacity>
+        {/* Dynamic Announcement Banners */}
+        {announcements.map((banner, idx) => (
+          <TouchableOpacity
+            key={banner.id}
+            style={[styles.banner, idx > 0 && { marginTop: 10 }]}
+            activeOpacity={0.88}
+            onPress={() => {
+              if (banner.actionUrl) {
+                router.push(banner.actionUrl as any);
+              }
+            }}
+          >
+            <View style={styles.bannerIcon}>
+              <Ionicons name={resolveBannerIcon(banner.icon)} size={18} color={colors.gold} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.bannerTitle}>{banner.title}</Text>
+              <Text style={styles.bannerText}>{banner.description}</Text>
+            </View>
+            <Ionicons name="arrow-forward" size={17} color={colors.navy} style={{ marginLeft: 6 }} />
+          </TouchableOpacity>
+        ))}
 
         {/* Destinations */}
         <SectionHeader

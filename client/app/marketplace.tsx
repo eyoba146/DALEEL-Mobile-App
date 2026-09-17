@@ -14,26 +14,19 @@ import {
 } from 'react-native';
 import { products as sampleProducts } from '../assets/data/sample';
 import ScreenHeader from '../components/ScreenHeader';
-import { contentApi, Product } from '../lib/api';
+import { contentApi, Product, categoriesApi, CategoryItem } from '../lib/api';
 import { useFavorites } from '../lib/favorites-context';
 import { colors, fonts, radius, spacing } from '../theme/tokens';
 
-type MarketplaceCategory =
-  | 'All'
-  | 'Fashion & Textiles'
-  | 'Specialty Coffee'
-  | 'Leather Goods'
-  | 'Art & Crafts'
-  | 'Jewelry';
-
-const CATEGORIES: { label: MarketplaceCategory; icon: keyof typeof Ionicons.glyphMap }[] = [
-  { label: 'All', icon: 'sparkles-outline' },
-  { label: 'Fashion & Textiles', icon: 'shirt-outline' },
-  { label: 'Specialty Coffee', icon: 'cafe-outline' },
-  { label: 'Leather Goods', icon: 'briefcase-outline' },
-  { label: 'Art & Crafts', icon: 'color-palette-outline' },
-  { label: 'Jewelry', icon: 'diamond-outline' },
-];
+function resolveProductIcon(name: string): keyof typeof Ionicons.glyphMap {
+  const n = name.toLowerCase();
+  if (n.includes('fashion') || n.includes('textil') || n.includes('kemis') || n.includes('dress') || n.includes('cloth') || n.includes('shirt')) return 'shirt-outline';
+  if (n.includes('coffee') || n.includes('roast') || n.includes('guji') || n.includes('yirgacheffe') || n.includes('sidama') || n.includes('cafe') || n.includes('bean')) return 'cafe-outline';
+  if (n.includes('leather') || n.includes('bag') || n.includes('wallet') || n.includes('briefcase')) return 'briefcase-outline';
+  if (n.includes('craft') || n.includes('pottery') || n.includes('art') || n.includes('wood') || n.includes('sculpt')) return 'color-palette-outline';
+  if (n.includes('jewel') || n.includes('gold') || n.includes('silver') || n.includes('cross') || n.includes('ring') || n.includes('diamond')) return 'diamond-outline';
+  return 'pricetag-outline';
+}
 
 function formatPrice(price: number, currency: string = 'ETB') {
   return `${price.toLocaleString('en-US')} ${currency}`;
@@ -189,11 +182,41 @@ export default function MarketplaceScreen() {
   const { isFavorite, toggleFavorite } = useFavorites();
 
   const [products, setProducts] = useState<Product[]>(sampleProducts);
+  const [dbCategories, setDbCategories] = useState<CategoryItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-  const [activeCategory, setActiveCategory] = useState<MarketplaceCategory>('All');
+  const [activeCategory, setActiveCategory] = useState<string>('All');
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearchFocused, setIsSearchFocused] = useState(false);
+
+  const categories = useMemo(() => {
+    const list: { label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
+      { label: 'All', icon: 'sparkles-outline' },
+    ];
+    const added = new Set<string>(['All']);
+
+    for (const c of dbCategories) {
+      if (!added.has(c.name)) {
+        added.add(c.name);
+        list.push({
+          label: c.name,
+          icon: (c.icon as any) || resolveProductIcon(c.name),
+        });
+      }
+    }
+
+    for (const p of products) {
+      if (p.category && !added.has(p.category)) {
+        added.add(p.category);
+        list.push({
+          label: p.category,
+          icon: resolveProductIcon(p.category),
+        });
+      }
+    }
+
+    return list;
+  }, [dbCategories, products]);
 
   // 60fps Native-driven collapsible header animation
   const scrollAnim = useRef(new Animated.Value(0)).current;
@@ -210,9 +233,17 @@ export default function MarketplaceScreen() {
   const fetchProducts = useCallback(async () => {
     try {
       setLoading(true);
-      const data = await contentApi.products(activeCategory !== 'All' ? activeCategory : undefined);
-      if (Array.isArray(data) && data.length > 0) {
-        setProducts(data);
+      const [productsRes, categoriesRes] = await Promise.allSettled([
+        contentApi.products(activeCategory !== 'All' ? activeCategory : undefined),
+        categoriesApi.getAll('product'),
+      ]);
+
+      if (categoriesRes.status === 'fulfilled' && categoriesRes.value.length > 0) {
+        setDbCategories(categoriesRes.value);
+      }
+
+      if (productsRes.status === 'fulfilled' && Array.isArray(productsRes.value) && productsRes.value.length > 0) {
+        setProducts(productsRes.value);
       } else {
         setProducts(sampleProducts);
       }
@@ -389,7 +420,7 @@ export default function MarketplaceScreen() {
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.categoryPillsScroll}
             >
-              {CATEGORIES.map((cat) => {
+              {categories.map((cat) => {
                 const isSelected = activeCategory === cat.label;
                 return (
                   <TouchableOpacity

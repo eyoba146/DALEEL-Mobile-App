@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,
   Image,
@@ -14,19 +14,19 @@ import {
 } from 'react-native';
 import { events as sampleEvents } from '../assets/data/sample';
 import ScreenHeader from '../components/ScreenHeader';
-import { contentApi, EventItem } from '../lib/api';
+import { contentApi, EventItem, categoriesApi, CategoryItem } from '../lib/api';
 import { useFavorites } from '../lib/favorites-context';
 import { colors, fonts, radius, spacing } from '../theme/tokens';
 
-type CategoryFilter = 'All' | 'Culture' | 'Business' | 'Networking' | 'Festival';
-
-const CATEGORIES: { label: CategoryFilter; icon: keyof typeof Ionicons.glyphMap }[] = [
-  { label: 'All', icon: 'sparkles-outline' },
-  { label: 'Culture', icon: 'color-palette-outline' },
-  { label: 'Business', icon: 'briefcase-outline' },
-  { label: 'Networking', icon: 'people-outline' },
-  { label: 'Festival', icon: 'musical-notes-outline' },
-];
+function resolveEventIcon(name: string): keyof typeof Ionicons.glyphMap {
+  const n = name.toLowerCase();
+  if (n.includes('culture') || n.includes('heritage') || n.includes('tradition') || n.includes('art')) return 'color-palette-outline';
+  if (n.includes('business') || n.includes('summit') || n.includes('forum') || n.includes('trade') || n.includes('expo')) return 'briefcase-outline';
+  if (n.includes('network') || n.includes('meet') || n.includes('social') || n.includes('people')) return 'people-outline';
+  if (n.includes('festival') || n.includes('music') || n.includes('concert') || n.includes('celebrat')) return 'musical-notes-outline';
+  if (n.includes('tech') || n.includes('startup') || n.includes('digit') || n.includes('innovat')) return 'laptop-outline';
+  return 'calendar-outline';
+}
 
 function formatEventDate(dateStr: string) {
   try {
@@ -179,10 +179,40 @@ export default function EventsScreen() {
   const router = useRouter();
   const { isFavorite, toggleFavorite } = useFavorites();
   const [events, setEvents] = useState<EventItem[]>(sampleEvents as any);
+  const [dbCategories, setDbCategories] = useState<CategoryItem[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [activeCategory, setActiveCategory] = useState<CategoryFilter>('All');
+  const [activeCategory, setActiveCategory] = useState<string>('All');
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isSearchFocused, setIsSearchFocused] = useState(false);
+
+  const categories = useMemo(() => {
+    const list: { label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
+      { label: 'All', icon: 'sparkles-outline' },
+    ];
+    const added = new Set<string>(['All']);
+
+    for (const c of dbCategories) {
+      if (!added.has(c.name)) {
+        added.add(c.name);
+        list.push({
+          label: c.name,
+          icon: (c.icon as any) || resolveEventIcon(c.name),
+        });
+      }
+    }
+
+    for (const e of events) {
+      if (e.category && !added.has(e.category)) {
+        added.add(e.category);
+        list.push({
+          label: e.category,
+          icon: resolveEventIcon(e.category),
+        });
+      }
+    }
+
+    return list;
+  }, [dbCategories, events]);
 
   // 60fps Native-Driven Scroll Header Animation
   const scrollY = useRef(new Animated.Value(0)).current;
@@ -195,9 +225,17 @@ export default function EventsScreen() {
 
   const loadEvents = useCallback(async () => {
     try {
-      const data = await contentApi.events();
-      if (data && data.length > 0) {
-        setEvents(data);
+      const [eventsRes, categoriesRes] = await Promise.allSettled([
+        contentApi.events(),
+        categoriesApi.getAll('event'),
+      ]);
+
+      if (categoriesRes.status === 'fulfilled' && categoriesRes.value.length > 0) {
+        setDbCategories(categoriesRes.value);
+      }
+
+      if (eventsRes.status === 'fulfilled' && eventsRes.value.length > 0) {
+        setEvents(eventsRes.value);
       }
     } catch (err) {
       console.warn('Failed to load events from backend, using sample cache:', err);
@@ -367,7 +405,7 @@ export default function EventsScreen() {
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.catScroll}
             >
-              {CATEGORIES.map((cat) => {
+              {categories.map((cat) => {
                 const isActive = activeCategory === cat.label;
                 return (
                   <TouchableOpacity

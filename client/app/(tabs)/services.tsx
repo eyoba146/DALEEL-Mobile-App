@@ -14,11 +14,23 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { services as sampleServices } from '../../assets/data/sample';
-import { contentApi, Service } from '../../lib/api';
+import { categoriesApi, CategoryItem, contentApi, Service } from '../../lib/api';
 import { useFavorites } from '../../lib/favorites-context';
 import { useLanguage } from '../../lib/language-context';
 import ScreenHeader from '../../components/ScreenHeader';
 import { colors, fonts, radius, spacing } from '../../theme/tokens';
+
+function resolveCategoryIcon(name: string): keyof typeof Ionicons.glyphMap {
+  const n = name.toLowerCase();
+  if (n.includes('relocat') || n.includes('home') || n.includes('house')) return 'home-outline';
+  if (n.includes('legal') || n.includes('law') || n.includes('doc')) return 'document-text-outline';
+  if (n.includes('tour') || n.includes('travel') || n.includes('guide')) return 'compass-outline';
+  if (n.includes('transport') || n.includes('car') || n.includes('ride')) return 'car-outline';
+  if (n.includes('bank') || n.includes('finance') || n.includes('money')) return 'card-outline';
+  if (n.includes('health') || n.includes('medic') || n.includes('care')) return 'medkit-outline';
+  if (n.includes('consult') || n.includes('advisor') || n.includes('business')) return 'briefcase-outline';
+  return 'pricetag-outline';
+}
 
 const AnimatedServiceCard = React.memo(function AnimatedServiceCard({
   service,
@@ -142,18 +154,44 @@ export default function ServicesScreen() {
   const { isFavorite, toggleFavorite } = useFavorites();
   const [activeCategory, setActiveCategory] = useState('All');
   const [services, setServices] = useState<Service[]>(sampleServices as any);
+  const [dbCategories, setDbCategories] = useState<CategoryItem[]>([]);
 
-  const categories = React.useMemo(
-    () => [
-      { id: 'All', label: t('services.categories.all', 'All'), icon: 'apps-outline' as const },
-      { id: 'Relocation', label: t('services.categories.relocation', 'Relocation'), icon: 'home-outline' as const },
-      { id: 'Legal services', label: t('services.categories.legal', 'Legal services'), icon: 'document-text-outline' as const },
-      { id: 'Tour operators', label: t('services.categories.tours', 'Tour operators'), icon: 'compass-outline' as const },
-      { id: 'Transportation', label: t('services.categories.transport', 'Transportation'), icon: 'car-outline' as const },
-      { id: 'Banking', label: t('services.categories.banking', 'Banking'), icon: 'card-outline' as const },
-    ],
-    [t]
-  );
+  const categories = React.useMemo(() => {
+    const list: { id: string; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
+      { id: 'All', label: t('services.categories.all', 'All'), icon: 'apps-outline' },
+    ];
+
+    const added = new Set<string>(['All']);
+
+    // Add categories from database
+    for (const cat of dbCategories) {
+      if (!added.has(cat.name)) {
+        added.add(cat.name);
+        const transKey = `services.categories.${cat.name.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
+        list.push({
+          id: cat.name,
+          label: t(transKey, cat.name),
+          icon: ((cat.icon as any) || resolveCategoryIcon(cat.name)),
+        });
+      }
+    }
+
+    // Add any extra distinct categories in loaded services
+    for (const s of services) {
+      if (s.category && !added.has(s.category)) {
+        added.add(s.category);
+        const transKey = `services.categories.${s.category.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
+        list.push({
+          id: s.category,
+          label: t(transKey, s.category),
+          icon: resolveCategoryIcon(s.category),
+        });
+      }
+    }
+
+    return list;
+  }, [dbCategories, services, t]);
+
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -183,13 +221,23 @@ export default function ServicesScreen() {
 
   const loadServices = useCallback(async () => {
     try {
-      const data = await contentApi.services(activeCategory === 'All' ? undefined : activeCategory);
-      if (data && data.length > 0) {
-        setServices(data);
+      const [servicesRes, categoriesRes] = await Promise.allSettled([
+        contentApi.services(activeCategory === 'All' ? undefined : activeCategory),
+        categoriesApi.getAll('service'),
+      ]);
+
+      if (categoriesRes.status === 'fulfilled' && categoriesRes.value.length > 0) {
+        setDbCategories(categoriesRes.value);
+      }
+
+      if (servicesRes.status === 'fulfilled' && servicesRes.value.length > 0) {
+        setServices(servicesRes.value);
       } else if (activeCategory === 'All') {
         setServices(sampleServices as any);
       } else {
-        const filtered = (sampleServices as any[]).filter((s) => s.category.toLowerCase() === activeCategory.toLowerCase());
+        const filtered = (sampleServices as any[]).filter(
+          (s) => s.category.toLowerCase() === activeCategory.toLowerCase()
+        );
         setServices(filtered);
       }
     } catch (err) {
@@ -197,7 +245,9 @@ export default function ServicesScreen() {
       const filtered =
         activeCategory === 'All'
           ? (sampleServices as any)
-          : (sampleServices as any[]).filter((s) => s.category.toLowerCase() === activeCategory.toLowerCase());
+          : (sampleServices as any[]).filter(
+              (s) => s.category.toLowerCase() === activeCategory.toLowerCase()
+            );
       setServices(filtered);
     }
   }, [activeCategory]);

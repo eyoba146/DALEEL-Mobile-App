@@ -22,7 +22,7 @@ async function sendEmail(to: { email: string; name: string }, subject: string, h
   const { name: senderName, email: senderEmail } = parseSender(process.env.EMAIL_FROM);
 
   if (!apiKey) {
-    console.warn('⚠️ BREVO_API_KEY is not set. Email will NOT be sent. (Check your .env file)');
+    console.warn('[WARNING] BREVO_API_KEY is not set. Email will NOT be sent. (Check your .env file)');
     console.log(`[Email to ${to.email}]:\nSubject: ${subject}\nBody: ${htmlContent}`);
     return;
   }
@@ -48,13 +48,13 @@ async function sendEmail(to: { email: string; name: string }, subject: string, h
     throw new Error('Failed to send email');
   }
 
-  console.log(`✅ Email successfully sent to ${to.email} via Brevo API (From: ${senderName} <${senderEmail}>)`);
+  console.log(`[SUCCESS] Email successfully sent to ${to.email} via Brevo API (From: ${senderName} <${senderEmail}>)`);
 }
 
 /* ─── Verification email ─── */
 export async function sendVerificationCode(email: string, name: string, code: string) {
   console.log(`\n======================================================`);
-  console.log(`🔑 [DALEEL VERIFICATION CODE FOR ${email}]: ${code}`);
+  console.log(`[AUTH] [DALEEL VERIFICATION CODE FOR ${email}]: ${code}`);
   console.log(`======================================================\n`);
 
   const subject = 'Verify your DALEEL account';
@@ -76,7 +76,7 @@ export async function sendVerificationCode(email: string, name: string, code: st
 /* ─── Password reset email ─── */
 export async function sendPasswordReset(email: string, name: string, code: string) {
   console.log(`\n======================================================`);
-  console.log(`🔑 [DALEEL PASSWORD RESET CODE FOR ${email}]: ${code}`);
+  console.log(`[AUTH] [DALEEL PASSWORD RESET CODE FOR ${email}]: ${code}`);
   console.log(`======================================================\n`);
 
   const subject = 'Reset your DALEEL password';

@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,
   Image,
@@ -15,23 +15,22 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { investments as sampleInvestments } from '../assets/data/sample';
 import ScreenHeader from '../components/ScreenHeader';
-import { contentApi, InvestmentOpportunity } from '../lib/api';
+import { contentApi, InvestmentOpportunity, categoriesApi, CategoryItem } from '../lib/api';
 import { useFavorites } from '../lib/favorites-context';
 import { colors, fonts, radius, spacing } from '../theme/tokens';
 
-type SectorItem = {
-  label: string;
-  icon: keyof typeof Ionicons.glyphMap;
-};
-
-const SECTORS: SectorItem[] = [
-  { label: 'All', icon: 'sparkles-outline' },
-  { label: 'Real Estate', icon: 'business-outline' },
-  { label: 'Agriculture', icon: 'leaf-outline' },
-  { label: 'Technology', icon: 'hardware-chip-outline' },
-  { label: 'Energy', icon: 'flash-outline' },
-  { label: 'Manufacturing', icon: 'construct-outline' },
-];
+function resolveInvestmentIcon(name: string): keyof typeof Ionicons.glyphMap {
+  const n = name.toLowerCase();
+  if (n.includes('real estate') || n.includes('estate') || n.includes('property') || n.includes('housing')) return 'business-outline';
+  if (n.includes('agri') || n.includes('farm') || n.includes('crop') || n.includes('leaf')) return 'leaf-outline';
+  if (n.includes('tech') || n.includes('software') || n.includes('data') || n.includes('chip')) return 'hardware-chip-outline';
+  if (n.includes('energy') || n.includes('power') || n.includes('solar') || n.includes('hydro')) return 'flash-outline';
+  if (n.includes('manufactur') || n.includes('factor') || n.includes('construct') || n.includes('industrial')) return 'construct-outline';
+  if (n.includes('health') || n.includes('pharma') || n.includes('medic')) return 'medkit-outline';
+  if (n.includes('tour') || n.includes('hotel') || n.includes('hospitality')) return 'compass-outline';
+  if (n.includes('bank') || n.includes('fintech') || n.includes('finance')) return 'cash-outline';
+  return 'briefcase-outline';
+}
 
 const AnimatedInvestmentCard = React.memo(function AnimatedInvestmentCard({
   opportunity,
@@ -183,9 +182,39 @@ export default function InvestmentsScreen() {
   const { isFavorite, toggleFavorite } = useFavorites();
   const [activeSector, setActiveSector] = useState('All');
   const [opportunities, setOpportunities] = useState<InvestmentOpportunity[]>(sampleInvestments as any);
+  const [dbSectors, setDbSectors] = useState<CategoryItem[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const sectors = useMemo(() => {
+    const list: { label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
+      { label: 'All', icon: 'sparkles-outline' },
+    ];
+    const added = new Set<string>(['All']);
+
+    for (const c of dbSectors) {
+      if (!added.has(c.name)) {
+        added.add(c.name);
+        list.push({
+          label: c.name,
+          icon: (c.icon as any) || resolveInvestmentIcon(c.name),
+        });
+      }
+    }
+
+    for (const opp of opportunities) {
+      if (opp.sector && !added.has(opp.sector)) {
+        added.add(opp.sector);
+        list.push({
+          label: opp.sector,
+          icon: resolveInvestmentIcon(opp.sector),
+        });
+      }
+    }
+
+    return list;
+  }, [dbSectors, opportunities]);
 
   // ── High-Performance Native Scroll Slide Header (60fps Native Driver) ──
   const HEADER_HEIGHT = 122;
@@ -212,9 +241,17 @@ export default function InvestmentsScreen() {
 
   const loadOpportunities = useCallback(async () => {
     try {
-      const data = await contentApi.investments(activeSector === 'All' ? undefined : activeSector);
-      if (data && data.length > 0) {
-        setOpportunities(data);
+      const [oppsRes, catsRes] = await Promise.allSettled([
+        contentApi.investments(activeSector === 'All' ? undefined : activeSector),
+        categoriesApi.getAll('investment'),
+      ]);
+
+      if (catsRes.status === 'fulfilled' && catsRes.value.length > 0) {
+        setDbSectors(catsRes.value);
+      }
+
+      if (oppsRes.status === 'fulfilled' && oppsRes.value.length > 0) {
+        setOpportunities(oppsRes.value);
       } else if (activeSector === 'All') {
         setOpportunities(sampleInvestments as any);
       } else {
@@ -406,7 +443,7 @@ export default function InvestmentsScreen() {
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.catScroll}
             >
-              {SECTORS.map((cat) => {
+              {sectors.map((cat) => {
                 const isActive = activeSector === cat.label;
                 return (
                   <TouchableOpacity

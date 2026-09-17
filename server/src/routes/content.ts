@@ -520,3 +520,104 @@ contentRouter.get('/products/:id', async (req: Request, res: Response) => {
   }
 });
 
+// --- Dynamic Categories API ---
+
+contentRouter.get('/categories', async (req: Request, res: Response) => {
+  try {
+    const { type } = req.query;
+    const categories = await prisma.category.findMany({
+      where: type ? { type: String(type) } : undefined,
+      orderBy: [{ order: 'asc' }, { createdAt: 'asc' }],
+    });
+    res.json(categories);
+  } catch (error) {
+    console.error('Error fetching categories:', error);
+    res.status(500).json({ error: 'Failed to fetch categories' });
+  }
+});
+
+contentRouter.post('/categories', async (req: Request, res: Response) => {
+  try {
+    const { type, name, icon, order } = req.body;
+    if (!type || !name) {
+      return res.status(400).json({ error: 'Category type and name are required' });
+    }
+
+    const category = await prisma.category.upsert({
+      where: {
+        type_name: {
+          type: String(type).trim().toLowerCase(),
+          name: String(name).trim(),
+        },
+      },
+      update: {
+        icon: icon ? String(icon).trim() : undefined,
+        order: typeof order === 'number' ? order : undefined,
+      },
+      create: {
+        type: String(type).trim().toLowerCase(),
+        name: String(name).trim(),
+        icon: icon ? String(icon).trim() : 'sparkles-outline',
+        order: typeof order === 'number' ? order : 0,
+      },
+    });
+
+    res.status(201).json({ success: true, category });
+  } catch (error) {
+    console.error('Error creating category:', error);
+    res.status(500).json({ error: 'Failed to create category' });
+  }
+});
+
+contentRouter.delete('/categories/:id', async (req: Request, res: Response) => {
+  try {
+    const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+    await prisma.category.delete({ where: { id } });
+    res.json({ success: true, message: 'Category removed' });
+  } catch (error) {
+    console.error('Error deleting category:', error);
+    res.status(500).json({ error: 'Failed to delete category' });
+  }
+});
+
+// --- Dynamic Announcement Banners API ---
+
+contentRouter.get('/announcements', async (_req: Request, res: Response) => {
+  try {
+    const banners = await prisma.announcementBanner.findMany({
+      where: { active: true },
+      orderBy: [{ order: 'asc' }, { createdAt: 'desc' }],
+    });
+    res.json(banners);
+  } catch (error) {
+    console.error('Error fetching announcement banners:', error);
+    res.status(500).json({ error: 'Failed to fetch announcement banners' });
+  }
+});
+
+contentRouter.post('/announcements', async (req: Request, res: Response) => {
+  try {
+    const { title, description, icon, actionUrl, active, order } = req.body;
+    if (!title || !description) {
+      return res.status(400).json({ error: 'Banner title and description are required' });
+    }
+
+    const banner = await prisma.announcementBanner.create({
+      data: {
+        title: String(title).trim(),
+        description: String(description).trim(),
+        icon: icon ? String(icon).trim() : 'sparkles',
+        actionUrl: actionUrl ? String(actionUrl).trim() : null,
+        active: typeof active === 'boolean' ? active : true,
+        order: typeof order === 'number' ? order : 0,
+      },
+    });
+
+    res.status(201).json({ success: true, banner });
+  } catch (error) {
+    console.error('Error creating announcement banner:', error);
+    res.status(500).json({ error: 'Failed to create announcement banner' });
+  }
+});
+
+

@@ -16,11 +16,22 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { destinations as sampleDestinations } from '../../assets/data/sample';
-import { contentApi, Destination } from '../../lib/api';
+import { categoriesApi, CategoryItem, contentApi, Destination } from '../../lib/api';
 import { useFavorites } from '../../lib/favorites-context';
 import { useLanguage } from '../../lib/language-context';
 import ScreenHeader from '../../components/ScreenHeader';
 import { colors, fonts, radius, spacing } from '../../theme/tokens';
+
+function resolveDestinationIcon(name: string): keyof typeof Ionicons.glyphMap {
+  const n = name.toLowerCase();
+  if (n.includes('unesco') || n.includes('heritage')) return 'ribbon-outline';
+  if (n.includes('amhara') || n.includes('region') || n.includes('map')) return 'map-outline';
+  if (n.includes('addis') || n.includes('city') || n.includes('urban')) return 'business-outline';
+  if (n.includes('highland') || n.includes('peak') || n.includes('mountain') || n.includes('trek')) return 'trail-sign-outline';
+  if (n.includes('oromia') || n.includes('nature') || n.includes('park')) return 'leaf-outline';
+  if (n.includes('harar') || n.includes('east') || n.includes('desert') || n.includes('sun')) return 'sunny-outline';
+  return 'compass-outline';
+}
 
 
 const AnimatedDestinationCard = React.memo(function AnimatedDestinationCard({
@@ -128,17 +139,47 @@ export default function ExploreScreen() {
   const [destinations, setDestinations] = useState<Destination[]>(sampleDestinations as any);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
+  const [dbCategories, setDbCategories] = useState<CategoryItem[]>([]);
 
-  const filterCategories = React.useMemo(
-    () => [
+  const filterCategories = React.useMemo(() => {
+    const list: { id: string; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
       { id: 'all', label: t('explore.categories.all', 'All Heritage'), icon: 'sparkles' },
-      { id: 'unesco', label: t('explore.categories.unesco', 'UNESCO Sites'), icon: 'ribbon' },
-      { id: 'amhara', label: t('explore.categories.amhara', 'Amhara Region'), icon: 'map' },
-      { id: 'addis', label: t('explore.categories.addis', 'Addis Ababa'), icon: 'business' },
-      { id: 'highlands', label: t('explore.categories.highlands', 'Highlands & Peaks'), icon: 'trail-sign' },
-    ],
-    [t]
-  );
+    ];
+
+    const added = new Set<string>(['all']);
+
+    // Add categories from database
+    for (const cat of dbCategories) {
+      const catId = cat.name.toLowerCase();
+      if (!added.has(catId)) {
+        added.add(catId);
+        const transKey = `explore.categories.${catId.replace(/[^a-z0-9]/g, '')}`;
+        list.push({
+          id: catId,
+          label: t(transKey, cat.name),
+          icon: ((cat.icon as any) || resolveDestinationIcon(cat.name)),
+        });
+      }
+    }
+
+    // Add distinct regions found in loaded destinations
+    for (const d of destinations) {
+      if (d.region) {
+        const regionId = d.region.toLowerCase();
+        if (!added.has(regionId)) {
+          added.add(regionId);
+          list.push({
+            id: regionId,
+            label: `${d.region} Region`,
+            icon: resolveDestinationIcon(d.region),
+          });
+        }
+      }
+    }
+
+    return list;
+  }, [dbCategories, destinations, t]);
+
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
@@ -169,9 +210,15 @@ export default function ExploreScreen() {
 
   const loadDestinations = useCallback(async () => {
     try {
-      const data = await contentApi.destinations();
-      if (data && data.length > 0) {
-        setDestinations(data);
+      const [destRes, catRes] = await Promise.allSettled([
+        contentApi.destinations(),
+        categoriesApi.getAll('destination'),
+      ]);
+      if (catRes.status === 'fulfilled' && catRes.value.length > 0) {
+        setDbCategories(catRes.value);
+      }
+      if (destRes.status === 'fulfilled' && destRes.value.length > 0) {
+        setDestinations(destRes.value);
       }
     } catch (err) {
       console.warn('Failed to load destinations:', err);
@@ -197,24 +244,13 @@ export default function ExploreScreen() {
       d.blurb.toLowerCase().includes(q);
 
     if (!matchesSearch) return false;
+    if (selectedCategory === 'all') return true;
 
-    if (selectedCategory === 'unesco') {
-      return (
-        d.blurb.toLowerCase().includes('unesco') ||
-        d.name.toLowerCase().includes('lalibela') ||
-        d.name.toLowerCase().includes('simien')
-      );
+    const cat = selectedCategory.toLowerCase();
+    if (cat.includes('unesco')) {
+      return d.unescoStatus || d.blurb.toLowerCase().includes('unesco');
     }
-    if (selectedCategory === 'amhara') {
-      return d.region.toLowerCase().includes('amhara');
-    }
-    if (selectedCategory === 'addis') {
-      return (
-        d.region.toLowerCase().includes('addis') ||
-        d.name.toLowerCase().includes('addis')
-      );
-    }
-    if (selectedCategory === 'highlands') {
+    if (cat.includes('highland') || cat.includes('peak')) {
       return (
         d.blurb.toLowerCase().includes('mountain') ||
         d.blurb.toLowerCase().includes('highland') ||
@@ -222,7 +258,12 @@ export default function ExploreScreen() {
         d.name.toLowerCase().includes('simien')
       );
     }
-    return true;
+    return (
+      d.region.toLowerCase().includes(cat) ||
+      cat.includes(d.region.toLowerCase()) ||
+      d.name.toLowerCase().includes(cat) ||
+      d.blurb.toLowerCase().includes(cat)
+    );
   });
 
   return (

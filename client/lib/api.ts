@@ -435,3 +435,31 @@ export const notificationsApi = {
     ),
 };
 
+export type CategoryItem = {
+  id: string;
+  type: 'destination' | 'service' | 'event' | 'investment' | 'product' | string;
+  name: string;
+  icon?: string | null;
+  order?: number;
+};
+
+export const categoriesApi = {
+  getAll: (type?: string) =>
+    apiRequest<CategoryItem[]>(type ? `/categories?type=${encodeURIComponent(type)}` : '/categories'),
+};
+
+export type AnnouncementBanner = {
+  id: string;
+  title: string;
+  description: string;
+  icon?: string | null;
+  actionUrl?: string | null;
+  active: boolean;
+  order?: number;
+};
+
+export const announcementsApi = {
+  getAll: () => apiRequest<AnnouncementBanner[]>('/announcements'),
+};
+
+

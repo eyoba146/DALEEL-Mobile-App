@@ -3,7 +3,6 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Image,
   KeyboardAvoidingView,
   Modal,
@@ -60,6 +59,7 @@ export default function EventDetailScreen() {
   const [submittingRsvp, setSubmittingRsvp] = useState(false);
   const [rsvpSuccess, setRsvpSuccess] = useState(false);
   const [registeredRsvpId, setRegisteredRsvpId] = useState('');
+  const [rsvpError, setRsvpError] = useState<string | null>(null);
 
   const fav = event ? isFavorite('event', event.id) : false;
 
@@ -105,18 +105,20 @@ export default function EventDetailScreen() {
     setPhone(user?.phone || '');
     setTicketCount(1);
     setNotes('');
+    setRsvpError(null);
     setRsvpSuccess(false);
     setRsvpModalVisible(true);
   };
 
   const handleSubmitRsvp = async () => {
     if (!fullName.trim() || !email.trim()) {
-      Alert.alert('Missing Info', 'Please provide your full name and email address to confirm your pass.');
+      setRsvpError('Please provide your full name and email address to confirm your pass.');
       return;
     }
 
     if (!event) return;
 
+    setRsvpError(null);
     setSubmittingRsvp(true);
     try {
       const payload: EventRsvpPayload = {
@@ -135,7 +137,7 @@ export default function EventDetailScreen() {
         setRsvpSuccess(false);
       }, 2600);
     } catch (err: any) {
-      Alert.alert('RSVP Notice', err?.message || 'Could not register RSVP at this moment. Please check your network and try again.');
+      setRsvpError(err?.message || 'Could not register RSVP at this moment. Please check your network and try again.');
     } finally {
       setSubmittingRsvp(false);
     }
@@ -419,6 +421,13 @@ export default function EventDetailScreen() {
                     Reserve your admission for {event.title}
                   </Text>
                 </View>
+
+                {rsvpError && (
+                  <View style={styles.errorNoticeBox}>
+                    <Ionicons name="alert-circle-outline" size={16} color="#DC2626" style={{ marginRight: 8 }} />
+                    <Text style={styles.errorNoticeText}>{rsvpError}</Text>
+                  </View>
+                )}
 
                 {/* Ticket Quantity Stepper */}
                 <View style={styles.inputGroup}>
@@ -1054,5 +1063,21 @@ const styles = StyleSheet.create({
     color: colors.charcoalLight,
     textAlign: 'center',
     lineHeight: 18,
+  },
+  errorNoticeBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FEF2F2',
+    borderWidth: 1,
+    borderColor: '#FCA5A5',
+    borderRadius: radius.md,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    marginBottom: 14,
+  },
+  errorNoticeText: {
+    fontSize: 13,
+    color: '#B91C1C',
+    flex: 1,
   },
 });

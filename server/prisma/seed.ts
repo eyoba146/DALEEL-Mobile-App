@@ -533,7 +533,84 @@ async function main() {
     ],
   });
 
-  console.log('✅ Seed completed successfully with rich Ethiopian data.');
+  // Clear and seed dynamic categories
+  await prisma.category.deleteMany({});
+  await prisma.category.createMany({
+    data: [
+      // Services categories
+      { type: 'service', name: 'Relocation', icon: 'home-outline', order: 1 },
+      { type: 'service', name: 'Legal services', icon: 'document-text-outline', order: 2 },
+      { type: 'service', name: 'Tour operators', icon: 'compass-outline', order: 3 },
+      { type: 'service', name: 'Transportation', icon: 'car-outline', order: 4 },
+      { type: 'service', name: 'Banking', icon: 'card-outline', order: 5 },
+      { type: 'service', name: 'Healthcare', icon: 'medkit-outline', order: 6 },
+      { type: 'service', name: 'Consulting', icon: 'briefcase-outline', order: 7 },
+
+      // Destination categories / regions
+      { type: 'destination', name: 'UNESCO Sites', icon: 'ribbon-outline', order: 1 },
+      { type: 'destination', name: 'Amhara Region', icon: 'map-outline', order: 2 },
+      { type: 'destination', name: 'Addis Ababa', icon: 'business-outline', order: 3 },
+      { type: 'destination', name: 'Highlands & Peaks', icon: 'trail-sign-outline', order: 4 },
+      { type: 'destination', name: 'Oromia Region', icon: 'leaf-outline', order: 5 },
+      { type: 'destination', name: 'Harari & East', icon: 'sunny-outline', order: 6 },
+
+      // Product / Marketplace categories
+      { type: 'product', name: 'Fashion & Textiles', icon: 'shirt-outline', order: 1 },
+      { type: 'product', name: 'Specialty Coffee', icon: 'cafe-outline', order: 2 },
+      { type: 'product', name: 'Leather Goods', icon: 'bag-handle-outline', order: 3 },
+      { type: 'product', name: 'Art & Crafts', icon: 'color-palette-outline', order: 4 },
+      { type: 'product', name: 'Jewelry', icon: 'diamond-outline', order: 5 },
+      { type: 'product', name: 'Spices & Culinary', icon: 'flame-outline', order: 6 },
+
+      // Event categories
+      { type: 'event', name: 'Culture', icon: 'color-palette-outline', order: 1 },
+      { type: 'event', name: 'Business', icon: 'briefcase-outline', order: 2 },
+      { type: 'event', name: 'Networking', icon: 'people-outline', order: 3 },
+      { type: 'event', name: 'Festival', icon: 'musical-notes-outline', order: 4 },
+      { type: 'event', name: 'Summits', icon: 'globe-outline', order: 5 },
+
+      // Investment sectors
+      { type: 'investment', name: 'Real Estate', icon: 'business-outline', order: 1 },
+      { type: 'investment', name: 'Agriculture', icon: 'leaf-outline', order: 2 },
+      { type: 'investment', name: 'Technology', icon: 'hardware-chip-outline', order: 3 },
+      { type: 'investment', name: 'Energy', icon: 'flash-outline', order: 4 },
+      { type: 'investment', name: 'Manufacturing', icon: 'construct-outline', order: 5 },
+      { type: 'investment', name: 'Tourism & Hospitality', icon: 'bed-outline', order: 6 },
+    ],
+  });
+
+  // Clear and seed dynamic announcement banners
+  await prisma.announcementBanner.deleteMany({});
+  await prisma.announcementBanner.createMany({
+    data: [
+      {
+        title: 'Diaspora Investment Hub',
+        description: 'Explore verified real estate, commercial agriculture & startup opportunities.',
+        icon: 'sparkles',
+        actionUrl: '/investments',
+        active: true,
+        order: 1,
+      },
+      {
+        title: 'Artisan Marketplace',
+        description: 'Handcrafted Habesha Kemis, Guji coffee, leather goods & certified jewelry.',
+        icon: 'shirt-outline',
+        actionUrl: '/marketplace',
+        active: true,
+        order: 2,
+      },
+      {
+        title: 'Bole SkyLine Luxury Residences',
+        description: 'Diaspora off-plan investment syndicate in Addis Ababa.',
+        icon: 'business-outline',
+        actionUrl: '/investments',
+        active: true,
+        order: 3,
+      },
+    ],
+  });
+
+  console.log('[DALEEL SEED] Completed successfully with rich dynamic Ethiopian data.');
 }
 
 main()
