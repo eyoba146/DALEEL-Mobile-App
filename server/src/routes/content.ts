@@ -536,12 +536,47 @@ contentRouter.get('/categories', async (req: Request, res: Response) => {
   }
 });
 
+// Intelligent icon inference so admins never need to manually look up icons
+function inferCategoryIcon(type: string, name: string): string {
+  const n = name.toLowerCase();
+  // Food & Beverage
+  if (n.includes('coffee') || n.includes('buna') || n.includes('cafe') || n.includes('roast') || n.includes('bean')) return 'cafe-outline';
+  if (n.includes('spice') || n.includes('food') || n.includes('culinary') || n.includes('cook')) return 'flame-outline';
+  // Fashion & Apparel & Crafts
+  if (n.includes('fashion') || n.includes('textil') || n.includes('kemis') || n.includes('cloth') || n.includes('dress') || n.includes('shirt')) return 'shirt-outline';
+  if (n.includes('leather') || n.includes('bag') || n.includes('wallet') || n.includes('shoes')) return 'briefcase-outline';
+  if (n.includes('jewel') || n.includes('gold') || n.includes('silver') || n.includes('cross') || n.includes('diamond')) return 'diamond-outline';
+  if (n.includes('art') || n.includes('craft') || n.includes('pottery') || n.includes('wood') || n.includes('paint')) return 'color-palette-outline';
+  // Travel, Stay & Relocation
+  if (n.includes('relocat') || n.includes('home') || n.includes('house') || n.includes('settle')) return 'home-outline';
+  if (n.includes('hotel') || n.includes('lodge') || n.includes('resort') || n.includes('stay') || n.includes('bed')) return 'bed-outline';
+  if (n.includes('tour') || n.includes('guide') || n.includes('travel') || n.includes('safari') || n.includes('hike')) return 'compass-outline';
+  if (n.includes('car') || n.includes('transport') || n.includes('vehicle') || n.includes('flight') || n.includes('drive')) return 'car-outline';
+  // Legal & Documents
+  if (n.includes('legal') || n.includes('law') || n.includes('court') || n.includes('doc') || n.includes('notary') || n.includes('title')) return 'document-text-outline';
+  // Finance, Banking & Investment
+  if (n.includes('bank') || n.includes('finance') || n.includes('forex') || n.includes('money') || n.includes('currency')) return 'card-outline';
+  if (n.includes('invest') || n.includes('equity') || n.includes('fund') || n.includes('capital')) return 'cash-outline';
+  if (n.includes('real estate') || n.includes('property') || n.includes('building') || n.includes('housing')) return 'business-outline';
+  if (n.includes('agri') || n.includes('farm') || n.includes('crop') || n.includes('horticult') || n.includes('leaf')) return 'leaf-outline';
+  if (n.includes('tech') || n.includes('soft') || n.includes('data') || n.includes('digital') || n.includes('app')) return 'hardware-chip-outline';
+  if (n.includes('energy') || n.includes('solar') || n.includes('power') || n.includes('hydro')) return 'flash-outline';
+  if (n.includes('health') || n.includes('medic') || n.includes('pharma') || n.includes('clinic')) return 'medkit-outline';
+  // Events & Summits
+  if (n.includes('music') || n.includes('concert') || n.includes('dance') || n.includes('festival') || n.includes('celebrat')) return 'musical-notes-outline';
+  if (n.includes('network') || n.includes('social') || n.includes('summit') || n.includes('forum') || n.includes('people')) return 'people-outline';
+  if (n.includes('unesco') || n.includes('heritage') || n.includes('historic')) return 'ribbon-outline';
+  return 'pricetag-outline';
+}
+
 contentRouter.post('/categories', async (req: Request, res: Response) => {
   try {
     const { type, name, icon, order } = req.body;
     if (!type || !name) {
       return res.status(400).json({ error: 'Category type and name are required' });
     }
+
+    const resolvedIcon = icon ? String(icon).trim() : inferCategoryIcon(String(type), String(name));
 
     const category = await prisma.category.upsert({
       where: {
@@ -551,13 +586,13 @@ contentRouter.post('/categories', async (req: Request, res: Response) => {
         },
       },
       update: {
-        icon: icon ? String(icon).trim() : undefined,
+        icon: resolvedIcon,
         order: typeof order === 'number' ? order : undefined,
       },
       create: {
         type: String(type).trim().toLowerCase(),
         name: String(name).trim(),
-        icon: icon ? String(icon).trim() : 'sparkles-outline',
+        icon: resolvedIcon,
         order: typeof order === 'number' ? order : 0,
       },
     });
