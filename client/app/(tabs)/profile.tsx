@@ -316,7 +316,7 @@ export default function ProfileScreen() {
     <View style={styles.screen}>
       {/* Deep Navy Luxury Header */}
       <ScreenHeader
-        title="Account"
+        title={t('profile.title', 'Account')}
         rightElement={
           <TouchableOpacity
             style={styles.headerSignOutBtn}
@@ -1081,7 +1081,7 @@ export default function ProfileScreen() {
             <View style={[styles.fieldIconCircle, { width: 38, height: 38, borderRadius: 19 }]}>
               <Ionicons name="camera-outline" size={18} color={colors.navy} />
             </View>
-            <Text style={styles.actionBtnRowText}>Change Profile Photo</Text>
+            <Text style={styles.actionBtnRowText}>{t('profile.changePhoto', 'Change Profile Photo')}</Text>
             <Ionicons name="chevron-forward" size={18} color={colors.charcoalLight} />
           </TouchableOpacity>
 
@@ -1096,7 +1096,7 @@ export default function ProfileScreen() {
                 <View style={[styles.fieldIconCircle, { width: 38, height: 38, borderRadius: 19, backgroundColor: '#FEE2E2' }]}>
                   <Ionicons name="trash-outline" size={18} color="#DC2626" />
                 </View>
-                <Text style={[styles.actionBtnRowText, { color: '#DC2626' }]}>Remove Photo</Text>
+                <Text style={[styles.actionBtnRowText, { color: '#DC2626' }]}>{t('profile.removePhoto', 'Remove Photo')}</Text>
                 <Ionicons name="chevron-forward" size={18} color={colors.charcoalLight} />
               </TouchableOpacity>
             </>
@@ -1114,8 +1114,8 @@ export default function ProfileScreen() {
               <Ionicons name="notifications" size={18} color={colors.goldText} />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={styles.notifCenterLinkTitle}>Notification & Activity Center</Text>
-              <Text style={styles.notifCenterLinkSub}>View past orders, alerts & updates</Text>
+              <Text style={styles.notifCenterLinkTitle}>{t('profile.activityCenter', 'Notification & Activity Center')}</Text>
+              <Text style={styles.notifCenterLinkSub}>{t('profile.activityCenterSub', 'View past orders, alerts & updates')}</Text>
             </View>
           </View>
           <Ionicons name="chevron-forward" size={18} color={colors.charcoalLight} />
@@ -1128,8 +1128,8 @@ export default function ProfileScreen() {
               <Ionicons name="options-outline" size={18} color={colors.navy} />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={styles.prefsCardTitle}>Push & Notification Preferences</Text>
-              <Text style={styles.prefsCardSubtitle}>Choose which updates you wish to receive</Text>
+              <Text style={styles.prefsCardTitle}>{t('profile.notificationPreferences', 'Push & Notification Preferences')}</Text>
+              <Text style={styles.prefsCardSubtitle}>{t('profile.notifPrefSub', 'Choose which updates you wish to receive')}</Text>
             </View>
           </View>
 
@@ -1138,8 +1138,8 @@ export default function ProfileScreen() {
           {/* Row 1: Orders */}
           <View style={styles.prefRow}>
             <View style={styles.prefTextCol}>
-              <Text style={styles.prefTitle}>Artisan Orders & Inquiries</Text>
-              <Text style={styles.prefDesc}>Delivery tracking, seller replies & inquiry updates</Text>
+              <Text style={styles.prefTitle}>{t('profile.ordersPref', 'Artisan Orders & Inquiries')}</Text>
+              <Text style={styles.prefDesc}>{t('profile.ordersPrefSub', 'Delivery tracking, seller replies & inquiry updates')}</Text>
             </View>
             <Switch
               value={notifPrefs.orders}
@@ -1154,8 +1154,8 @@ export default function ProfileScreen() {
           {/* Row 2: Cultural Events */}
           <View style={styles.prefRow}>
             <View style={styles.prefTextCol}>
-              <Text style={styles.prefTitle}>Cultural Events & Festivals</Text>
-              <Text style={styles.prefDesc}>Timkat, Meskel, networking summits & RSVP reminders</Text>
+              <Text style={styles.prefTitle}>{t('profile.eventsPref', 'Cultural Events & Festivals')}</Text>
+              <Text style={styles.prefDesc}>{t('profile.eventsPrefSub', 'Timkat, Meskel, networking summits & RSVP reminders')}</Text>
             </View>
             <Switch
               value={notifPrefs.events}
@@ -1170,8 +1170,8 @@ export default function ProfileScreen() {
           {/* Row 3: Diaspora Investments */}
           <View style={styles.prefRow}>
             <View style={styles.prefTextCol}>
-              <Text style={styles.prefTitle}>Investment & Real Estate Alerts</Text>
-              <Text style={styles.prefDesc}>Certified projects, residential launches & yield updates</Text>
+              <Text style={styles.prefTitle}>{t('profile.investmentsPref', 'Investment & Real Estate Alerts')}</Text>
+              <Text style={styles.prefDesc}>{t('profile.investmentsPrefSub', 'Certified projects, residential launches & yield updates')}</Text>
             </View>
             <Switch
               value={notifPrefs.investments}
@@ -1186,8 +1186,8 @@ export default function ProfileScreen() {
           {/* Row 4: Community Announcements */}
           <View style={styles.prefRow}>
             <View style={styles.prefTextCol}>
-              <Text style={styles.prefTitle}>Community & Embassy Notices</Text>
-              <Text style={styles.prefDesc}>Consular circulars, Ethiopian Yellow Card assistance & news</Text>
+              <Text style={styles.prefTitle}>{t('profile.announcementsPref', 'Community & Embassy Notices')}</Text>
+              <Text style={styles.prefDesc}>{t('profile.announcementsPrefSub', 'Consular circulars, Ethiopian Yellow Card assistance & news')}</Text>
             </View>
             <Switch
               value={notifPrefs.announcements}
@@ -1230,7 +1230,11 @@ export default function ProfileScreen() {
                   activeOpacity={0.8}
                 >
                   <View style={styles.langCardLeft}>
-                    <Text style={styles.langFlag}>{langItem.flag}</Text>
+                    <View style={[styles.langBadgePill, isSelected && styles.langBadgePillActive]}>
+                      <Text style={[styles.langBadgeText, isSelected && styles.langBadgeTextActive]}>
+                        {langItem.badge}
+                      </Text>
+                    </View>
                     <View>
                       <Text style={[styles.langNativeName, isSelected && styles.langNativeNameActive]}>
                         {langItem.nativeName}
@@ -1254,7 +1258,7 @@ export default function ProfileScreen() {
           activeOpacity={0.85}
         >
           <Ionicons name="log-out-outline" size={19} color="#DC2626" />
-          <Text style={styles.signOutButtonText}>Sign Out of DALEEL</Text>
+          <Text style={styles.signOutButtonText}>{t('profile.signOut', 'Sign Out of DALEEL')}</Text>
         </TouchableOpacity>
 
         {/* Footer Brand Info */}
@@ -1266,8 +1270,6 @@ export default function ProfileScreen() {
 
         <View style={{ height: 32 }} />
       </ScrollView>
-
-
 
       {/* Sign Out Confirmation Modal (Never Alert.alert) */}
       <Modal
@@ -1281,9 +1283,9 @@ export default function ProfileScreen() {
             <View style={styles.confirmIconContainer}>
               <Ionicons name="log-out" size={26} color="#DC2626" />
             </View>
-            <Text style={styles.confirmTitle}>Sign out of DALEEL?</Text>
+            <Text style={styles.confirmTitle}>{t('profile.signOutConfirm', 'Sign out of DALEEL?')}</Text>
             <Text style={styles.confirmSubtitle}>
-              You can log back in anytime with your registered email address.
+              {t('profile.signOutSubtitle', 'You can log back in anytime with your registered email address.')}
             </Text>
 
             <View style={styles.confirmActionRow}>
@@ -1292,7 +1294,7 @@ export default function ProfileScreen() {
                 onPress={() => setIsSignOutModalVisible(false)}
                 activeOpacity={0.8}
               >
-                <Text style={styles.cancelBtnText}>Cancel</Text>
+                <Text style={styles.cancelBtnText}>{t('common.cancel', 'Cancel')}</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
@@ -1303,7 +1305,7 @@ export default function ProfileScreen() {
                 }}
                 activeOpacity={0.8}
               >
-                <Text style={styles.confirmSignOutText}>Sign Out</Text>
+                <Text style={styles.confirmSignOutText}>{t('profile.signOut', 'Sign Out')}</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -2044,8 +2046,28 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
   },
-  langFlag: {
-    fontSize: 22,
+  langBadgePill: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: '#F3F4F6',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  langBadgePillActive: {
+    backgroundColor: colors.goldSoft,
+    borderColor: colors.gold,
+  },
+  langBadgeText: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 13,
+    color: colors.charcoal,
+    letterSpacing: 0.5,
+  },
+  langBadgeTextActive: {
+    color: colors.goldText,
   },
   langNativeName: {
     fontFamily: fonts.bodyBold,

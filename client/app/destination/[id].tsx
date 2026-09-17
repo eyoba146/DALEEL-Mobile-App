@@ -329,7 +329,10 @@ export default function DestinationDetailScreen() {
                   <Ionicons name="shield-checkmark" size={13} color={colors.gold} />
                   <Text style={styles.guideSpotlightBadgeText}>CERTIFIED LOCAL PARTNER</Text>
                 </View>
-                <Text style={styles.guideSpotlightRating}>★ 4.9 Verified</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                  <Ionicons name="star" size={12} color={colors.gold} />
+                  <Text style={styles.guideSpotlightRating}>4.9 Verified</Text>
+                </View>
               </View>
 
               <View style={styles.guideInfoRow}>

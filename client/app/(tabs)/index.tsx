@@ -162,7 +162,7 @@ export default function Home() {
         {/* Welcome Row */}
         <View style={styles.welcomeRow}>
           <View>
-            <Text style={styles.greeting}>{t('home.greeting', 'Selam')}, {firstName} 👋</Text>
+            <Text style={styles.greeting}>{t('home.greeting', 'Selam')}, {firstName}</Text>
             <Text style={styles.subGreeting}>{t('home.subGreeting', 'Discover Ethiopia from anywhere')}</Text>
           </View>
         </View>

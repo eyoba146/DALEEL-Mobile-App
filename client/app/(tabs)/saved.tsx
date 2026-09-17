@@ -24,6 +24,7 @@ import {
 import { contentApi, Destination, EventItem, InvestmentOpportunity, Product, Service } from '../../lib/api';
 import ScreenHeader from '../../components/ScreenHeader';
 import { useFavorites } from '../../lib/favorites-context';
+import { useLanguage } from '../../lib/language-context';
 import { colors, fonts, radius, spacing } from '../../theme/tokens';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -76,6 +77,7 @@ function AnimatedCardWrapper({
 
 export default function SavedScreen() {
   const router = useRouter();
+  const { t } = useLanguage();
   const { favorites, isLoading, toggleFavorite, refreshFavorites } = useFavorites();
   const [filter, setFilter] = useState<FilterType>('all');
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -181,8 +183,8 @@ export default function SavedScreen() {
   return (
     <View style={styles.screen}>
       <ScreenHeader
-        title="Saved Items"
-        subtitle="Your bookmarked places, services & events"
+        title={t('saved.title', 'Saved Items')}
+        subtitle={t('saved.subtitle', 'Your bookmarked places, services & events')}
         badgeCount={savedItems.length}
       />
 
@@ -190,24 +192,24 @@ export default function SavedScreen() {
       <View style={styles.filterBar}>
         {(
           [
-            { key: 'all', label: 'All' },
-            { key: 'destination', label: 'Places' },
-            { key: 'service', label: 'Services' },
-            { key: 'event', label: 'Events' },
-            { key: 'investment', label: 'Investments' },
-            { key: 'product', label: 'Marketplace' },
-          ] as const
-        ).map((t) => {
-          const isActive = filter === t.key;
+            { key: 'all' as const, label: t('saved.filters.all', 'All') },
+            { key: 'destination' as const, label: t('saved.filters.destinations', 'Places') },
+            { key: 'service' as const, label: t('saved.filters.services', 'Services') },
+            { key: 'event' as const, label: t('saved.filters.events', 'Events') },
+            { key: 'investment' as const, label: t('saved.filters.investments', 'Investments') },
+            { key: 'product' as const, label: t('saved.filters.crafts', 'Marketplace') },
+          ]
+        ).map((tab) => {
+          const isActive = filter === tab.key;
           return (
             <TouchableOpacity
-              key={t.key}
+              key={tab.key}
               style={[styles.filterPill, isActive && styles.filterPillActive]}
-              onPress={() => setFilter(t.key)}
+              onPress={() => setFilter(tab.key)}
               activeOpacity={0.8}
             >
               <Text style={[styles.filterText, isActive && styles.filterTextActive]}>
-                {t.label}
+                {tab.label}
               </Text>
             </TouchableOpacity>
           );
@@ -239,7 +241,7 @@ export default function SavedScreen() {
                   <Image source={{ uri: item.image }} style={styles.cardImage} resizeMode="cover" />
                   <View style={styles.cardBody}>
                     <View style={styles.typeBadge}>
-                      <Text style={styles.typeBadgeText}>DESTINATION</Text>
+                      <Text style={styles.typeBadgeText}>{t('saved.badges.destination', 'DESTINATION')}</Text>
                     </View>
                     <Text style={styles.cardName}>{item.name}</Text>
                     <Text style={styles.cardBlurb} numberOfLines={2}>
@@ -277,7 +279,7 @@ export default function SavedScreen() {
                   <Image source={{ uri: item.image }} style={styles.cardImage} resizeMode="cover" />
                   <View style={styles.cardBody}>
                     <View style={[styles.typeBadge, { backgroundColor: '#FEFCBF' }]}>
-                      <Text style={[styles.typeBadgeText, { color: '#744210' }]}>SERVICE</Text>
+                      <Text style={[styles.typeBadgeText, { color: '#744210' }]}>{t('saved.badges.service', 'SERVICE')}</Text>
                     </View>
                     <Text style={styles.cardName}>{item.name}</Text>
                     <Text style={styles.cardCategory}>{item.category}</Text>
@@ -320,7 +322,7 @@ export default function SavedScreen() {
                   <Image source={{ uri: item.image }} style={styles.cardImage} resizeMode="cover" />
                   <View style={styles.cardBody}>
                     <View style={[styles.typeBadge, { backgroundColor: '#E2E8F0' }]}>
-                      <Text style={[styles.typeBadgeText, { color: colors.navy }]}>EVENT</Text>
+                      <Text style={[styles.typeBadgeText, { color: colors.navy }]}>{t('saved.badges.event', 'CULTURAL EVENT')}</Text>
                     </View>
                     <Text style={styles.cardName}>{item.title}</Text>
                     <View style={styles.metaRow}>
@@ -357,7 +359,7 @@ export default function SavedScreen() {
                   <Image source={{ uri: item.image }} style={styles.cardImage} resizeMode="cover" />
                   <View style={styles.cardBody}>
                     <View style={[styles.typeBadge, { backgroundColor: '#EBF8FF' }]}>
-                      <Text style={[styles.typeBadgeText, { color: '#2B6CB0' }]}>INVESTMENT</Text>
+                      <Text style={[styles.typeBadgeText, { color: '#2B6CB0' }]}>{t('saved.badges.investment', 'INVESTMENT')}</Text>
                     </View>
                     <Text style={styles.cardName}>{item.title}</Text>
                     <Text style={styles.cardCategory}>{item.sector}</Text>
@@ -393,7 +395,7 @@ export default function SavedScreen() {
                   <Image source={{ uri: item.image }} style={styles.cardImage} resizeMode="cover" />
                   <View style={styles.cardBody}>
                     <View style={[styles.typeBadge, { backgroundColor: 'rgba(198, 148, 10, 0.15)' }]}>
-                      <Text style={[styles.typeBadgeText, { color: colors.goldRich }]}>ARTISAN CRAFT</Text>
+                      <Text style={[styles.typeBadgeText, { color: colors.goldRich }]}>{t('saved.badges.craft', 'ARTISAN CRAFT')}</Text>
                     </View>
                     <Text style={styles.cardName} numberOfLines={1}>{item.title}</Text>
                     <Text style={styles.cardCategory}>
@@ -437,35 +439,15 @@ export default function SavedScreen() {
             {/* 2. Headline & Narrative */}
             <View style={styles.emptyEyebrowBadge}>
               <Ionicons name="sparkles" size={11} color={colors.goldRich} />
-              <Text style={styles.emptyEyebrowText}>YOUR PERSONAL COLLECTION</Text>
+              <Text style={styles.emptyEyebrowText}>{t('saved.emptyEyebrow', 'YOUR PERSONAL COLLECTION')}</Text>
             </View>
             
             <Text style={styles.emptyHeadline}>
-              {filter === 'destination'
-                ? 'No Places Bookmarked'
-                : filter === 'service'
-                ? 'No Partners Bookmarked'
-                : filter === 'event'
-                ? 'No Events Saved'
-                : filter === 'investment'
-                ? 'No Investments Saved'
-                : filter === 'product'
-                ? 'No Artisan Crafts Saved'
-                : 'Nothing Saved Yet'}
+              {t('saved.emptyHeadline', 'Nothing Saved Yet')}
             </Text>
 
             <Text style={styles.emptySubtext}>
-              {filter === 'destination'
-                ? 'Bookmark UNESCO world heritage sites, highland treks, and historical landmarks to organize your itinerary.'
-                : filter === 'service'
-                ? 'Save trusted relocation partners, legal counsel, and banking concierges for instant offline reference.'
-                : filter === 'event'
-                ? 'Save Ethiopian cultural festivals, business summits, and diaspora forums to receive schedule reminders.'
-                : filter === 'investment'
-                ? 'Bookmark vetted real estate developments, commercial agriculture projects, and startups to build your portfolio.'
-                : filter === 'product'
-                ? 'Save handwoven Habesha Kemis, specialty single-origin coffees, leather goods, and jewelry to order anytime.'
-                : 'As you discover Ethiopia’s timeless heritage, vetted diaspora services, and cultural events, tap the bookmark icon to curate your personal collection here.'}
+              {t('saved.emptyHint', 'As you discover Ethiopia’s timeless heritage, vetted diaspora services, and cultural events, tap the bookmark icon to curate your personal collection here.')}
             </Text>
 
             {/* 3. Quick Action Exploration Cards */}

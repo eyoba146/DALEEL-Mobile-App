@@ -18,16 +18,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { destinations as sampleDestinations } from '../../assets/data/sample';
 import { contentApi, Destination } from '../../lib/api';
 import { useFavorites } from '../../lib/favorites-context';
+import { useLanguage } from '../../lib/language-context';
 import ScreenHeader from '../../components/ScreenHeader';
 import { colors, fonts, radius, spacing } from '../../theme/tokens';
 
-const FILTER_CATEGORIES = [
-  { id: 'all', label: 'All Heritage', icon: 'sparkles' },
-  { id: 'unesco', label: 'UNESCO Sites', icon: 'ribbon' },
-  { id: 'amhara', label: 'Amhara Region', icon: 'map' },
-  { id: 'addis', label: 'Addis Ababa', icon: 'business' },
-  { id: 'highlands', label: 'Highlands & Peaks', icon: 'trail-sign' },
-];
 
 const AnimatedDestinationCard = React.memo(function AnimatedDestinationCard({
   destination,
@@ -129,10 +123,22 @@ const AnimatedDestinationCard = React.memo(function AnimatedDestinationCard({
 
 export default function ExploreScreen() {
   const router = useRouter();
+  const { t } = useLanguage();
   const { isFavorite, toggleFavorite } = useFavorites();
   const [destinations, setDestinations] = useState<Destination[]>(sampleDestinations as any);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
+
+  const filterCategories = React.useMemo(
+    () => [
+      { id: 'all', label: t('explore.categories.all', 'All Heritage'), icon: 'sparkles' },
+      { id: 'unesco', label: t('explore.categories.unesco', 'UNESCO Sites'), icon: 'ribbon' },
+      { id: 'amhara', label: t('explore.categories.amhara', 'Amhara Region'), icon: 'map' },
+      { id: 'addis', label: t('explore.categories.addis', 'Addis Ababa'), icon: 'business' },
+      { id: 'highlands', label: t('explore.categories.highlands', 'Highlands & Peaks'), icon: 'trail-sign' },
+    ],
+    [t]
+  );
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
@@ -222,8 +228,8 @@ export default function ExploreScreen() {
   return (
     <View style={styles.screen}>
       <ScreenHeader
-        title="Explore"
-        subtitle="Heritage, cities & natural wonders"
+        title={t('explore.title', 'Explore')}
+        subtitle={t('explore.subtitle', 'Heritage, cities & natural wonders')}
         badgeCount={destinations.length}
       />
 
@@ -270,9 +276,11 @@ export default function ExploreScreen() {
               <View style={styles.emptyIconCircle}>
                 <Ionicons name="compass-outline" size={36} color={colors.gold} />
               </View>
-              <Text style={styles.emptyTitle}>No destinations found</Text>
+              <Text style={styles.emptyTitle}>{t('explore.noDestinations', 'No destinations found')}</Text>
               <Text style={styles.emptyText}>
-                No heritage sites or cities matched your search &quot;{searchQuery}&quot;. Try exploring other regions or reset your filters.
+                {searchQuery
+                  ? `${t('explore.noDestinationsDesc', 'Try exploring other regions or reset your filters.')} ("${searchQuery}")`
+                  : t('explore.noDestinationsDesc', 'Try exploring other regions or reset your filters.')}
               </Text>
               <TouchableOpacity
                 style={styles.resetFilterBtn}
@@ -283,7 +291,7 @@ export default function ExploreScreen() {
                 activeOpacity={0.8}
               >
                 <Ionicons name="refresh" size={15} color={colors.navy} style={{ marginRight: 6 }} />
-                <Text style={styles.resetFilterText}>Reset Search & Filters</Text>
+                <Text style={styles.resetFilterText}>{t('explore.resetFilters', 'Reset Search & Filters')}</Text>
               </TouchableOpacity>
             </View>
           )}
@@ -317,7 +325,7 @@ export default function ExploreScreen() {
 
               <TextInput
                 style={styles.searchInput}
-                placeholder="Search heritage, cities, or landmarks…"
+                placeholder={t('explore.searchPlaceholder', 'Search heritage, cities, or landmarks…')}
                 placeholderTextColor={colors.charcoalSub}
                 value={searchQuery}
                 onChangeText={setSearchQuery}
@@ -350,7 +358,7 @@ export default function ExploreScreen() {
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.filterPillsScroll}
             >
-              {FILTER_CATEGORIES.map((cat) => {
+              {filterCategories.map((cat) => {
                 const active = selectedCategory === cat.id;
                 return (
                   <TouchableOpacity

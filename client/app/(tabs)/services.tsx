@@ -16,22 +16,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { services as sampleServices } from '../../assets/data/sample';
 import { contentApi, Service } from '../../lib/api';
 import { useFavorites } from '../../lib/favorites-context';
+import { useLanguage } from '../../lib/language-context';
 import ScreenHeader from '../../components/ScreenHeader';
 import { colors, fonts, radius, spacing } from '../../theme/tokens';
-
-type CategoryItem = {
-  label: string;
-  icon: keyof typeof Ionicons.glyphMap;
-};
-
-const CATEGORIES: CategoryItem[] = [
-  { label: 'All', icon: 'apps-outline' },
-  { label: 'Relocation', icon: 'home-outline' },
-  { label: 'Legal services', icon: 'document-text-outline' },
-  { label: 'Tour operators', icon: 'compass-outline' },
-  { label: 'Transportation', icon: 'car-outline' },
-  { label: 'Banking', icon: 'card-outline' },
-];
 
 const AnimatedServiceCard = React.memo(function AnimatedServiceCard({
   service,
@@ -151,9 +138,22 @@ const AnimatedServiceCard = React.memo(function AnimatedServiceCard({
 
 export default function ServicesScreen() {
   const router = useRouter();
+  const { t } = useLanguage();
   const { isFavorite, toggleFavorite } = useFavorites();
   const [activeCategory, setActiveCategory] = useState('All');
   const [services, setServices] = useState<Service[]>(sampleServices as any);
+
+  const categories = React.useMemo(
+    () => [
+      { id: 'All', label: t('services.categories.all', 'All'), icon: 'apps-outline' as const },
+      { id: 'Relocation', label: t('services.categories.relocation', 'Relocation'), icon: 'home-outline' as const },
+      { id: 'Legal services', label: t('services.categories.legal', 'Legal services'), icon: 'document-text-outline' as const },
+      { id: 'Tour operators', label: t('services.categories.tours', 'Tour operators'), icon: 'compass-outline' as const },
+      { id: 'Transportation', label: t('services.categories.transport', 'Transportation'), icon: 'car-outline' as const },
+      { id: 'Banking', label: t('services.categories.banking', 'Banking'), icon: 'card-outline' as const },
+    ],
+    [t]
+  );
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -231,8 +231,8 @@ export default function ServicesScreen() {
   return (
     <View style={styles.screen}>
       <ScreenHeader
-        title="Services"
-        subtitle="Trusted diaspora & investment solutions"
+        title={t('services.title', 'Services')}
+        subtitle={t('services.subtitle', 'Trusted diaspora & investment solutions')}
         badgeCount={services.length}
       />
 
@@ -279,9 +279,11 @@ export default function ServicesScreen() {
               <View style={styles.emptyIconCircle}>
                 <Ionicons name="briefcase-outline" size={36} color={colors.gold} />
               </View>
-              <Text style={styles.emptyTitle}>No partners found</Text>
+              <Text style={styles.emptyTitle}>{t('services.noPartners', 'No partners found')}</Text>
               <Text style={styles.emptyText}>
-                No verified partners matched your search &quot;{searchQuery}&quot; in {activeCategory}. Try adjusting your keywords or reset filters.
+                {searchQuery
+                  ? `${t('services.noPartnersDesc', 'Try adjusting your keywords or reset filters.')} ("${searchQuery}")`
+                  : t('services.noPartnersDesc', 'Try adjusting your keywords or reset filters.')}
               </Text>
               <TouchableOpacity
                 style={styles.resetFilterBtn}
@@ -292,7 +294,7 @@ export default function ServicesScreen() {
                 activeOpacity={0.8}
               >
                 <Ionicons name="refresh" size={15} color={colors.navy} style={{ marginRight: 6 }} />
-                <Text style={styles.resetFilterText}>Reset Search & Filters</Text>
+                <Text style={styles.resetFilterText}>{t('services.resetFilters', 'Reset Search & Filters')}</Text>
               </TouchableOpacity>
             </View>
           )}
@@ -326,7 +328,7 @@ export default function ServicesScreen() {
 
               <TextInput
                 style={styles.searchInput}
-                placeholder="Search services, relocation, legal, banking…"
+                placeholder={t('services.searchPlaceholder', 'Search services, legal, relocation…')}
                 placeholderTextColor={colors.charcoalSub}
                 value={searchQuery}
                 onChangeText={setSearchQuery}
@@ -361,13 +363,13 @@ export default function ServicesScreen() {
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.catScroll}
             >
-              {CATEGORIES.map((cat) => {
-                const isActive = activeCategory === cat.label;
+              {categories.map((cat) => {
+                const isActive = activeCategory === cat.id;
                 return (
                   <TouchableOpacity
-                    key={cat.label}
+                    key={cat.id}
                     style={[styles.catPill, isActive && styles.catPillActive]}
-                    onPress={() => setActiveCategory(cat.label)}
+                    onPress={() => setActiveCategory(cat.id)}
                     activeOpacity={0.8}
                   >
                     <Ionicons

@@ -14,6 +14,7 @@ import {
 import ScreenHeader from '../components/ScreenHeader';
 import { AppNotification } from '../lib/api';
 import { useNotifications } from '../lib/notifications-context';
+import { useLanguage } from '../lib/language-context';
 import { colors, fonts, radius, spacing } from '../theme/tokens';
 
 type NotificationCategory = 'All' | 'Orders' | 'Events' | 'Investments' | 'Announcements';
@@ -85,6 +86,7 @@ function getCategoryConfig(type: string) {
 
 export default function NotificationsScreen() {
   const router = useRouter();
+  const { t } = useLanguage();
   const {
     notifications,
     unreadCount,
@@ -97,6 +99,14 @@ export default function NotificationsScreen() {
 
   const [activeCategory, setActiveCategory] = useState<NotificationCategory>('All');
   const [refreshing, setRefreshing] = useState(false);
+
+  const categories = useMemo(() => [
+    { id: 'All' as const, label: t('notifications.categories.all', 'All'), icon: 'sparkles-outline' as const },
+    { id: 'Orders' as const, label: t('notifications.categories.orders', 'Orders'), icon: 'bag-check-outline' as const },
+    { id: 'Events' as const, label: t('notifications.categories.events', 'Events'), icon: 'calendar-outline' as const },
+    { id: 'Investments' as const, label: t('notifications.categories.investments', 'Investments'), icon: 'trending-up-outline' as const },
+    { id: 'Announcements' as const, label: t('notifications.categories.announcements', 'Announcements'), icon: 'megaphone-outline' as const },
+  ], [t]);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -128,8 +138,8 @@ export default function NotificationsScreen() {
   return (
     <View style={styles.screen}>
       <ScreenHeader
-        title="Notifications"
-        subtitle="Activity updates, orders & community notices"
+        title={t('notifications.title', 'Notifications')}
+        subtitle={t('notifications.subtitle', 'Activity updates, orders & community notices')}
         showBack
         badgeCount={unreadCount}
       />
@@ -139,7 +149,7 @@ export default function NotificationsScreen() {
         <View style={styles.unreadBadgeRow}>
           <View style={[styles.unreadDot, unreadCount === 0 && styles.unreadDotInactive]} />
           <Text style={styles.unreadCountText}>
-            {unreadCount > 0 ? `${unreadCount} unread update(s)` : 'All caught up'}
+            {unreadCount > 0 ? `${unreadCount} ${t('notifications.unreadUpdates', 'unread update(s)')}` : t('notifications.allCaughtUp', 'All caught up')}
           </Text>
         </View>
 
@@ -150,7 +160,7 @@ export default function NotificationsScreen() {
             activeOpacity={0.8}
           >
             <Ionicons name="checkmark-done" size={15} color={colors.navy} style={{ marginRight: 4 }} />
-            <Text style={styles.markAllText}>Mark all as read</Text>
+            <Text style={styles.markAllText}>{t('notifications.markAllRead', 'Mark all as read')}</Text>
           </TouchableOpacity>
         )}
       </View>
@@ -162,13 +172,13 @@ export default function NotificationsScreen() {
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.categoryScroll}
         >
-          {CATEGORIES.map((cat) => {
-            const isSelected = activeCategory === cat.label;
+          {categories.map((cat) => {
+            const isSelected = activeCategory === cat.id;
             return (
               <TouchableOpacity
-                key={cat.label}
+                key={cat.id}
                 style={[styles.categoryPill, isSelected && styles.categoryPillActive]}
-                onPress={() => setActiveCategory(cat.label)}
+                onPress={() => setActiveCategory(cat.id)}
                 activeOpacity={0.8}
               >
                 <Ionicons
@@ -232,7 +242,7 @@ export default function NotificationsScreen() {
 
                 {item.actionUrl && (
                   <View style={styles.actionLinkRow}>
-                    <Text style={styles.actionLinkText}>View Details</Text>
+                    <Text style={styles.actionLinkText}>{t('common.viewDetails', 'View Details')}</Text>
                     <Ionicons name="arrow-forward" size={12} color={colors.navy} style={{ marginLeft: 4 }} />
                   </View>
                 )}
@@ -265,11 +275,9 @@ export default function NotificationsScreen() {
             <View style={styles.emptyIconCircle}>
               <Ionicons name="notifications-off-outline" size={38} color={colors.gold} />
             </View>
-            <Text style={styles.emptyTitle}>You&apos;re All Caught Up!</Text>
+            <Text style={styles.emptyTitle}>{t('notifications.emptyTitle', 'No notifications found')}</Text>
             <Text style={styles.emptySubtitle}>
-              {activeCategory === 'All'
-                ? 'No notifications right now. Order confirmations, event reminders, and community updates will appear here.'
-                : `No notifications in ${activeCategory}. Switch categories or check back later.`}
+              {t('notifications.noNotifications', 'All caught up! No notifications at this time.')}
             </Text>
             {activeCategory !== 'All' && (
               <TouchableOpacity

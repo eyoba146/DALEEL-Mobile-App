@@ -423,7 +423,7 @@ export default function Register() {
                       language === 'en' && styles.langBtnTextActive,
                     ]}
                   >
-                    🇬🇧 English
+                    English
                   </Text>
                 </TouchableOpacity>
 
@@ -438,7 +438,7 @@ export default function Register() {
                       language === 'am' && styles.langBtnTextActive,
                     ]}
                   >
-                    🇪🇹 አማርኛ
+                    አማርኛ
                   </Text>
                 </TouchableOpacity>
 
@@ -453,7 +453,7 @@ export default function Register() {
                       language === 'om' && styles.langBtnTextActive,
                     ]}
                   >
-                    🌳 Afaan Oromoo
+                    Afaan Oromoo
                   </Text>
                 </TouchableOpacity>
 
@@ -468,7 +468,7 @@ export default function Register() {
                       language === 'ar' && styles.langBtnTextActive,
                     ]}
                   >
-                    🌍 العربية
+                    العربية
                   </Text>
                 </TouchableOpacity>
               </View>
