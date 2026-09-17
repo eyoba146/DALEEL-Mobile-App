@@ -22,6 +22,7 @@ import { destinations as sampleDestinations, services as sampleServices } from '
 import { contentApi, Destination, Service } from '../../lib/api';
 import { useAuth } from '../../lib/auth-context';
 import { useFavorites } from '../../lib/favorites-context';
+import { LocationCard } from '../../components/LocationCard';
 import { colors, fonts, radius, spacing } from '../../theme/tokens';
 
 const TRAVEL_PARTIES = ['Solo Traveler', 'Couple (2)', 'Family / Group (3+)'];
@@ -320,6 +321,22 @@ export default function DestinationDetailScreen() {
               </View>
             </View>
           )}
+
+          {/* Location & Navigation Map */}
+          <View style={styles.sectionWrap}>
+            <View style={styles.sectionHeaderRow}>
+              <Ionicons name="map-outline" size={18} color={colors.goldRich} />
+              <Text style={styles.sectionTitle}>Interactive Map & Coordinates</Text>
+            </View>
+            <LocationCard
+              title={destination.name}
+              region={destination.region}
+              address={`${destination.name}, ${destination.region}, Ethiopia`}
+              latitude={destination.latitude}
+              longitude={destination.longitude}
+              style={{ marginTop: 8 }}
+            />
+          </View>
 
           {/* Certified Local Guide Direct Spotlight */}
           {matchedGuide && (

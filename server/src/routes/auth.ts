@@ -29,6 +29,9 @@ function toPublicUser(user: {
   language: string;
   isVerified: boolean;
   avatarUrl: string | null;
+  savedAddress?: string | null;
+  savedLatitude?: number | null;
+  savedLongitude?: number | null;
 }) {
   return {
     id: user.id,
@@ -40,6 +43,9 @@ function toPublicUser(user: {
     language: user.language,
     isVerified: user.isVerified,
     avatarUrl: user.avatarUrl,
+    savedAddress: user.savedAddress || undefined,
+    savedLatitude: user.savedLatitude !== null ? user.savedLatitude : undefined,
+    savedLongitude: user.savedLongitude !== null ? user.savedLongitude : undefined,
   };
 }
 
@@ -128,6 +134,9 @@ const updateProfileSchema = z.object({
   userType: z.enum(['diaspora', 'foreign_resident']).optional(),
   country: z.string().min(2).optional(),
   language: z.enum(['en', 'am', 'om', 'ar']).optional(),
+  savedAddress: z.string().nullable().optional(),
+  savedLatitude: z.number().nullable().optional(),
+  savedLongitude: z.number().nullable().optional(),
 });
 
 authRouter.patch('/profile', requireAuth, async (req, res) => {

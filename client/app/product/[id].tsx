@@ -24,6 +24,7 @@ import { products as sampleProducts } from '../../assets/data/sample';
 import { contentApi, Product, ProductOrderInquiry, ProductOrderInquiryPayload } from '../../lib/api';
 import { useAuth } from '../../lib/auth-context';
 import { useFavorites } from '../../lib/favorites-context';
+import { getCurrentUserLocation } from '../../lib/location';
 import { colors, fonts, radius, spacing } from '../../theme/tokens';
 
 function formatPrice(price: number, currency: string = 'ETB') {
@@ -58,10 +59,39 @@ export default function ProductDetailScreen() {
   const [phone, setPhone] = useState(user?.phone ?? '');
   const [whatsapp, setWhatsapp] = useState(user?.phone ?? '');
   const [deliveryAddress, setDeliveryAddress] = useState('');
+  const [deliveryLat, setDeliveryLat] = useState<number | null>(null);
+  const [deliveryLon, setDeliveryLon] = useState<number | null>(null);
+  const [detectingGps, setDetectingGps] = useState(false);
+  const [gpsStatusMessage, setGpsStatusMessage] = useState<string | null>(null);
   const [notes, setNotes] = useState('');
   const [formError, setFormError] = useState<string | null>(null);
   const [submittingOrder, setSubmittingOrder] = useState(false);
   const [orderSuccess, setOrderSuccess] = useState(false);
+
+  const handleDetectLocation = async () => {
+    setDetectingGps(true);
+    setGpsStatusMessage(null);
+    try {
+      const loc = await getCurrentUserLocation();
+      if (loc.granted && loc.latitude && loc.longitude) {
+        setDeliveryLat(loc.latitude);
+        setDeliveryLon(loc.longitude);
+        if (loc.address) {
+          setDeliveryAddress(loc.address);
+        } else {
+          setDeliveryAddress(`${loc.latitude.toFixed(4)}, ${loc.longitude.toFixed(4)}`);
+        }
+        setGpsStatusMessage(`GPS Location pinned (${loc.latitude.toFixed(4)}N, ${loc.longitude.toFixed(4)}E)`);
+        if (formError) setFormError(null);
+      } else {
+        setGpsStatusMessage(loc.error || 'Location permission denied');
+      }
+    } catch {
+      setGpsStatusMessage('Unable to detect GPS position');
+    } finally {
+      setDetectingGps(false);
+    }
+  };
 
   // Scroll tracking to hide floating top nav bar on scroll
   const scrollY = useRef(new Animated.Value(0)).current;
@@ -113,6 +143,10 @@ export default function ProductDetailScreen() {
         setActiveInquiry(inq);
         setQuantity(inq.quantity);
         setDeliveryAddress(inq.deliveryAddress || '');
+        if (inq.deliveryLatitude && inq.deliveryLongitude) {
+          setDeliveryLat(inq.deliveryLatitude);
+          setDeliveryLon(inq.deliveryLongitude);
+        }
         setNotes(inq.notes || '');
         if (inq.fullName) setFullName(inq.fullName);
         if (inq.email) setEmail(inq.email);
@@ -138,6 +172,13 @@ export default function ProductDetailScreen() {
       if (!email) setEmail(user.email);
       if (!phone && user.phone) setPhone(user.phone);
       if (!whatsapp && user.phone) setWhatsapp(user.phone);
+      if (!deliveryAddress && user.savedAddress) {
+        setDeliveryAddress(user.savedAddress);
+        if (user.savedLatitude && user.savedLongitude) {
+          setDeliveryLat(user.savedLatitude);
+          setDeliveryLon(user.savedLongitude);
+        }
+      }
     }
   }, [user, activeInquiry]);
 
@@ -204,6 +245,8 @@ export default function ProductDetailScreen() {
         whatsapp: whatsapp.trim() || undefined,
         quantity,
         deliveryAddress: deliveryAddress.trim(),
+        deliveryLatitude: deliveryLat ?? undefined,
+        deliveryLongitude: deliveryLon ?? undefined,
         notes: notes.trim() || undefined,
       };
 
@@ -229,6 +272,8 @@ export default function ProductDetailScreen() {
         whatsapp: whatsapp.trim() || null,
         quantity,
         deliveryAddress: deliveryAddress.trim(),
+        deliveryLatitude: deliveryLat ?? null,
+        deliveryLongitude: deliveryLon ?? null,
         notes: notes.trim() || null,
         status: 'pending',
         createdAt: activeInquiry?.createdAt || new Date().toISOString(),
@@ -934,7 +979,24 @@ export default function ProductDetailScreen() {
                 </View>
 
                 <View style={styles.inputGroup}>
-                  <Text style={styles.inputLabel}>Delivery Destination / Address *</Text>
+                  <View style={styles.deliveryLabelRow}>
+                    <Text style={styles.inputLabel}>Delivery Destination / Address *</Text>
+                    <TouchableOpacity
+                      style={styles.gpsDetectBtn}
+                      onPress={handleDetectLocation}
+                      disabled={detectingGps}
+                      activeOpacity={0.8}
+                    >
+                      {detectingGps ? (
+                        <ActivityIndicator size="small" color={colors.navy} style={{ transform: [{ scale: 0.7 }] }} />
+                      ) : (
+                        <Ionicons name="location" size={12} color={colors.navy} />
+                      )}
+                      <Text style={styles.gpsDetectBtnText}>
+                        {detectingGps ? 'Locating...' : 'Use My GPS Location'}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
                   <TextInput
                     style={styles.textInput}
                     placeholder="e.g. Bole Medhanialem, Addis Ababa OR Diaspora postal address"
@@ -945,6 +1007,23 @@ export default function ProductDetailScreen() {
                       if (formError) setFormError(null);
                     }}
                   />
+                  {gpsStatusMessage ? (
+                    <View style={styles.gpsFeedbackRow}>
+                      <Ionicons
+                        name={deliveryLat ? 'checkmark-circle' : 'information-circle'}
+                        size={13}
+                        color={deliveryLat ? colors.success : colors.charcoalSub}
+                      />
+                      <Text
+                        style={[
+                          styles.gpsFeedbackText,
+                          { color: deliveryLat ? colors.success : colors.charcoalSub },
+                        ]}
+                      >
+                        {gpsStatusMessage}
+                      </Text>
+                    </View>
+                  ) : null}
                 </View>
 
                 <View style={styles.inputGroup}>
@@ -1746,6 +1825,41 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: colors.charcoal,
     marginBottom: 5,
+  },
+  deliveryLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 5,
+  },
+  gpsDetectBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: colors.goldSoft,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: colors.goldBorder,
+  },
+  gpsDetectBtnText: {
+    fontSize: 10,
+    fontFamily: fonts.body,
+    fontWeight: '700',
+    color: colors.navy,
+  },
+  gpsFeedbackRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 4,
+    paddingHorizontal: 2,
+  },
+  gpsFeedbackText: {
+    fontSize: 11,
+    fontFamily: fonts.body,
+    fontWeight: '600',
   },
   textInput: {
     backgroundColor: '#FFFFFF',

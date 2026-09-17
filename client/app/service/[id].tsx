@@ -23,6 +23,7 @@ import { services as sampleServices } from '../../assets/data/sample';
 import { contentApi, Service, ServiceInquiryPayload } from '../../lib/api';
 import { useAuth } from '../../lib/auth-context';
 import { useFavorites } from '../../lib/favorites-context';
+import { LocationCard } from '../../components/LocationCard';
 import { colors, fonts, radius, spacing } from '../../theme/tokens';
 
 const TIMEFRAMES = ['Urgent (<48h)', 'Next 2 Weeks', 'Within 1-3 Months', 'General Inquiry'];
@@ -369,6 +370,22 @@ export default function ServiceDetailScreen() {
                 </View>
               </View>
             </View>
+          </View>
+
+          {/* Location & Navigation Map */}
+          <View style={styles.sectionWrap}>
+            <View style={styles.sectionHeaderRow}>
+              <Ionicons name="map-outline" size={18} color={colors.goldRich} />
+              <Text style={styles.sectionTitle}>Office Location & Navigation</Text>
+            </View>
+            <LocationCard
+              title={service.name}
+              region={service.location}
+              address={service.address || `${service.location}, Ethiopia`}
+              latitude={service.latitude}
+              longitude={service.longitude}
+              style={{ marginTop: 8 }}
+            />
           </View>
 
           <View style={{ height: 100 }} />

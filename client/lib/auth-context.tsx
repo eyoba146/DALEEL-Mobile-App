@@ -33,6 +33,9 @@ type AuthState = {
     userType?: 'diaspora' | 'foreign_resident';
     country?: string;
     language?: SupportedLanguage;
+    savedAddress?: string | null;
+    savedLatitude?: number | null;
+    savedLongitude?: number | null;
   }) => Promise<void>;
   uploadAvatar: (base64: string) => Promise<string>;
   changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
@@ -135,6 +138,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     userType?: 'diaspora' | 'foreign_resident';
     country?: string;
     language?: SupportedLanguage;
+    savedAddress?: string | null;
+    savedLatitude?: number | null;
+    savedLongitude?: number | null;
   }) => {
     if (!token) throw new Error('Not authenticated');
     const res = await authApi.updateProfile(token, updates);

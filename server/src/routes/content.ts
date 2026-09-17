@@ -457,6 +457,8 @@ contentRouter.post('/products/:id/order-inquiry', async (req: Request, res: Resp
       whatsapp,
       quantity,
       deliveryAddress,
+      deliveryLatitude,
+      deliveryLongitude,
       notes,
     } = req.body;
 
@@ -484,12 +486,26 @@ contentRouter.post('/products/:id/order-inquiry', async (req: Request, res: Resp
         whatsapp: whatsapp ? String(whatsapp).trim() : null,
         quantity: parsedQty,
         deliveryAddress: String(deliveryAddress).trim(),
+        deliveryLatitude: typeof deliveryLatitude === 'number' ? deliveryLatitude : null,
+        deliveryLongitude: typeof deliveryLongitude === 'number' ? deliveryLongitude : null,
         notes: notes ? String(notes).trim() : null,
       },
       include: {
         product: true,
       },
     });
+
+    // Auto-save user default delivery location
+    if (userId) {
+      await prisma.user.update({
+        where: { id: userId },
+        data: {
+          savedAddress: String(deliveryAddress).trim(),
+          ...(typeof deliveryLatitude === 'number' ? { savedLatitude: deliveryLatitude } : {}),
+          ...(typeof deliveryLongitude === 'number' ? { savedLongitude: deliveryLongitude } : {}),
+        },
+      }).catch(() => {});
+    }
 
     res.status(201).json({
       success: true,

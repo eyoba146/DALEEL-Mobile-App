@@ -21,6 +21,7 @@ import { events as sampleEvents } from '../../assets/data/sample';
 import { contentApi, EventItem, EventRsvpPayload } from '../../lib/api';
 import { useAuth } from '../../lib/auth-context';
 import { useFavorites } from '../../lib/favorites-context';
+import { LocationCard } from '../../components/LocationCard';
 import { colors, fonts, radius, spacing } from '../../theme/tokens';
 
 function formatFullDate(dateStr: string) {
@@ -341,13 +342,14 @@ export default function EventDetailScreen() {
               <Ionicons name="map-outline" size={18} color={colors.gold} style={{ marginRight: 8 }} />
               <Text style={styles.sectionHeading}>Venue & Location</Text>
             </View>
-            <View style={styles.venueInfoBox}>
-              <Ionicons name="navigate-circle" size={32} color={colors.navy} style={{ marginRight: 12 }} />
-              <View style={{ flex: 1 }}>
-                <Text style={styles.venueName}>{event.venue || `${event.city}, Ethiopia`}</Text>
-                <Text style={styles.venueCity}>{event.city}, Ethiopia</Text>
-              </View>
-            </View>
+            <LocationCard
+              title={event.venue || event.title}
+              region={event.city}
+              address={event.address || (event.venue ? `${event.venue}, ${event.city}, Ethiopia` : `${event.city}, Ethiopia`)}
+              latitude={event.latitude}
+              longitude={event.longitude}
+              style={{ marginVertical: 8 }}
+            />
             <Text style={styles.venueNote}>
               Parking facilities, designated ride-hailing drop-offs (Feres, RIDE), and English-speaking concierge desks are available on site.
             </Text>

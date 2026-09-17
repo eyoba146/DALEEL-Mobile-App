@@ -59,6 +59,9 @@ export type AuthUser = {
   language: SupportedLanguage;
   isVerified: boolean;
   avatarUrl: string | null;
+  savedAddress?: string | null;
+  savedLatitude?: number | null;
+  savedLongitude?: number | null;
 };
 
 export type AuthResponse = { user: AuthUser; token: string };
@@ -106,6 +109,9 @@ export const authApi = {
       userType?: 'diaspora' | 'foreign_resident';
       country?: string;
       language?: SupportedLanguage;
+      savedAddress?: string | null;
+      savedLatitude?: number | null;
+      savedLongitude?: number | null;
     }
   ) => apiRequest<{ user: AuthUser }>('/auth/profile', { method: 'PATCH', body: data, token }),
 
@@ -158,6 +164,8 @@ export type Destination = {
   highlights?: string | null;
   gettingThere?: string | null;
   rating?: number;
+  latitude?: number | null;
+  longitude?: number | null;
 };
 
 export type Service = {
@@ -177,6 +185,8 @@ export type Service = {
   reviewCount?: number;
   operatingHours?: string | null;
   features?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
 };
 
 export type EventItem = {
@@ -186,6 +196,7 @@ export type EventItem = {
   time?: string | null;
   city: string;
   venue?: string | null;
+  address?: string | null;
   category: string;
   price?: string | null;
   organizer?: string | null;
@@ -195,6 +206,8 @@ export type EventItem = {
   capacity?: number | null;
   verified?: boolean;
   image: string;
+  latitude?: number | null;
+  longitude?: number | null;
   _count?: { rsvps: number };
 };
 
@@ -267,6 +280,8 @@ export type ProductOrderInquiryPayload = {
   whatsapp?: string;
   quantity: number;
   deliveryAddress: string;
+  deliveryLatitude?: number | null;
+  deliveryLongitude?: number | null;
   notes?: string;
 };
 
@@ -280,6 +295,8 @@ export type ProductOrderInquiry = {
   whatsapp?: string | null;
   quantity: number;
   deliveryAddress: string;
+  deliveryLatitude?: number | null;
+  deliveryLongitude?: number | null;
   notes?: string | null;
   status: 'pending' | 'confirmed' | 'dispatched' | 'cancelled' | string;
   createdAt: string;

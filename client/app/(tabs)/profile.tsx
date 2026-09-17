@@ -19,6 +19,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../../lib/auth-context';
 import { NotificationPreferences, notificationsApi, resolveMediaUrl, SupportedLanguage } from '../../lib/api';
 import { useLanguage } from '../../lib/language-context';
+import { getCurrentUserLocation } from '../../lib/location';
 import ScreenHeader from '../../components/ScreenHeader';
 import { colors, fonts, radius, shadow, spacing } from '../../theme/tokens';
 
@@ -47,12 +48,18 @@ export default function ProfileScreen() {
     | 'country'
     | 'persona'
     | 'password'
+    | 'savedAddress'
     | null;
 
   const [activeField, setActiveField] = useState<EditableField>(null);
   const [fieldValue, setFieldValue] = useState('');
   const [personaChoice, setPersonaChoice] = useState<'diaspora' | 'foreign_resident'>('diaspora');
   const [isSavingField, setIsSavingField] = useState(false);
+  const [isDetectingProfileLocation, setIsDetectingProfileLocation] = useState(false);
+  const [profileLocationCoords, setProfileLocationCoords] = useState<{ lat?: number; lon?: number }>({
+    lat: user?.savedLatitude ?? undefined,
+    lon: user?.savedLongitude ?? undefined,
+  });
 
   // Password editing states
   const [currentPassword, setCurrentPassword] = useState('');
@@ -224,6 +231,36 @@ export default function ProfileScreen() {
       setFieldValue(user?.country || '');
     } else if (field === 'persona') {
       setPersonaChoice(user?.userType || 'diaspora');
+    } else if (field === 'savedAddress') {
+      setFieldValue(user?.savedAddress || '');
+      setProfileLocationCoords({
+        lat: user?.savedLatitude ?? undefined,
+        lon: user?.savedLongitude ?? undefined,
+      });
+    }
+  };
+
+  const handleDetectProfileGps = async () => {
+    setIsDetectingProfileLocation(true);
+    try {
+      const loc = await getCurrentUserLocation();
+      if (loc.granted && loc.latitude && loc.longitude) {
+        setProfileLocationCoords({ lat: loc.latitude, lon: loc.longitude });
+        const addr = loc.address || `${loc.latitude.toFixed(4)}, ${loc.longitude.toFixed(4)}`;
+        setFieldValue(addr);
+        await updateUser({
+          savedAddress: addr,
+          savedLatitude: loc.latitude,
+          savedLongitude: loc.longitude,
+        });
+        showToast('Current GPS location captured and saved!', 'success');
+      } else {
+        showToast(loc.error || 'Location permission was denied', 'error');
+      }
+    } catch {
+      showToast('Could not fetch GPS location', 'error');
+    } finally {
+      setIsDetectingProfileLocation(false);
     }
   };
 
@@ -270,6 +307,14 @@ export default function ProfileScreen() {
       } else if (activeField === 'persona') {
         await updateUser({ userType: personaChoice });
         showToast('Profile persona updated in database!', 'success');
+      } else if (activeField === 'savedAddress') {
+        const trimmed = fieldValue.trim();
+        await updateUser({
+          savedAddress: trimmed || null,
+          savedLatitude: profileLocationCoords.lat ?? null,
+          savedLongitude: profileLocationCoords.lon ?? null,
+        });
+        showToast('Saved delivery destination updated in database!', 'success');
       }
       setActiveField(null);
     } catch (err: any) {
@@ -916,6 +961,105 @@ export default function ProfileScreen() {
               <Text style={styles.fieldValue}>
                 {isDiaspora ? 'Ethiopian Diaspora' : 'Foreign Resident / International'}
               </Text>
+            </View>
+            <View style={styles.pencilCircle}>
+              <Ionicons name="pencil" size={15} color={colors.navy} />
+            </View>
+          </TouchableOpacity>
+        )}
+
+        {/* Saved Delivery Destination Card */}
+        {activeField === 'savedAddress' ? (
+          <View style={styles.inlineEditCard}>
+            <View style={styles.inlineCardHeader}>
+              <View style={styles.fieldIconCircle}>
+                <Ionicons name="location" size={20} color={colors.navy} />
+              </View>
+              <Text style={styles.inlineCardTitle}>Saved Delivery Destination</Text>
+            </View>
+
+            <View style={styles.profileGpsActionRow}>
+              <Text style={styles.inlineSubLabel}>Default Shipping / Delivery Address</Text>
+              <TouchableOpacity
+                style={styles.profileGpsBtn}
+                onPress={handleDetectProfileGps}
+                disabled={isDetectingProfileLocation}
+                activeOpacity={0.8}
+              >
+                {isDetectingProfileLocation ? (
+                  <ActivityIndicator size="small" color={colors.navy} style={{ transform: [{ scale: 0.7 }] }} />
+                ) : (
+                  <Ionicons name="navigate-circle" size={13} color={colors.navy} />
+                )}
+                <Text style={styles.profileGpsBtnText}>
+                  {isDetectingProfileLocation ? 'Capturing GPS...' : 'Use Current GPS'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            <TextInput
+              style={styles.inlineInput}
+              value={fieldValue}
+              onChangeText={setFieldValue}
+              placeholder="e.g. Bole Medhanialem, Morning Star Mall, Addis Ababa"
+              placeholderTextColor={colors.charcoalLight}
+              autoFocus
+            />
+
+            {profileLocationCoords.lat && profileLocationCoords.lon ? (
+              <View style={styles.profileCoordBadgeRow}>
+                <Ionicons name="locate-outline" size={13} color={colors.goldRich} />
+                <Text style={styles.profileCoordBadgeText}>
+                  Coordinates: {profileLocationCoords.lat.toFixed(4)}° N, {profileLocationCoords.lon.toFixed(4)}° E
+                </Text>
+              </View>
+            ) : null}
+
+            <View style={styles.inlineBtnRow}>
+              <TouchableOpacity
+                style={styles.inlineCancelBtn}
+                onPress={() => setActiveField(null)}
+                disabled={isSavingField}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.inlineCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.inlineSaveBtn}
+                onPress={handleSaveField}
+                disabled={isSavingField}
+                activeOpacity={0.8}
+              >
+                {isSavingField ? (
+                  <ActivityIndicator size="small" color={colors.navy} />
+                ) : (
+                  <>
+                    <Ionicons name="checkmark" size={16} color={colors.navy} style={{ marginRight: 4 }} />
+                    <Text style={styles.inlineSaveText}>Save</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        ) : (
+          <TouchableOpacity
+            style={styles.fieldCard}
+            onPress={() => openFieldEditor('savedAddress')}
+            activeOpacity={0.85}
+          >
+            <View style={styles.fieldIconCircle}>
+              <Ionicons name="location-sharp" size={20} color={colors.navy} />
+            </View>
+            <View style={styles.fieldTextCol}>
+              <Text style={styles.fieldLabel}>Saved delivery destination</Text>
+              <Text style={[styles.fieldValue, !user?.savedAddress && styles.fieldValuePlaceholder]} numberOfLines={1}>
+                {user?.savedAddress || 'Add default delivery address'}
+              </Text>
+              {user?.savedLatitude && user?.savedLongitude ? (
+                <Text style={styles.fieldSubCoord}>
+                  GPS: {user.savedLatitude.toFixed(4)}° N, {user.savedLongitude.toFixed(4)}° E
+                </Text>
+              ) : null}
             </View>
             <View style={styles.pencilCircle}>
               <Ionicons name="pencil" size={15} color={colors.navy} />
@@ -1626,6 +1770,49 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
     color: colors.navy,
+  },
+  fieldSubCoord: {
+    fontFamily: fonts.bodyMedium,
+    fontSize: 11,
+    color: colors.goldRich,
+    marginTop: 2,
+    fontWeight: '600',
+  },
+  profileGpsActionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 4,
+  },
+  profileGpsBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: colors.goldSoft,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: colors.goldBorder,
+  },
+  profileGpsBtnText: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 10.5,
+    color: colors.navy,
+    fontWeight: '700',
+  },
+  profileCoordBadgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 6,
+    paddingHorizontal: 4,
+  },
+  profileCoordBadgeText: {
+    fontFamily: fonts.bodyMedium,
+    fontSize: 11,
+    color: colors.goldRich,
+    fontWeight: '600',
   },
 
   // ── Phone Row with Country Badge (Matching Reference UI) ──
