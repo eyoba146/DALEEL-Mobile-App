@@ -7,8 +7,10 @@ import { Card } from '../components/Card';
 import { useAuth } from '../lib/auth-context';
 import { appName, colors, radius, spacing, type } from '../theme/tokens';
 
+import { SupportedLanguage } from '../lib/api';
+
 type UserType = 'diaspora' | 'foreign_resident';
-type Language = 'en' | 'am';
+type Language = SupportedLanguage;
 
 const COUNTRIES = [
   'United States', 'United Kingdom', 'Canada', 'Germany', 'Sweden',
@@ -85,14 +87,24 @@ export default function Onboarding() {
             <Text style={styles.title}>Choose your language</Text>
             <Text style={styles.subtitle}>You can change this anytime in Settings.</Text>
             <SelectCard
-              title="English"
+              title="🇬🇧 English"
               selected={language === 'en'}
               onPress={() => setLanguage('en')}
             />
             <SelectCard
-              title="አማርኛ (Amharic)"
+              title="🇪🇹 አማርኛ (Amharic)"
               selected={language === 'am'}
               onPress={() => setLanguage('am')}
+            />
+            <SelectCard
+              title="🌳 Afaan Oromoo (Oromo)"
+              selected={language === 'om'}
+              onPress={() => setLanguage('om')}
+            />
+            <SelectCard
+              title="🌍 العربية (Arabic)"
+              selected={language === 'ar'}
+              onPress={() => setLanguage('ar')}
             />
           </View>
         )}

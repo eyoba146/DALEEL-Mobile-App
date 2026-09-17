@@ -17,13 +17,15 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../../lib/auth-context';
-import { NotificationPreferences, notificationsApi, resolveMediaUrl } from '../../lib/api';
+import { NotificationPreferences, notificationsApi, resolveMediaUrl, SupportedLanguage } from '../../lib/api';
+import { useLanguage } from '../../lib/language-context';
 import ScreenHeader from '../../components/ScreenHeader';
 import { colors, fonts, radius, shadow, spacing } from '../../theme/tokens';
 
 export default function ProfileScreen() {
   const router = useRouter();
   const { user, token, updateUser, uploadAvatar, changePassword, logout } = useAuth();
+  const { language, setLanguage, languages, t } = useLanguage();
   const [localAvatarUri, setLocalAvatarUri] = useState<string | null>(null);
   const avatarUri = localAvatarUri || resolveMediaUrl(user?.avatarUrl);
 
@@ -108,6 +110,12 @@ export default function ProfileScreen() {
       setNotifPrefs(notifPrefs);
       showToast('Could not save preference', 'error');
     }
+  };
+
+  const handleSelectLanguage = async (newLang: SupportedLanguage) => {
+    if (newLang === language) return;
+    await setLanguage(newLang);
+    showToast(t('profile.languageChanged', 'Language updated successfully'), 'success');
   };
 
   const showToast = (message: string, type: 'success' | 'error' = 'success') => {
@@ -1190,6 +1198,55 @@ export default function ProfileScreen() {
           </View>
         </View>
 
+        {/* Language & Localization Card */}
+        <View style={styles.prefsContainerCard}>
+          <View style={styles.prefsHeader}>
+            <View style={[styles.fieldIconCircle, { width: 34, height: 34, borderRadius: 17, backgroundColor: colors.goldSoft }]}>
+              <Ionicons name="language" size={18} color={colors.goldText} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.prefsCardTitle}>
+                {t('profile.language', 'Language & Localization')}
+              </Text>
+              <Text style={styles.prefsCardSubtitle}>
+                {t('profile.languageSubtitle', 'Choose your preferred display language')}
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.divider} />
+
+          <View style={styles.langGrid}>
+            {languages.map((langItem) => {
+              const isSelected = language === langItem.code;
+              return (
+                <TouchableOpacity
+                  key={langItem.code}
+                  style={[
+                    styles.langCard,
+                    isSelected && styles.langCardActive,
+                  ]}
+                  onPress={() => handleSelectLanguage(langItem.code)}
+                  activeOpacity={0.8}
+                >
+                  <View style={styles.langCardLeft}>
+                    <Text style={styles.langFlag}>{langItem.flag}</Text>
+                    <View>
+                      <Text style={[styles.langNativeName, isSelected && styles.langNativeNameActive]}>
+                        {langItem.nativeName}
+                      </Text>
+                      <Text style={styles.langEnglishName}>{langItem.name}</Text>
+                    </View>
+                  </View>
+                  <View style={[styles.langRadio, isSelected && styles.langRadioActive]}>
+                    {isSelected && <Ionicons name="checkmark" size={14} color="#FFFFFF" />}
+                  </View>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </View>
+
         {/* Sign Out Button */}
         <TouchableOpacity
           style={styles.signOutButton}
@@ -1960,5 +2017,61 @@ const styles = StyleSheet.create({
     height: 1,
     backgroundColor: colors.separator,
     marginVertical: 4,
+  },
+
+  // Language & Localization styles
+  langGrid: {
+    gap: 10,
+    marginTop: 4,
+  },
+  langCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: colors.surface,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderRadius: radius.md,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+  },
+  langCardActive: {
+    backgroundColor: '#FFFFFF',
+    borderColor: colors.gold,
+  },
+  langCardLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  langFlag: {
+    fontSize: 22,
+  },
+  langNativeName: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 15,
+    color: colors.charcoal,
+  },
+  langNativeNameActive: {
+    color: colors.goldText,
+  },
+  langEnglishName: {
+    fontFamily: fonts.body,
+    fontSize: 12,
+    color: colors.charcoalSub,
+    marginTop: 1,
+  },
+  langRadio: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  langRadioActive: {
+    backgroundColor: colors.gold,
+    borderColor: colors.gold,
   },
 });

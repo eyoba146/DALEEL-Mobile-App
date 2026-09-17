@@ -30,6 +30,7 @@ import {
 } from '../../lib/api';
 import { useAuth } from '../../lib/auth-context';
 import { useFavorites } from '../../lib/favorites-context';
+import { useLanguage } from '../../lib/language-context';
 import { useNotifications } from '../../lib/notifications-context';
 import { colors, fonts, radius, spacing } from '../../theme/tokens';
 
@@ -40,6 +41,7 @@ export default function Home() {
   const router = useRouter();
   const { isFavorite, toggleFavorite } = useFavorites();
   const { unreadCount } = useNotifications();
+  const { t } = useLanguage();
 
   const [destinations, setDestinations] = useState<Destination[]>(sampleDestinations as any);
   const [services, setServices] = useState<Service[]>(sampleServices as any);
@@ -160,8 +162,8 @@ export default function Home() {
         {/* Welcome Row */}
         <View style={styles.welcomeRow}>
           <View>
-            <Text style={styles.greeting}>Selam, {firstName} 👋</Text>
-            <Text style={styles.subGreeting}>Discover Ethiopia from anywhere</Text>
+            <Text style={styles.greeting}>{t('home.greeting', 'Selam')}, {firstName} 👋</Text>
+            <Text style={styles.subGreeting}>{t('home.subGreeting', 'Discover Ethiopia from anywhere')}</Text>
           </View>
         </View>
 
@@ -172,7 +174,7 @@ export default function Home() {
           onPress={() => router.push('/(tabs)/explore')}
         >
           <Ionicons name="search-outline" size={19} color="#9CA3AF" />
-          <Text style={styles.searchPlaceholder}>Search services, places, events…</Text>
+          <Text style={styles.searchPlaceholder}>{t('home.searchPlaceholder', 'Search services, places, events…')}</Text>
         </TouchableOpacity>
 
         {/* Announcement Banners */}
@@ -212,7 +214,7 @@ export default function Home() {
 
         {/* Destinations */}
         <SectionHeader
-          title="Popular Destinations"
+          title={t('home.exploreDestinations', 'Popular Destinations')}
           onSeeAll={() => router.push('/(tabs)/explore')}
         />
         <ScrollView
@@ -263,7 +265,7 @@ export default function Home() {
 
         {/* Services */}
         <SectionHeader
-          title="Recommended Services"
+          title={t('home.recommendedServices', 'Recommended Services')}
           onSeeAll={() => router.push('/(tabs)/services')}
         />
         {services.slice(0, 3).map((s) => {
@@ -311,7 +313,7 @@ export default function Home() {
 
         {/* Events */}
         <SectionHeader
-          title="Upcoming Events"
+          title={t('home.upcomingEvents', 'Upcoming Events')}
           onSeeAll={() => router.push('/events')}
         />
         {events.slice(0, 3).map((e) => {
@@ -355,7 +357,7 @@ export default function Home() {
 
         {/* Investment Opportunities */}
         <SectionHeader
-          title="Diaspora Investment Hub"
+          title={t('home.diasporaInvestments', 'Diaspora Investment Hub')}
           onSeeAll={() => router.push('/investments')}
         />
         <ScrollView
@@ -430,7 +432,7 @@ export default function Home() {
 
         {/* Artisan Marketplace */}
         <SectionHeader
-          title="Artisan Marketplace"
+          title={t('home.artisanMarketplace', 'Artisan Marketplace')}
           onSeeAll={() => router.push('/marketplace')}
         />
         <ScrollView
@@ -487,12 +489,13 @@ export default function Home() {
 }
 
 function SectionHeader({ title, onSeeAll }: { title: string; onSeeAll?: () => void }) {
+  const { t } = useLanguage();
   return (
     <View style={styles.sectionHeader}>
       <Text style={styles.sectionTitle}>{title}</Text>
       {onSeeAll && (
         <TouchableOpacity onPress={onSeeAll} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-          <Text style={styles.sectionLink}>See all</Text>
+          <Text style={styles.sectionLink}>{t('common.seeAll', 'See all')}</Text>
         </TouchableOpacity>
       )}
     </View>

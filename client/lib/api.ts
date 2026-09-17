@@ -47,6 +47,8 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
 
 // --- Auth endpoints (match these routes on the Express backend) ---
 
+export type SupportedLanguage = 'en' | 'am' | 'om' | 'ar';
+
 export type AuthUser = {
   id: string;
   name: string;
@@ -54,7 +56,7 @@ export type AuthUser = {
   phone?: string;
   userType: 'diaspora' | 'foreign_resident';
   country: string;
-  language: 'en' | 'am';
+  language: SupportedLanguage;
   isVerified: boolean;
   avatarUrl: string | null;
 };
@@ -68,7 +70,7 @@ export const authApi = {
     password: string;
     userType: 'diaspora' | 'foreign_resident';
     country: string;
-    language: 'en' | 'am';
+    language: SupportedLanguage;
   }) => apiRequest<AuthResponse>('/auth/register', { method: 'POST', body: data }),
 
   login: (data: { email: string; password: string }) =>
@@ -103,7 +105,7 @@ export const authApi = {
       avatarUrl?: string | null;
       userType?: 'diaspora' | 'foreign_resident';
       country?: string;
-      language?: 'en' | 'am';
+      language?: SupportedLanguage;
     }
   ) => apiRequest<{ user: AuthUser }>('/auth/profile', { method: 'PATCH', body: data, token }),
 

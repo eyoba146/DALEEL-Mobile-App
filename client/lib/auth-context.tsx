@@ -1,11 +1,11 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
-import { authApi, AuthUser } from './api';
+import { authApi, AuthUser, SupportedLanguage } from './api';
 
 type OnboardingChoice = {
   userType: 'diaspora' | 'foreign_resident';
   country: string;
-  language: 'en' | 'am';
+  language: SupportedLanguage;
 };
 
 type AuthState = {
@@ -21,7 +21,7 @@ type AuthState = {
     password: string,
     userType?: 'diaspora' | 'foreign_resident',
     country?: string,
-    language?: 'en' | 'am'
+    language?: SupportedLanguage
   ) => Promise<void>;
   logout: () => Promise<void>;
   checkVerificationStatus: () => Promise<void>;
@@ -32,7 +32,7 @@ type AuthState = {
     avatarUrl?: string | null;
     userType?: 'diaspora' | 'foreign_resident';
     country?: string;
-    language?: 'en' | 'am';
+    language?: SupportedLanguage;
   }) => Promise<void>;
   uploadAvatar: (base64: string) => Promise<string>;
   changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
@@ -91,7 +91,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     password: string,
     userType?: 'diaspora' | 'foreign_resident',
     country?: string,
-    language?: 'en' | 'am'
+    language?: SupportedLanguage
   ) => {
     const finalUserType = userType || onboarding?.userType || 'diaspora';
     const finalCountry = country || onboarding?.country || 'United States';
@@ -134,7 +134,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     avatarUrl?: string | null;
     userType?: 'diaspora' | 'foreign_resident';
     country?: string;
-    language?: 'en' | 'am';
+    language?: SupportedLanguage;
   }) => {
     if (!token) throw new Error('Not authenticated');
     const res = await authApi.updateProfile(token, updates);

@@ -16,7 +16,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button } from '../../components/Button';
 import { Input } from '../../components/Input';
-import { ApiError } from '../../lib/api';
+import { ApiError, SupportedLanguage } from '../../lib/api';
 import { useAuth } from '../../lib/auth-context';
 import { colors, fonts, radius, spacing } from '../../theme/tokens';
 
@@ -44,7 +44,7 @@ export default function Register() {
   );
   const [country, setCountry] = useState<string>(onboarding?.country || 'United States');
   const [isCustomCountry, setIsCustomCountry] = useState(false);
-  const [language, setLanguage] = useState<'en' | 'am'>(onboarding?.language || 'en');
+  const [language, setLanguage] = useState<SupportedLanguage>(onboarding?.language || 'en');
 
   // Step 2: Personal Details
   const [name, setName] = useState('');
@@ -423,9 +423,10 @@ export default function Register() {
                       language === 'en' && styles.langBtnTextActive,
                     ]}
                   >
-                    English
+                    🇬🇧 English
                   </Text>
                 </TouchableOpacity>
+
                 <TouchableOpacity
                   style={[styles.langBtn, language === 'am' && styles.langBtnActive]}
                   onPress={() => setLanguage('am')}
@@ -437,7 +438,37 @@ export default function Register() {
                       language === 'am' && styles.langBtnTextActive,
                     ]}
                   >
-                    አማርኛ (Amharic)
+                    🇪🇹 አማርኛ
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.langBtn, language === 'om' && styles.langBtnActive]}
+                  onPress={() => setLanguage('om')}
+                  activeOpacity={0.8}
+                >
+                  <Text
+                    style={[
+                      styles.langBtnText,
+                      language === 'om' && styles.langBtnTextActive,
+                    ]}
+                  >
+                    🌳 Afaan Oromoo
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.langBtn, language === 'ar' && styles.langBtnActive]}
+                  onPress={() => setLanguage('ar')}
+                  activeOpacity={0.8}
+                >
+                  <Text
+                    style={[
+                      styles.langBtnText,
+                      language === 'ar' && styles.langBtnTextActive,
+                    ]}
+                  >
+                    🌍 العربية
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -940,11 +971,13 @@ const styles = StyleSheet.create({
   // Language toggle
   langToggleRow: {
     flexDirection: 'row',
-    gap: 12,
+    flexWrap: 'wrap',
+    gap: 10,
     marginBottom: 20,
   },
   langBtn: {
-    flex: 1,
+    flexBasis: '47%',
+    flexGrow: 1,
     backgroundColor: '#FFFFFF',
     paddingVertical: 12,
     borderRadius: 14,

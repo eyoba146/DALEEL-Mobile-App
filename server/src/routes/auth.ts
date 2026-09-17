@@ -16,7 +16,7 @@ const registerSchema = z.object({
   password: z.string().min(8, 'Password must be at least 8 characters'),
   userType: z.enum(['diaspora', 'foreign_resident']),
   country: z.string().min(2),
-  language: z.enum(['en', 'am']),
+  language: z.enum(['en', 'am', 'om', 'ar']),
 });
 
 function toPublicUser(user: {
@@ -127,7 +127,7 @@ const updateProfileSchema = z.object({
   avatarUrl: z.string().nullable().optional(),
   userType: z.enum(['diaspora', 'foreign_resident']).optional(),
   country: z.string().min(2).optional(),
-  language: z.enum(['en', 'am']).optional(),
+  language: z.enum(['en', 'am', 'om', 'ar']).optional(),
 });
 
 authRouter.patch('/profile', requireAuth, async (req, res) => {

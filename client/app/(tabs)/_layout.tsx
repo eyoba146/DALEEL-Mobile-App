@@ -12,6 +12,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Path } from 'react-native-svg';
 import { useAuth } from '../../lib/auth-context';
+import { useLanguage } from '../../lib/language-context';
 import { colors, fonts } from '../../theme/tokens';
 
 const TAB_CONFIG: {
@@ -50,9 +51,21 @@ const TAB_CONFIG: {
 
 function ConcaveBottomTabBar({ state, descriptors, navigation }: any) {
   const insets = useSafeAreaInsets();
+  const { t } = useLanguage();
   const { width: windowWidth } = useWindowDimensions();
   const numTabs = state.routes.length || 5;
   const tabWidth = windowWidth / numTabs;
+
+  const getTabLabel = (routeName: string, fallback: string) => {
+    switch (routeName) {
+      case 'index': return t('tabs.home', fallback);
+      case 'explore': return t('tabs.explore', fallback);
+      case 'services': return t('tabs.services', fallback);
+      case 'saved': return t('tabs.saved', fallback);
+      case 'profile': return t('tabs.profile', fallback);
+      default: return fallback;
+    }
+  };
 
   const animatedIndex = useRef(new Animated.Value(state.index)).current;
   const wheelRotation = useRef(new Animated.Value(0)).current;
@@ -187,7 +200,7 @@ function ConcaveBottomTabBar({ state, descriptors, navigation }: any) {
                   <Ionicons name={config.outlineIcon} size={21} color="#8A9AA8" />
                 </View>
                 <Text style={[styles.tabLabel, isFocused && styles.tabLabelActive]}>
-                  {config.label}
+                  {getTabLabel(route.name, config.label)}
                 </Text>
               </View>
             </TouchableOpacity>
