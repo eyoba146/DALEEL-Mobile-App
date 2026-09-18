@@ -5,12 +5,12 @@ import { useAdminAuth } from '../context/AuthContext';
 import { Plus, Search, Trash2, ShieldCheck, Mail, Phone, RefreshCw, KeyRound, AlertCircle } from 'lucide-react';
 
 const ROLE_OPTIONS: { value: string; label: string; desc: string }[] = [
-  { value: 'SUPER_ADMIN', label: 'Super Administrator', desc: 'Full authority across all domains, coordinates, and staff' },
-  { value: 'DESTINATION_MANAGER', label: 'Tourism & Heritage Lead', desc: 'Manage UNESCO attractions and interactive GIS map pins' },
-  { value: 'SERVICE_MANAGER', label: 'Verified Partners Lead', desc: 'Directory curation and client inquiry triage' },
+  { value: 'SUPER_ADMIN', label: 'Full Administrator', desc: 'Complete management authority across all modules and staff' },
+  { value: 'DESTINATION_MANAGER', label: 'Tourism & Heritage Lead', desc: 'Manage UNESCO cultural attractions and map coordinates' },
+  { value: 'SERVICE_MANAGER', label: 'Services Directory Lead', desc: 'Partner directory curation and client inquiry triage' },
   { value: 'EVENT_MANAGER', label: 'Events Coordinator', desc: 'Summits, festivals, venue maps, and attendee RSVPs' },
-  { value: 'MARKETPLACE_MANAGER', label: 'Artisan Merchant Lead', desc: 'Crafts inventory, sellers, and order inquiries' },
-  { value: 'INVESTMENT_OFFICER', label: 'Investment Officer', desc: 'Capital syndicates, prospectuses, and investor leads' },
+  { value: 'MARKETPLACE_MANAGER', label: 'Marketplace Lead', desc: 'Crafts inventory, artisans, and customer order inquiries' },
+  { value: 'INVESTMENT_OFFICER', label: 'Investment Officer', desc: 'Capital syndicates, prospectuses, and investor inquiries' },
 ];
 
 export const TeamManager: React.FC = () => {
@@ -108,9 +108,9 @@ export const TeamManager: React.FC = () => {
       {/* Top Header Row */}
       <div style={styles.topRow}>
         <div>
-          <h2 style={styles.sectionTitle}>Administrative Team & Role Delegation</h2>
+          <h2 style={styles.sectionTitle}>Administrative Team & Coordinators</h2>
           <p style={styles.sectionDesc}>
-            Super Admin portal to assign role-based permissions, onboard specialized coordinators, and audit operational access.
+            Manage platform coordinators, assign module areas of responsibility, and maintain staff access.
           </p>
         </div>
 

@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { useAdminAuth } from '../context/AuthContext';
 import type { AppModule } from '../context/AuthContext';
-import { Activity, Clock } from 'lucide-react';
+import { CalendarDays } from 'lucide-react';
 
 interface HeaderProps {
   currentTab: AppModule;
@@ -9,52 +9,46 @@ interface HeaderProps {
 
 const TAB_TITLES: Record<AppModule, { title: string; subtitle: string }> = {
   dashboard: {
-    title: 'Command Center & Platform Metrics',
-    subtitle: 'High-level real-time telemetry across all Ethiopian services & commerce hubs',
+    title: 'Overview & Activity',
+    subtitle: 'Summary of heritage destinations, service partners, and marketplace orders',
   },
   destinations: {
-    title: 'Heritage & Tourism Management',
-    subtitle: 'Coordinate regional attractions, UNESCO sites, and interactive GIS map coordinates',
+    title: 'Heritage & Tourism',
+    subtitle: 'Manage regional attractions, UNESCO cultural sites, and map coordinates',
   },
   services: {
-    title: 'Verified Services & Business Directory',
-    subtitle: 'Manage partner providers, verify credentials, and review incoming client inquiries',
+    title: 'Verified Partner Directory',
+    subtitle: 'Manage certified professional service providers and review customer inquiries',
   },
   events: {
-    title: 'Events & Diaspora Gatherings Hub',
-    subtitle: 'Publish summits, cultural celebrations, venue coordinates, and manage attendee RSVPs',
+    title: 'Events & Gatherings',
+    subtitle: 'Publish summits, community gatherings, venue locations, and manage RSVPs',
   },
   marketplace: {
-    title: 'Artisan Marketplace & Order Fulfillment',
-    subtitle: 'Curate authentic Ethiopian crafts, manage inventory, and track delivery requests',
+    title: 'Artisan Marketplace',
+    subtitle: 'Curate authentic Ethiopian crafts, apparel, and track customer order requests',
   },
   investments: {
-    title: 'Diaspora Investment & Business Opportunities',
-    subtitle: 'Manage high-yield projects, syndicates, and investor prospectus requests',
+    title: 'Diaspora Investments',
+    subtitle: 'Manage high-growth opportunities, syndicates, and investor inquiries',
   },
   team: {
-    title: 'Administrative Team & Role Delegation',
-    subtitle: 'Manage coordinator permissions and assign module responsibilities across the platform',
+    title: 'Administrative Team',
+    subtitle: 'Manage coordinator permissions and delegate module responsibilities',
   },
 };
 
 export const Header: React.FC<HeaderProps> = ({ currentTab }) => {
   const { adminUser } = useAdminAuth();
-  const [timeString, setTimeString] = useState('');
 
-  useEffect(() => {
-    const updateTime = () => {
-      const now = new Date();
-      setTimeString(
-        now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
-      );
-    };
-    updateTime();
-    const interval = setInterval(updateTime, 1000);
-    return () => clearInterval(interval);
-  }, []);
+  const formattedDate = new Intl.DateTimeFormat('en-US', {
+    weekday: 'long',
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  }).format(new Date());
 
-  const meta = TAB_TITLES[currentTab] || { title: 'Admin Command', subtitle: 'Platform Management' };
+  const meta = TAB_TITLES[currentTab] || { title: 'DALEEL Management', subtitle: 'Platform Administration' };
 
   return (
     <header style={styles.header}>
@@ -64,27 +58,25 @@ export const Header: React.FC<HeaderProps> = ({ currentTab }) => {
         <div style={styles.subtitle}>{meta.subtitle}</div>
       </div>
 
-      {/* Right Telemetry & Status Badges */}
+      {/* Right User & Date Group */}
       <div style={styles.rightGroup}>
-        {/* Backend Connected Indicator */}
-        <div style={styles.statusPill}>
-          <div style={styles.pulseDot} />
-          <Activity size={13} color="#10B981" />
-          <span style={styles.statusText}>API Connected</span>
+        {/* Date Display */}
+        <div style={styles.dateChip}>
+          <CalendarDays size={14} color="#8C6A21" />
+          <span style={styles.dateText}>{formattedDate}</span>
         </div>
 
-        {/* Live Clock */}
-        <div style={styles.timePill}>
-          <Clock size={13} color="#DFB76C" />
-          <span style={styles.timeText}>{timeString}</span>
-        </div>
-
-        {/* User initials chip */}
-        <div style={styles.userChip}>
+        {/* User Profile Pill */}
+        <div style={styles.userPill}>
           <div style={styles.userAvatar}>
             {adminUser?.name?.charAt(0).toUpperCase() || 'A'}
           </div>
-          <span style={styles.userName}>{adminUser?.name}</span>
+          <div style={styles.userMeta}>
+            <span style={styles.userName}>{adminUser?.name}</span>
+            <span style={styles.userRole}>
+              {adminUser?.adminRole === 'SUPER_ADMIN' ? 'Full Administrator' : 'Coordinator'}
+            </span>
+          </div>
         </div>
       </div>
     </header>
@@ -94,9 +86,8 @@ export const Header: React.FC<HeaderProps> = ({ currentTab }) => {
 const styles: { [key: string]: React.CSSProperties } = {
   header: {
     height: 'var(--header-height)',
-    backgroundColor: 'rgba(7, 21, 43, 0.9)',
-    backdropFilter: 'blur(12px)',
-    borderBottom: '1px solid rgba(223, 183, 108, 0.18)',
+    backgroundColor: '#FFFFFF',
+    borderBottom: '1px solid #E4E9F0',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -104,85 +95,73 @@ const styles: { [key: string]: React.CSSProperties } = {
     position: 'sticky',
     top: 0,
     zIndex: 90,
+    boxShadow: '0 1px 3px rgba(7, 21, 43, 0.03)',
   },
   title: {
-    fontSize: '18px',
+    fontSize: '20px',
     fontWeight: 700,
-    color: '#FFFFFF',
+    color: '#07152B',
     margin: 0,
   },
   subtitle: {
-    fontSize: '12px',
-    color: '#8E9FB8',
+    fontSize: '13px',
+    color: '#5A687A',
     marginTop: '2px',
   },
   rightGroup: {
     display: 'flex',
     alignItems: 'center',
-    gap: '12px',
+    gap: '14px',
   },
-  statusPill: {
+  dateChip: {
     display: 'flex',
     alignItems: 'center',
     gap: '6px',
-    padding: '6px 12px',
-    backgroundColor: 'rgba(16, 185, 129, 0.1)',
-    border: '1px solid rgba(16, 185, 129, 0.3)',
+    padding: '7px 14px',
+    backgroundColor: '#F8F4EC',
+    border: '1px solid #E0C582',
     borderRadius: '9999px',
   },
-  pulseDot: {
-    width: '6px',
-    height: '6px',
-    borderRadius: '50%',
-    backgroundColor: '#10B981',
-    boxShadow: '0 0 8px #10B981',
-  },
-  statusText: {
-    fontSize: '11px',
-    fontWeight: 700,
-    color: '#10B981',
-    letterSpacing: '0.04em',
-    textTransform: 'uppercase',
-  },
-  timePill: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '6px',
-    padding: '6px 12px',
-    backgroundColor: '#0C1E38',
-    border: '1px solid rgba(223, 183, 108, 0.2)',
-    borderRadius: '9999px',
-  },
-  timeText: {
-    fontSize: '11.5px',
+  dateText: {
+    fontSize: '12.5px',
     fontWeight: 600,
-    color: '#EAEFF8',
-    fontVariantNumeric: 'tabular-nums',
+    color: '#07152B',
   },
-  userChip: {
+  userPill: {
     display: 'flex',
     alignItems: 'center',
-    gap: '8px',
-    padding: '4px 12px 4px 4px',
-    backgroundColor: '#0C1E38',
-    border: '1px solid rgba(223, 183, 108, 0.25)',
+    gap: '10px',
+    padding: '5px 14px 5px 6px',
+    backgroundColor: '#F8FAFC',
+    border: '1px solid #E4E9F0',
     borderRadius: '9999px',
   },
   userAvatar: {
-    width: '26px',
-    height: '26px',
+    width: '30px',
+    height: '30px',
     borderRadius: '50%',
-    backgroundColor: '#DFB76C',
-    color: '#07152B',
-    fontWeight: 800,
-    fontSize: '12px',
+    backgroundColor: '#07152B',
+    color: '#DFB76C',
+    fontWeight: 700,
+    fontSize: '13px',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
+    border: '1px solid #DFB76C',
+  },
+  userMeta: {
+    display: 'flex',
+    flexDirection: 'column',
+    lineHeight: 1.2,
   },
   userName: {
-    fontSize: '12px',
+    fontSize: '12.5px',
+    fontWeight: 700,
+    color: '#07152B',
+  },
+  userRole: {
+    fontSize: '10.5px',
     fontWeight: 600,
-    color: '#EAEFF8',
+    color: '#8C6A21',
   },
 };

@@ -25,13 +25,13 @@ interface NavItem {
 }
 
 const NAV_ITEMS: NavItem[] = [
-  { id: 'dashboard', label: 'Command Center', icon: LayoutDashboard },
-  { id: 'destinations', label: 'Heritage & Tourism', icon: Compass },
+  { id: 'dashboard', label: 'Overview', icon: LayoutDashboard },
+  { id: 'destinations', label: 'Heritage Destinations', icon: Compass },
   { id: 'services', label: 'Verified Services', icon: Briefcase },
   { id: 'events', label: 'Events & Gatherings', icon: Calendar },
   { id: 'marketplace', label: 'Artisan Marketplace', icon: ShoppingBag },
   { id: 'investments', label: 'Diaspora Investments', icon: TrendingUp },
-  { id: 'team', label: 'Team & RBAC Roles', icon: Users },
+  { id: 'team', label: 'Administrative Team', icon: Users },
 ];
 
 export const Sidebar: React.FC<SidebarProps> = ({ currentTab, onSelectTab }) => {
@@ -40,19 +40,19 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, onSelectTab }) => 
   const getRoleDisplayName = (role?: string) => {
     switch (role) {
       case 'SUPER_ADMIN':
-        return 'Super Administrator';
+        return 'Full Administrator';
       case 'DESTINATION_MANAGER':
         return 'Tourism & Heritage Lead';
       case 'SERVICE_MANAGER':
-        return 'Partner Directory Lead';
+        return 'Services Directory Lead';
       case 'EVENT_MANAGER':
         return 'Events Coordinator';
       case 'MARKETPLACE_MANAGER':
-        return 'Artisan Merchant Lead';
+        return 'Marketplace Lead';
       case 'INVESTMENT_OFFICER':
         return 'Investment Officer';
       default:
-        return 'Platform Coordinator';
+        return 'Administrator';
     }
   };
 
@@ -67,11 +67,11 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, onSelectTab }) => 
         </div>
         <div>
           <div style={styles.brandName}>DALEEL</div>
-          <div style={styles.brandSub}>ADMIN COMMAND</div>
+          <div style={styles.brandSub}>MANAGEMENT PORTAL</div>
         </div>
       </div>
 
-      {/* Coordinator Info Profile Strip */}
+      {/* Staff Profile Strip */}
       <div style={styles.profileStrip}>
         <div style={styles.avatarCircle}>
           {adminUser?.name ? adminUser.name.charAt(0).toUpperCase() : 'A'}
@@ -86,7 +86,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, onSelectTab }) => 
 
       {/* Navigation Links */}
       <nav style={styles.nav}>
-        <div style={styles.sectionHeader}>AUTHORIZED MODULES</div>
+        <div style={styles.sectionHeader}>PLATFORM MODULES</div>
         {accessibleItems.map((item) => {
           const Icon = item.icon;
           const isActive = currentTab === item.id;
@@ -95,12 +95,18 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, onSelectTab }) => 
               key={item.id}
               style={{
                 ...styles.navBtn,
-                ...(isActive ? styles.navBtnActive : {}),
+                ...(isActive ? styles.navBtnActive : styles.navBtnInactive),
               }}
               onClick={() => onSelectTab(item.id)}
             >
-              <Icon size={18} color={isActive ? '#07152B' : '#DFB76C'} />
-              <span style={{ ...styles.navLabel, color: isActive ? '#07152B' : '#EAEFF8' }}>
+              <Icon size={18} color={isActive ? '#DFB76C' : '#5A687A'} />
+              <span
+                style={{
+                  ...styles.navLabel,
+                  color: isActive ? '#FFFFFF' : '#334155',
+                  fontWeight: isActive ? 700 : 600,
+                }}
+              >
                 {item.label}
               </span>
             </button>
@@ -111,8 +117,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, onSelectTab }) => 
       {/* Sign Out Footer */}
       <div style={styles.footer}>
         <button style={styles.logoutBtn} onClick={logout}>
-          <LogOut size={16} color="#EF4444" />
-          <span>Exit Administrative Session</span>
+          <LogOut size={16} color="#C53030" />
+          <span>Sign Out</span>
         </button>
       </div>
     </aside>
@@ -123,49 +129,52 @@ const styles: { [key: string]: React.CSSProperties } = {
   sidebar: {
     width: 'var(--sidebar-width)',
     height: '100vh',
-    backgroundColor: '#07152B',
-    borderRight: '1px solid rgba(223, 183, 108, 0.18)',
+    backgroundColor: '#FFFFFF',
+    borderRight: '1px solid #E4E9F0',
     display: 'flex',
     flexDirection: 'column',
     position: 'fixed',
     left: 0,
     top: 0,
     zIndex: 100,
+    boxShadow: '1px 0 6px rgba(7, 21, 43, 0.03)',
   },
   brandBox: {
-    padding: '24px 20px',
+    padding: '22px 20px',
     display: 'flex',
     alignItems: 'center',
     gap: '12px',
-    borderBottom: '1px solid rgba(223, 183, 108, 0.12)',
+    borderBottom: '1px solid #E4E9F0',
   },
   brandLogo: {
     width: '38px',
     height: '38px',
     borderRadius: '10px',
-    backgroundColor: 'rgba(223, 183, 108, 0.12)',
-    border: '1px solid rgba(223, 183, 108, 0.3)',
+    backgroundColor: '#07152B',
+    border: '1px solid #DFB76C',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
+    boxShadow: '0 2px 8px rgba(7, 21, 43, 0.15)',
   },
   brandName: {
-    fontSize: '18px',
-    fontWeight: 800,
-    color: '#DFB76C',
-    letterSpacing: '0.06em',
+    fontFamily: "'DM Serif Display', Georgia, serif",
+    fontSize: '20px',
+    fontWeight: 400,
+    color: '#07152B',
+    letterSpacing: '0.04em',
   },
   brandSub: {
-    fontSize: '10px',
-    fontWeight: 700,
-    color: '#8E9FB8',
-    letterSpacing: '0.05em',
+    fontSize: '9.5px',
+    fontWeight: 800,
+    color: '#8C6A21',
+    letterSpacing: '0.08em',
   },
   profileStrip: {
-    margin: '16px',
-    padding: '12px',
-    backgroundColor: '#0C1E38',
-    border: '1px solid rgba(223, 183, 108, 0.15)',
+    margin: '16px 14px 10px 14px',
+    padding: '12px 14px',
+    backgroundColor: '#F8F4EC',
+    border: '1px solid #E0C582',
     borderRadius: '12px',
     display: 'flex',
     alignItems: 'center',
@@ -175,15 +184,15 @@ const styles: { [key: string]: React.CSSProperties } = {
     width: '36px',
     height: '36px',
     borderRadius: '50%',
-    backgroundColor: '#DFB76C',
-    color: '#07152B',
+    backgroundColor: '#07152B',
+    color: '#DFB76C',
     fontWeight: 800,
-    fontSize: '15px',
+    fontSize: '14px',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
+    border: '1px solid #DFB76C',
     flexShrink: 0,
-    boxShadow: '0 0 10px rgba(223, 183, 108, 0.3)',
   },
   profileMeta: {
     overflow: 'hidden',
@@ -191,26 +200,24 @@ const styles: { [key: string]: React.CSSProperties } = {
   profileName: {
     fontSize: '13px',
     fontWeight: 700,
-    color: '#FFFFFF',
+    color: '#07152B',
     whiteSpace: 'nowrap',
     overflow: 'hidden',
     textOverflow: 'ellipsis',
   },
   roleBadge: {
-    fontSize: '9.5px',
+    fontSize: '11px',
     fontWeight: 700,
-    color: '#DFB76C',
-    textTransform: 'uppercase',
-    letterSpacing: '0.03em',
-    marginTop: '2px',
+    color: '#8C6A21',
+    marginTop: '1px',
   },
   sectionHeader: {
-    fontSize: '10px',
-    fontWeight: 700,
+    fontSize: '10.5px',
+    fontWeight: 800,
     letterSpacing: '0.08em',
-    color: '#60728F',
-    padding: '8px 14px',
-    marginBottom: '4px',
+    color: '#5A687A',
+    padding: '8px 12px',
+    marginBottom: '2px',
   },
   nav: {
     flex: 1,
@@ -228,34 +235,40 @@ const styles: { [key: string]: React.CSSProperties } = {
     padding: '11px 14px',
     borderRadius: '10px',
     cursor: 'pointer',
-    transition: 'all 0.18s ease',
+    transition: 'all 0.15s ease',
     border: '1px solid transparent',
+    textAlign: 'left',
   },
   navBtnActive: {
-    backgroundColor: '#DFB76C',
-    boxShadow: '0 4px 14px rgba(223, 183, 108, 0.35)',
+    backgroundColor: '#07152B',
+    color: '#FFFFFF',
+    boxShadow: '0 4px 12px rgba(7, 21, 43, 0.18)',
+  },
+  navBtnInactive: {
+    backgroundColor: 'transparent',
+    color: '#334155',
   },
   navLabel: {
     fontSize: '13.5px',
-    fontWeight: 600,
   },
   footer: {
-    padding: '16px',
-    borderTop: '1px solid rgba(223, 183, 108, 0.12)',
+    padding: '14px 16px',
+    borderTop: '1px solid #E4E9F0',
   },
   logoutBtn: {
     width: '100%',
     display: 'flex',
     alignItems: 'center',
-    gap: '10px',
+    justifyContent: 'center',
+    gap: '8px',
     padding: '10px 14px',
     borderRadius: '8px',
-    backgroundColor: 'rgba(239, 68, 68, 0.1)',
-    border: '1px solid rgba(239, 68, 68, 0.25)',
-    color: '#FCA5A5',
+    backgroundColor: '#FFF5F5',
+    border: '1px solid #FED7D7',
+    color: '#C53030',
     fontSize: '12.5px',
-    fontWeight: 600,
+    fontWeight: 700,
     cursor: 'pointer',
-    transition: 'all 0.18s ease',
+    transition: 'all 0.15s ease',
   },
 };

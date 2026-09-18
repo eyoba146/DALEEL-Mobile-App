@@ -31,75 +31,90 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
       .finally(() => setLoading(false));
   }, []);
 
+  const getRoleTitle = (role?: string) => {
+    switch (role) {
+      case 'SUPER_ADMIN':
+        return 'Full Administrator';
+      case 'DESTINATION_MANAGER':
+        return 'Tourism & Heritage Lead';
+      case 'SERVICE_MANAGER':
+        return 'Services Directory Lead';
+      case 'EVENT_MANAGER':
+        return 'Events Coordinator';
+      case 'MARKETPLACE_MANAGER':
+        return 'Marketplace Lead';
+      case 'INVESTMENT_OFFICER':
+        return 'Investment Officer';
+      default:
+        return 'Administrator';
+    }
+  };
+
   const metricCards = [
     {
       id: 'destinations' as AppModule,
       label: 'Heritage Destinations',
       value: stats?.destinationsCount ?? 0,
       icon: Compass,
-      desc: 'UNESCO sites & regional guides with GPS pins',
+      desc: 'UNESCO cultural sites, regional guides & coordinates',
     },
     {
       id: 'services' as AppModule,
-      label: 'Verified Service Partners',
+      label: 'Verified Partners',
       value: stats?.servicesCount ?? 0,
       icon: Briefcase,
-      desc: 'Legal, health, logistics & concierge partners',
+      desc: 'Certified legal, health, banking & relocation partners',
     },
     {
       id: 'events' as AppModule,
-      label: 'Diaspora Events',
+      label: 'Events & Gatherings',
       value: stats?.eventsCount ?? 0,
       icon: Calendar,
-      desc: 'Summits, cultural gatherings & festivals',
+      desc: 'Diaspora summits, cultural celebrations & festivals',
     },
     {
       id: 'marketplace' as AppModule,
-      label: 'Artisan Marketplace Goods',
+      label: 'Artisan Goods',
       value: stats?.productsCount ?? 0,
       icon: ShoppingBag,
-      desc: 'Authentic crafts, textiles, coffee & jewelry',
+      desc: 'Authentic crafts, apparel, coffee & jewelry',
     },
     {
       id: 'investments' as AppModule,
-      label: 'Investment Opportunities',
+      label: 'Investment Deals',
       value: stats?.investmentsCount ?? 0,
       icon: TrendingUp,
-      desc: 'Real estate, agriculture & renewable projects',
+      desc: 'High-yield agro, real estate & energy projects',
     },
     {
       id: 'team' as AppModule,
       label: 'Active Coordinators',
       value: stats?.adminTeamCount ?? 0,
       icon: Users,
-      desc: 'Role-based administrative team members',
+      desc: 'Authorized management staff and coordinators',
     },
   ];
 
   return (
     <div style={styles.container}>
-      {/* Role Notice Banner */}
+      {/* Welcome Banner */}
       <div style={styles.welcomeBanner}>
         <div style={styles.welcomeLeft}>
           <div style={styles.badgeRow}>
-            <ShieldCheck size={16} color="#DFB76C" />
-            <span style={styles.welcomeRole}>ACTIVE SESSION: {adminUser?.adminRole || 'SUPER_ADMIN'}</span>
+            <ShieldCheck size={15} color="#8C6A21" />
+            <span style={styles.welcomeRole}>AUTHORIZED SESSION: {getRoleTitle(adminUser?.adminRole)}</span>
           </div>
           <h1 style={styles.welcomeTitle}>Welcome back, {adminUser?.name}</h1>
           <p style={styles.welcomeDesc}>
-            You are operating with{' '}
-            <strong style={{ color: '#DFB76C' }}>{adminUser?.adminRole}</strong> authorization.
-            {adminUser?.adminRole === 'SUPER_ADMIN'
-              ? ' You have full platform control across all domains and team members.'
-              : ' Your interface and management tools are specialized for your delegated area of responsibility.'}
+            Manage and oversee Ethiopian heritage destinations, verified service partners, cultural gatherings, and artisan marketplace inquiries.
           </p>
         </div>
       </div>
 
-      {/* Primary Metrics Grid */}
+      {/* Primary Metrics Section */}
       <div style={styles.sectionTitleRow}>
-        <h3 style={styles.sectionHeading}>Platform Telemetry & Catalog Totals</h3>
-        <span style={styles.sectionSub}>Live database records from PostgreSQL</span>
+        <h3 style={styles.sectionHeading}>Platform Catalog & Services</h3>
+        <span style={styles.sectionSub}>Active listings across all regional categories</span>
       </div>
 
       <div style={styles.grid}>
@@ -120,7 +135,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
               <div style={styles.cardHeader}>
                 <span style={styles.cardLabel}>{card.label}</span>
                 <div style={styles.cardIconWrap}>
-                  <Icon size={18} color="#DFB76C" />
+                  <Icon size={18} color="#8C6A21" />
                 </div>
               </div>
               <div style={styles.cardValue}>{loading ? '...' : card.value}</div>
@@ -128,8 +143,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
                 <span style={styles.cardDesc}>{card.desc}</span>
                 {accessible && (
                   <span style={styles.cardActionLink}>
-                    <span>Manage</span>
-                    <ArrowRight size={13} color="#DFB76C" />
+                    <span>Open</span>
+                    <ArrowRight size={13} color="#8C6A21" />
                   </span>
                 )}
               </div>
@@ -138,16 +153,16 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
         })}
       </div>
 
-      {/* Inquiry & Activity Telemetry Bar */}
+      {/* Inquiries & Requests Section */}
       <div style={styles.sectionTitleRow}>
-        <h3 style={styles.sectionHeading}>Incoming Diaspora Inquiries & Orders</h3>
-        <span style={styles.sectionSub}>Requests submitted via the DALEEL Mobile App</span>
+        <h3 style={styles.sectionHeading}>Customer Requests & Inquiries</h3>
+        <span style={styles.sectionSub}>Live requests submitted from the mobile app</span>
       </div>
 
       <div style={styles.inquiriesGrid}>
         <div style={styles.inquiryCard}>
           <div style={styles.inquiryIcon}>
-            <Briefcase size={16} color="#DFB76C" />
+            <Briefcase size={17} color="#8C6A21" />
           </div>
           <div>
             <div style={styles.inquiryNumber}>{loading ? '...' : stats?.serviceInquiriesCount ?? 0}</div>
@@ -157,7 +172,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
 
         <div style={styles.inquiryCard}>
           <div style={styles.inquiryIcon}>
-            <ShoppingBag size={16} color="#DFB76C" />
+            <ShoppingBag size={17} color="#8C6A21" />
           </div>
           <div>
             <div style={styles.inquiryNumber}>{loading ? '...' : stats?.productOrdersCount ?? 0}</div>
@@ -167,7 +182,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
 
         <div style={styles.inquiryCard}>
           <div style={styles.inquiryIcon}>
-            <Calendar size={16} color="#DFB76C" />
+            <Calendar size={17} color="#8C6A21" />
           </div>
           <div>
             <div style={styles.inquiryNumber}>{loading ? '...' : stats?.eventRsvpsCount ?? 0}</div>
@@ -177,7 +192,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
 
         <div style={styles.inquiryCard}>
           <div style={styles.inquiryIcon}>
-            <TrendingUp size={16} color="#DFB76C" />
+            <TrendingUp size={17} color="#8C6A21" />
           </div>
           <div>
             <div style={styles.inquiryNumber}>{loading ? '...' : stats?.investmentInquiriesCount ?? 0}</div>
@@ -199,12 +214,12 @@ const styles: { [key: string]: React.CSSProperties } = {
     gap: '28px',
   },
   welcomeBanner: {
-    backgroundColor: '#07152B',
-    border: '1px solid rgba(223, 183, 108, 0.25)',
+    backgroundColor: '#FFFFFF',
+    border: '1px solid #E4E9F0',
+    borderLeft: '5px solid #DFB76C',
     borderRadius: '16px',
     padding: '24px 28px',
-    backgroundImage: 'radial-gradient(ellipse 60% 80% at 90% 20%, rgba(223, 183, 108, 0.12), transparent)',
-    boxShadow: '0 8px 30px rgba(0, 0, 0, 0.4)',
+    boxShadow: '0 2px 10px rgba(7, 21, 43, 0.04)',
   },
   welcomeLeft: {
     display: 'flex',
@@ -215,26 +230,28 @@ const styles: { [key: string]: React.CSSProperties } = {
     display: 'inline-flex',
     alignItems: 'center',
     gap: '6px',
-    backgroundColor: 'rgba(223, 183, 108, 0.1)',
-    border: '1px solid rgba(223, 183, 108, 0.25)',
-    padding: '4px 10px',
+    backgroundColor: '#F8F4EC',
+    border: '1px solid #E0C582',
+    padding: '4px 12px',
     borderRadius: '9999px',
     alignSelf: 'flex-start',
   },
   welcomeRole: {
-    fontSize: '10.5px',
+    fontSize: '11px',
     fontWeight: 700,
-    color: '#DFB76C',
-    letterSpacing: '0.06em',
+    color: '#8C6A21',
+    letterSpacing: '0.04em',
   },
   welcomeTitle: {
-    fontSize: '22px',
-    color: '#FFFFFF',
+    fontFamily: "'DM Serif Display', Georgia, serif",
+    fontSize: '26px',
+    color: '#07152B',
+    fontWeight: 400,
     margin: '4px 0',
   },
   welcomeDesc: {
-    fontSize: '13px',
-    color: '#9BB0D2',
+    fontSize: '13.5px',
+    color: '#475569',
     maxWidth: '780px',
     lineHeight: 1.6,
   },
@@ -267,7 +284,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     display: 'flex',
     flexDirection: 'column',
     gap: '12px',
-    boxShadow: '0 2px 12px rgba(7, 21, 43, 0.05)',
+    boxShadow: '0 2px 10px rgba(7, 21, 43, 0.04)',
     transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
   },
   cardAccessible: {
@@ -294,7 +311,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     height: '36px',
     borderRadius: '10px',
     backgroundColor: '#F8F4EC',
-    border: '1px solid rgba(223, 183, 108, 0.3)',
+    border: '1px solid #E0C582',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
@@ -338,14 +355,14 @@ const styles: { [key: string]: React.CSSProperties } = {
     display: 'flex',
     alignItems: 'center',
     gap: '14px',
-    boxShadow: '0 2px 10px rgba(7, 21, 43, 0.05)',
+    boxShadow: '0 2px 10px rgba(7, 21, 43, 0.04)',
   },
   inquiryIcon: {
     width: '40px',
     height: '40px',
     borderRadius: '10px',
     backgroundColor: '#F8F4EC',
-    border: '1px solid rgba(223, 183, 108, 0.25)',
+    border: '1px solid #E0C582',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',

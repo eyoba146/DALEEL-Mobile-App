@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useAdminAuth } from '../context/AuthContext';
-import { Shield, Lock, Mail, Eye, EyeOff, ArrowRight, CheckCircle2 } from 'lucide-react';
+import { Shield, Lock, Mail, Eye, EyeOff, ArrowRight } from 'lucide-react';
 
 export const LoginView: React.FC = () => {
   const { login } = useAdminAuth();
@@ -44,9 +44,9 @@ export const LoginView: React.FC = () => {
             <Shield size={28} color="#DFB76C" />
           </div>
           <h1 style={styles.brandTitle}>DALEEL</h1>
-          <div style={styles.portalTag}>ADMINISTRATIVE COMMAND PORTAL</div>
+          <div style={styles.portalTag}>MANAGEMENT PORTAL</div>
           <p style={styles.portalSub}>
-            Secure operations portal for Ethiopian heritage, verified services, and diaspora investments.
+            Administrative portal for Ethiopian destinations, verified services, and diaspora investments.
           </p>
         </div>
 
@@ -60,7 +60,7 @@ export const LoginView: React.FC = () => {
         {/* Login Form */}
         <form onSubmit={handleSubmit} style={styles.form}>
           <div style={styles.formGroup}>
-            <label style={styles.label}>Official Administrative Email</label>
+            <label style={styles.label}>Email Address</label>
             <div style={styles.inputWrap}>
               <Mail size={17} color="#8A9AA8" style={styles.fieldIcon} />
               <input
@@ -75,7 +75,7 @@ export const LoginView: React.FC = () => {
           </div>
 
           <div style={styles.formGroup}>
-            <label style={styles.label}>Master Access Key</label>
+            <label style={styles.label}>Password</label>
             <div style={styles.inputWrap}>
               <Lock size={17} color="#8A9AA8" style={styles.fieldIcon} />
               <input
@@ -154,30 +154,21 @@ export const LoginView: React.FC = () => {
             }}
           >
             {isSubmitting ? (
-              <span>Verifying Administrative Session...</span>
+              <span>Signing In...</span>
             ) : (
               <>
-                <span>Authenticate Administrative Access</span>
+                <span>Sign In to Management Portal</span>
                 <ArrowRight size={17} color="#07152B" />
               </>
             )}
           </button>
         </form>
 
-        {/* Institutional Trust Badges */}
+        {/* Institutional Trust Footer */}
         <div style={styles.footer}>
-          <div style={styles.footerItem}>
-            <CheckCircle2 size={13} color="#16803C" />
-            <span>256-Bit Encrypted Session</span>
-          </div>
-          <div style={styles.footerDivider}>•</div>
-          <div style={styles.footerItem}>
-            <span>Role-Based Access Control</span>
-          </div>
-          <div style={styles.footerDivider}>•</div>
-          <div style={styles.footerItem}>
-            <span>PostgreSQL Synchronized</span>
-          </div>
+          <span>Authorized Platform Staff Only</span>
+          <span style={styles.footerDivider}>•</span>
+          <span>DALEEL Heritage & Tourism Portal</span>
         </div>
       </div>
     </div>
