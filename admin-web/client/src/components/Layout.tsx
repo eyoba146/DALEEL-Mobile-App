@@ -3,10 +3,36 @@ import type { AppModule } from '../context/AuthContext';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
 import { DashboardView } from './DashboardView';
-import { ModulePlaceholder } from './ModulePlaceholder';
+import { DestinationsManager } from './DestinationsManager';
+import { ServicesManager } from './ServicesManager';
+import { EventsManager } from './EventsManager';
+import { MarketplaceManager } from './MarketplaceManager';
+import { InvestmentsManager } from './InvestmentsManager';
+import { TeamManager } from './TeamManager';
 
 export const Layout: React.FC = () => {
   const [currentTab, setCurrentTab] = useState<AppModule>('dashboard');
+
+  const renderModule = () => {
+    switch (currentTab) {
+      case 'dashboard':
+        return <DashboardView onNavigate={setCurrentTab} />;
+      case 'destinations':
+        return <DestinationsManager />;
+      case 'services':
+        return <ServicesManager />;
+      case 'events':
+        return <EventsManager />;
+      case 'marketplace':
+        return <MarketplaceManager />;
+      case 'investments':
+        return <InvestmentsManager />;
+      case 'team':
+        return <TeamManager />;
+      default:
+        return <DashboardView onNavigate={setCurrentTab} />;
+    }
+  };
 
   return (
     <div style={styles.layoutRoot}>
@@ -15,11 +41,7 @@ export const Layout: React.FC = () => {
       <div style={styles.mainWrapper}>
         <Header currentTab={currentTab} />
         <main style={styles.contentArea}>
-          {currentTab === 'dashboard' ? (
-            <DashboardView onNavigate={setCurrentTab} />
-          ) : (
-            <ModulePlaceholder module={currentTab} />
-          )}
+          {renderModule()}
         </main>
       </div>
     </div>
@@ -30,7 +52,7 @@ const styles: { [key: string]: React.CSSProperties } = {
   layoutRoot: {
     display: 'flex',
     minHeight: '100vh',
-    backgroundColor: '#040D1B',
+    backgroundColor: '#F7F8FA',
   },
   mainWrapper: {
     flex: 1,
@@ -38,9 +60,10 @@ const styles: { [key: string]: React.CSSProperties } = {
     display: 'flex',
     flexDirection: 'column',
     minHeight: '100vh',
+    backgroundColor: '#F7F8FA',
   },
   contentArea: {
     flex: 1,
-    backgroundColor: '#040D1B',
+    backgroundColor: '#F7F8FA',
   },
 };
