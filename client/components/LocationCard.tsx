@@ -105,6 +105,24 @@ function generateMapHtml(
     .leaflet-bar a:hover {
       background-color: #13284F !important;
     }
+    .leaflet-control-layers {
+      background: #07152B !important;
+      color: #DFB76C !important;
+      border: 1px solid rgba(223, 183, 108, 0.4) !important;
+      border-radius: 8px !important;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.5) !important;
+      font-size: 11px !important;
+      font-weight: 600 !important;
+    }
+    .leaflet-control-layers-expanded {
+      padding: 6px 10px !important;
+      background: rgba(7, 21, 43, 0.95) !important;
+      color: #EAEFF8 !important;
+    }
+    .leaflet-control-layers-toggle {
+      background-color: #07152B !important;
+      border-radius: 6px !important;
+    }
   </style>
 </head>
 <body>
@@ -121,10 +139,29 @@ function generateMapHtml(
       zoomSnap: 0.5
     }).setView([lat, lng], ${zoom});
 
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+    // High resolution Esri World Street Map - 100% Free, NO API key required, zero watermarks
+    var streetLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
       maxZoom: 19,
-      subdomains: 'abcd'
+      attribution: 'Esri'
     }).addTo(map);
+
+    var satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+      maxZoom: 19,
+      attribution: 'Esri'
+    });
+
+    var topoLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}', {
+      maxZoom: 19,
+      attribution: 'Esri'
+    });
+
+    ${showZoomControl ? `
+    L.control.layers({
+      'Street View': streetLayer,
+      'Satellite': satelliteLayer,
+      'Topographic': topoLayer
+    }, null, { position: 'topright', collapsed: true }).addTo(map);
+    ` : ''}
 
     var markerIcon = L.divIcon({
       className: 'marker-wrap',
