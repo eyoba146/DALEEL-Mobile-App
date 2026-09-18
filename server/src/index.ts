@@ -7,6 +7,7 @@ import { verificationRouter } from './routes/verification';
 import { contentRouter } from './routes/content';
 import { favoritesRouter } from './routes/favorites';
 import { notificationsRouter } from './routes/notifications';
+import { adminRouter } from './routes/admin';
 
 const app = express();
 
@@ -22,6 +23,7 @@ app.use('/api/auth', verificationRouter);
 app.use('/api', contentRouter);
 app.use('/api/favorites', favoritesRouter);
 app.use('/api/notifications', notificationsRouter);
+app.use('/api/admin', adminRouter);
 
 // Central error handler — catches anything thrown in a route so the
 // client always gets clean JSON instead of an HTML stack trace.

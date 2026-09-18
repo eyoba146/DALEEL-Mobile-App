@@ -19,16 +19,26 @@ enum Language {
   ar
 }
 
+enum AdminRole {
+  SUPER_ADMIN
+  DESTINATION_MANAGER
+  SERVICE_MANAGER
+  EVENT_MANAGER
+  MARKETPLACE_MANAGER
+  INVESTMENT_OFFICER
+}
+
 model User {
-  id           String   @id @default(uuid())
+  id           String     @id @default(uuid())
   name         String
-  email        String   @unique
+  email        String     @unique
   passwordHash String
   userType     UserType
   country      String
-  language     Language @default(en)
-  isAdmin      Boolean  @default(false)
-  isVerified   Boolean  @default(false)
+  language     Language   @default(en)
+  isAdmin      Boolean    @default(false)
+  adminRole    AdminRole?
+  isVerified   Boolean    @default(false)
   avatarUrl    String?
   phone        String?
   savedAddress String?

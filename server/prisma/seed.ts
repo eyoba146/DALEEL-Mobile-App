@@ -1,4 +1,5 @@
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, AdminRole } from '@prisma/client';
+import bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
 
@@ -641,7 +642,72 @@ async function main() {
     ],
   });
 
-  console.log('[DALEEL SEED] Completed successfully with rich dynamic Ethiopian data.');
+  // Seed Admin & Coordinator Accounts
+  const hashedPassword = await bcrypt.hash('Admin2026!', 10);
+  const adminUsers = [
+    {
+      email: 'superadmin@daleel.et',
+      name: 'DALEEL Super Administrator',
+      adminRole: AdminRole.SUPER_ADMIN,
+      phone: '+251911000001',
+    },
+    {
+      email: 'destinations@daleel.et',
+      name: 'Heritage & Tourism Lead',
+      adminRole: AdminRole.DESTINATION_MANAGER,
+      phone: '+251911000002',
+    },
+    {
+      email: 'services@daleel.et',
+      name: 'Services Directory Partner Lead',
+      adminRole: AdminRole.SERVICE_MANAGER,
+      phone: '+251911000003',
+    },
+    {
+      email: 'events@daleel.et',
+      name: 'Events & Gatherings Coordinator',
+      adminRole: AdminRole.EVENT_MANAGER,
+      phone: '+251911000004',
+    },
+    {
+      email: 'marketplace@daleel.et',
+      name: 'Artisan Marketplace Merchant Lead',
+      adminRole: AdminRole.MARKETPLACE_MANAGER,
+      phone: '+251911000005',
+    },
+    {
+      email: 'investments@daleel.et',
+      name: 'Diaspora Investment Liaison Officer',
+      adminRole: AdminRole.INVESTMENT_OFFICER,
+      phone: '+251911000006',
+    },
+  ];
+
+  for (const admin of adminUsers) {
+    await prisma.user.upsert({
+      where: { email: admin.email },
+      update: {
+        name: admin.name,
+        passwordHash: hashedPassword,
+        isAdmin: true,
+        adminRole: admin.adminRole,
+        isVerified: true,
+      },
+      create: {
+        email: admin.email,
+        name: admin.name,
+        passwordHash: hashedPassword,
+        userType: 'diaspora',
+        country: 'Ethiopia',
+        isAdmin: true,
+        adminRole: admin.adminRole,
+        isVerified: true,
+        phone: admin.phone,
+      },
+    });
+  }
+
+  console.log('[DALEEL SEED] Completed successfully with rich dynamic Ethiopian data and 6 RBAC admin accounts.');
 }
 
 main()
