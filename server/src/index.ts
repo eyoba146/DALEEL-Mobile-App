@@ -32,5 +32,5 @@ app.use((err: unknown, _req: express.Request, res: express.Response, _next: expr
 
 const PORT = process.env.PORT ? Number(process.env.PORT) : 4000;
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`DALEEL backend running on http://0.0.0.0:${PORT} (LAN: http://10.240.1.242:${PORT})`);
+  console.log(`DALEEL backend running on http://0.0.0.0:${PORT} (LAN: http://10.136.85.242:${PORT})`);
 });

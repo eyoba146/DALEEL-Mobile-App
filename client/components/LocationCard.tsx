@@ -1,5 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
+  ActivityIndicator,
+  Modal,
+  SafeAreaView,
+  StatusBar,
   StyleProp,
   StyleSheet,
   Text,
@@ -7,8 +11,9 @@ import {
   View,
   ViewStyle,
 } from 'react-native';
-import { Feather } from '@expo/vector-icons';
-import { colors, radius, shadow, spacing } from '../theme/tokens';
+import { Feather, Ionicons } from '@expo/vector-icons';
+import { WebView } from 'react-native-webview';
+import { colors, fonts, radius, shadow, spacing } from '../theme/tokens';
 import {
   calculateDistanceKm,
   formatDistance,
@@ -27,6 +32,116 @@ type Props = {
   style?: StyleProp<ViewStyle>;
 };
 
+function generateMapHtml(
+  lat: number,
+  lng: number,
+  title: string,
+  address: string,
+  zoom: number = 14,
+  showZoomControl: boolean = true
+) {
+  const safeTitle = JSON.stringify(title);
+  const safeAddress = JSON.stringify(address || '');
+
+  return `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body, #map { width: 100%; height: 100%; background: #07152B; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; overflow: hidden; }
+    .leaflet-control-attribution { display: none !important; }
+    .custom-marker {
+      width: 32px;
+      height: 32px;
+      background: #DFB76C;
+      border: 3px solid #07152B;
+      border-radius: 50% 50% 50% 0;
+      transform: rotate(-45deg);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.45);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .custom-marker::after {
+      content: '';
+      width: 10px;
+      height: 10px;
+      background: #07152B;
+      border-radius: 50%;
+      transform: rotate(45deg);
+    }
+    .leaflet-popup-content-wrapper {
+      background: #07152B;
+      color: #FFFFFF;
+      border-radius: 10px;
+      border: 1px solid #DFB76C;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+      padding: 2px;
+    }
+    .leaflet-popup-tip {
+      background: #07152B;
+      border: 1px solid #DFB76C;
+    }
+    .popup-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: #DFB76C;
+      margin-bottom: 2px;
+    }
+    .popup-desc {
+      font-size: 11px;
+      color: #EAEFF8;
+      line-height: 14px;
+    }
+    .leaflet-bar a {
+      background-color: #07152B !important;
+      color: #DFB76C !important;
+      border-color: rgba(223, 183, 108, 0.3) !important;
+    }
+    .leaflet-bar a:hover {
+      background-color: #13284F !important;
+    }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+  <script>
+    var lat = ${lat};
+    var lng = ${lng};
+    var title = ${safeTitle};
+    var address = ${safeAddress};
+
+    var map = L.map('map', {
+      zoomControl: ${showZoomControl ? 'true' : 'false'},
+      attributionControl: false,
+      zoomSnap: 0.5
+    }).setView([lat, lng], ${zoom});
+
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+      maxZoom: 19,
+      subdomains: 'abcd'
+    }).addTo(map);
+
+    var markerIcon = L.divIcon({
+      className: 'marker-wrap',
+      html: '<div class="custom-marker"></div>',
+      iconSize: [32, 32],
+      iconAnchor: [16, 32],
+      popupAnchor: [0, -32]
+    });
+
+    var marker = L.marker([lat, lng], { icon: markerIcon }).addTo(map);
+    marker.bindPopup('<div class="popup-title">' + title + '</div><div class="popup-desc">' + address + '</div>');
+    setTimeout(function() { marker.openPopup(); }, 350);
+  </script>
+</body>
+</html>`;
+}
+
 export function LocationCard({
   title,
   address,
@@ -40,6 +155,8 @@ export function LocationCard({
   const [liveUserLat, setLiveUserLat] = useState<number | null>(userLatitude ?? null);
   const [liveUserLon, setLiveUserLon] = useState<number | null>(userLongitude ?? null);
   const [calculatingDist, setCalculatingDist] = useState<boolean>(false);
+  const [isFullscreenModalOpen, setIsFullscreenModalOpen] = useState<boolean>(false);
+  const [mapLoading, setMapLoading] = useState<boolean>(true);
 
   useEffect(() => {
     if (userLatitude && userLongitude) {
@@ -49,7 +166,6 @@ export function LocationCard({
     }
 
     let isMounted = true;
-    // Auto-detect user distance if not already provided
     if (latitude && longitude) {
       setCalculatingDist(true);
       getCurrentUserLocation()
@@ -76,7 +192,19 @@ export function LocationCard({
       ? formatDistance(calculateDistanceKm(liveUserLat, liveUserLon, latitude, longitude))
       : null;
 
-  const handleOpenNavigation = () => {
+  const displayAddress = address || region || 'Ethiopia';
+
+  const embeddedMapHtml = useMemo(() => {
+    if (!hasCoords) return '';
+    return generateMapHtml(latitude, longitude, title, displayAddress, 13.5, false);
+  }, [hasCoords, latitude, longitude, title, displayAddress]);
+
+  const fullscreenMapHtml = useMemo(() => {
+    if (!hasCoords) return '';
+    return generateMapHtml(latitude, longitude, title, displayAddress, 15, true);
+  }, [hasCoords, latitude, longitude, title, displayAddress]);
+
+  const handleOpenNativeDirections = () => {
     if (hasCoords) {
       openDirectionsInMaps(latitude, longitude, title);
     } else if (address || region) {
@@ -87,55 +215,79 @@ export function LocationCard({
 
   return (
     <View style={[styles.container, style]}>
-      {/* Visual Map Header Canvas */}
-      <View style={styles.mapCanvas}>
-        {/* Subtle decorative grid lines */}
-        <View style={styles.gridLineH1} />
-        <View style={styles.gridLineH2} />
-        <View style={styles.gridLineV1} />
-        <View style={styles.gridLineV2} />
-        <View style={styles.mapRoadCurve} />
+      {/* Interactive Map Header */}
+      <View style={styles.mapCanvasContainer}>
+        {hasCoords ? (
+          <>
+            <WebView
+              originWhitelist={['*']}
+              source={{ html: embeddedMapHtml }}
+              style={styles.webView}
+              javaScriptEnabled={true}
+              domStorageEnabled={true}
+              scrollEnabled={true}
+              nestedScrollEnabled={true}
+              onLoadEnd={() => setMapLoading(false)}
+            />
 
-        {/* Central Map Marker with animated aura */}
-        <View style={styles.markerContainer}>
-          <View style={styles.markerPulseRing} />
-          <View style={styles.markerCenter}>
-            <Feather name="map-pin" size={18} color={colors.navy} />
+            {mapLoading && (
+              <View style={styles.mapLoadingOverlay}>
+                <ActivityIndicator size="small" color={colors.gold} />
+              </View>
+            )}
+
+            {/* Top Badges Row */}
+            <View style={styles.topBadgesRow} pointerEvents="box-none">
+              <View style={styles.coordBadge}>
+                <Feather name="crosshair" size={11} color={colors.gold} />
+                <Text style={styles.coordBadgeText}>
+                  {latitude.toFixed(4)}N, {longitude.toFixed(4)}E
+                </Text>
+              </View>
+
+              <TouchableOpacity
+                style={styles.expandMapIconBtn}
+                onPress={() => setIsFullscreenModalOpen(true)}
+                activeOpacity={0.8}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Feather name="maximize-2" size={13} color={colors.navy} />
+                <Text style={styles.expandMapIconBtnText}>Expand</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Bottom Distance & Region Pill */}
+            <View style={styles.bottomBadgesRow} pointerEvents="box-none">
+              <View style={styles.regionTag}>
+                <Text style={styles.regionTagText} numberOfLines={1}>
+                  {region || 'Ethiopia'}
+                </Text>
+              </View>
+
+              {distanceText ? (
+                <View style={styles.distanceBadge}>
+                  <Feather name="navigation" size={10} color={colors.onNavy} />
+                  <Text style={styles.distanceBadgeText}>{distanceText}</Text>
+                </View>
+              ) : calculatingDist ? (
+                <View style={styles.distanceBadge}>
+                  <Text style={styles.distanceBadgeText}>Calculating distance...</Text>
+                </View>
+              ) : null}
+            </View>
+          </>
+        ) : (
+          /* Fallback Decorative Canvas if coordinates are unavailable */
+          <View style={styles.fallbackCanvas}>
+            <View style={styles.markerCenter}>
+              <Feather name="map-pin" size={20} color={colors.navy} />
+            </View>
+            <Text style={styles.fallbackText}>{region || 'Ethiopia'}</Text>
           </View>
-        </View>
-
-        {/* Top Badges */}
-        <View style={styles.topBadgesRow}>
-          {hasCoords && (
-            <View style={styles.coordBadge}>
-              <Feather name="crosshair" size={11} color={colors.gold} />
-              <Text style={styles.coordBadgeText}>
-                {latitude.toFixed(4)}N, {longitude.toFixed(4)}E
-              </Text>
-            </View>
-          )}
-
-          {distanceText ? (
-            <View style={styles.distanceBadge}>
-              <Feather name="navigation" size={11} color={colors.onNavy} />
-              <Text style={styles.distanceBadgeText}>{distanceText}</Text>
-            </View>
-          ) : calculatingDist ? (
-            <View style={styles.distanceBadge}>
-              <Text style={styles.distanceBadgeText}>Calculating distance...</Text>
-            </View>
-          ) : null}
-        </View>
-
-        {/* Bottom Label overlay on canvas */}
-        <View style={styles.canvasBottomOverlay}>
-          <Text style={styles.canvasRegionText} numberOfLines={1}>
-            {region || 'Ethiopia'}
-          </Text>
-        </View>
+        )}
       </View>
 
-      {/* Info and Navigation Actions */}
+      {/* Info and Dual Action Buttons */}
       <View style={styles.infoContent}>
         <View style={styles.locationMeta}>
           <View style={styles.metaIconCircle}>
@@ -146,21 +298,118 @@ export function LocationCard({
               {title}
             </Text>
             <Text style={styles.locationAddress} numberOfLines={2}>
-              {address || region || 'Coordinates mapped in Ethiopia'}
+              {displayAddress}
             </Text>
           </View>
         </View>
 
-        {/* Action Button */}
-        <TouchableOpacity
-          style={styles.directionsButton}
-          onPress={handleOpenNavigation}
-          activeOpacity={0.85}
-        >
-          <Feather name="navigation-2" size={16} color={colors.navy} />
-          <Text style={styles.directionsButtonText}>Get Directions</Text>
-        </TouchableOpacity>
+        {/* Dual Actions: 1) In-App Interactive Map  2) Native GPS Directions */}
+        <View style={styles.actionButtonsRow}>
+          <TouchableOpacity
+            style={styles.exploreMapButton}
+            onPress={() => setIsFullscreenModalOpen(true)}
+            activeOpacity={0.85}
+          >
+            <Feather name="compass" size={15} color={colors.navy} />
+            <Text style={styles.exploreMapButtonText}>Explore Map</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.directionsButton}
+            onPress={handleOpenNativeDirections}
+            activeOpacity={0.85}
+          >
+            <Feather name="navigation-2" size={15} color={colors.navy} />
+            <Text style={styles.directionsButtonText}>Get Directions</Text>
+          </TouchableOpacity>
+        </View>
       </View>
+
+      {/* Full-Screen Interactive In-App Map Modal */}
+      <Modal
+        visible={isFullscreenModalOpen}
+        animationType="slide"
+        transparent={false}
+        onRequestClose={() => setIsFullscreenModalOpen(false)}
+      >
+        <SafeAreaView style={styles.fullscreenModalContainer}>
+          <StatusBar barStyle="light-content" backgroundColor={colors.navyDeep} />
+
+          {/* Modal Header */}
+          <View style={styles.modalHeader}>
+            <TouchableOpacity
+              style={styles.modalBackBtn}
+              onPress={() => setIsFullscreenModalOpen(false)}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="arrow-back" size={20} color="#FFFFFF" />
+            </TouchableOpacity>
+
+            <View style={styles.modalHeaderTitleWrap}>
+              <Text style={styles.modalHeaderTitle} numberOfLines={1}>
+                {title}
+              </Text>
+              <Text style={styles.modalHeaderSubtitle} numberOfLines={1}>
+                {hasCoords ? `${latitude.toFixed(4)}° N, ${longitude.toFixed(4)}° E` : displayAddress}
+              </Text>
+            </View>
+
+            <TouchableOpacity
+              style={styles.modalDirectionsBtn}
+              onPress={handleOpenNativeDirections}
+              activeOpacity={0.85}
+            >
+              <Feather name="navigation" size={15} color={colors.navy} />
+            </TouchableOpacity>
+          </View>
+
+          {/* Fullscreen Interactive WebView */}
+          <View style={styles.modalMapArea}>
+            {hasCoords ? (
+              <WebView
+                originWhitelist={['*']}
+                source={{ html: fullscreenMapHtml }}
+                style={styles.fullscreenWebView}
+                javaScriptEnabled={true}
+                domStorageEnabled={true}
+              />
+            ) : null}
+
+            {/* Bottom Floating Info Card inside Fullscreen Modal */}
+            <View style={styles.modalFloatingCard}>
+              <View style={styles.modalFloatingHeader}>
+                <View style={styles.modalFloatingIconBox}>
+                  <Feather name="map-pin" size={16} color={colors.navy} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.modalFloatingTitle} numberOfLines={1}>
+                    {title}
+                  </Text>
+                  <Text style={styles.modalFloatingAddress} numberOfLines={2}>
+                    {displayAddress}
+                  </Text>
+                </View>
+                {distanceText ? (
+                  <View style={styles.modalDistanceBadge}>
+                    <Text style={styles.modalDistanceText}>{distanceText}</Text>
+                  </View>
+                ) : null}
+              </View>
+
+              <TouchableOpacity
+                style={styles.modalPrimaryDirectionsBtn}
+                onPress={handleOpenNativeDirections}
+                activeOpacity={0.88}
+              >
+                <Feather name="navigation-2" size={16} color={colors.navy} style={{ marginRight: 6 }} />
+                <Text style={styles.modalPrimaryDirectionsText}>
+                  Start Navigation in Maps
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </SafeAreaView>
+      </Modal>
     </View>
   );
 }
@@ -174,78 +423,25 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     ...shadow.card,
   },
-  mapCanvas: {
-    height: 140,
+  mapCanvasContainer: {
+    height: 190,
     backgroundColor: colors.navyDeep,
     position: 'relative',
     overflow: 'hidden',
-    justifyContent: 'center',
-    alignItems: 'center',
   },
-  gridLineH1: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    top: 40,
-    height: 1,
-    backgroundColor: 'rgba(255,255,255,0.06)',
+  webView: {
+    flex: 1,
+    backgroundColor: colors.navyDeep,
   },
-  gridLineH2: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    top: 95,
-    height: 1,
-    backgroundColor: 'rgba(255,255,255,0.06)',
-  },
-  gridLineV1: {
+  mapLoadingOverlay: {
     position: 'absolute',
     top: 0,
+    left: 0,
+    right: 0,
     bottom: 0,
-    left: '30%',
-    width: 1,
-    backgroundColor: 'rgba(255,255,255,0.06)',
-  },
-  gridLineV2: {
-    position: 'absolute',
-    top: 0,
-    bottom: 0,
-    right: '32%',
-    width: 1,
-    backgroundColor: 'rgba(255,255,255,0.06)',
-  },
-  mapRoadCurve: {
-    position: 'absolute',
-    top: -20,
-    left: -40,
-    width: 320,
-    height: 180,
-    borderWidth: 2,
-    borderColor: 'rgba(223,183,108,0.18)',
-    borderRadius: 160,
-    transform: [{ rotate: '-25deg' }],
-  },
-  markerContainer: {
+    backgroundColor: colors.navyDeep,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  markerPulseRing: {
-    position: 'absolute',
-    width: 58,
-    height: 58,
-    borderRadius: 29,
-    backgroundColor: 'rgba(223,183,108,0.22)',
-    borderWidth: 1,
-    borderColor: 'rgba(223,183,108,0.45)',
-  },
-  markerCenter: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: colors.gold,
-    justifyContent: 'center',
-    alignItems: 'center',
-    ...shadow.card,
   },
   topBadgesRow: {
     position: 'absolute',
@@ -255,17 +451,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    zIndex: 10,
   },
   coordBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: 'rgba(7,21,43,0.85)',
+    backgroundColor: 'rgba(7,21,43,0.92)',
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: radius.full,
     borderWidth: 1,
-    borderColor: 'rgba(223,183,108,0.35)',
+    borderColor: 'rgba(223,183,108,0.4)',
   },
   coordBadgeText: {
     color: colors.gold,
@@ -273,37 +470,81 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: 0.3,
   },
+  expandMapIconBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: colors.gold,
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    borderRadius: radius.full,
+    ...shadow.card,
+  },
+  expandMapIconBtnText: {
+    color: colors.navy,
+    fontSize: 10.5,
+    fontWeight: '700',
+  },
+  bottomBadgesRow: {
+    position: 'absolute',
+    bottom: spacing.xs,
+    left: spacing.sm,
+    right: spacing.sm,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    zIndex: 10,
+  },
+  regionTag: {
+    backgroundColor: 'rgba(7,21,43,0.85)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: radius.xs,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
+  regionTagText: {
+    color: colors.gold,
+    fontSize: 10,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+  },
   distanceBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: 'rgba(7,21,43,0.85)',
+    backgroundColor: 'rgba(7,21,43,0.88)',
     paddingHorizontal: 8,
-    paddingVertical: 4,
+    paddingVertical: 3,
     borderRadius: radius.full,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.15)',
+    borderColor: 'rgba(255,255,255,0.2)',
   },
   distanceBadgeText: {
     color: colors.onNavy,
     fontSize: 10,
     fontWeight: '600',
   },
-  canvasBottomOverlay: {
-    position: 'absolute',
-    bottom: spacing.xs,
-    left: spacing.sm,
-    backgroundColor: 'rgba(7,21,43,0.65)',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: radius.xs,
+  fallbackCanvas: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: colors.navyDeep,
+    gap: 8,
   },
-  canvasRegionText: {
-    color: colors.charcoalLight,
-    fontSize: 10,
+  fallbackText: {
+    color: colors.gold,
+    fontSize: 12,
     fontWeight: '600',
-    textTransform: 'uppercase',
-    letterSpacing: 0.6,
+  },
+  markerCenter: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: colors.gold,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   infoContent: {
     padding: spacing.md,
@@ -336,7 +577,32 @@ const styles = StyleSheet.create({
     marginTop: 2,
     lineHeight: 16,
   },
+  actionButtonsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginTop: 4,
+  },
+  exploreMapButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: colors.surfaceWarm,
+    borderWidth: 1.5,
+    borderColor: colors.goldBorder,
+    paddingVertical: 10,
+    borderRadius: radius.md,
+  },
+  exploreMapButtonText: {
+    fontSize: 12.5,
+    fontWeight: '700',
+    color: colors.navy,
+    letterSpacing: 0.2,
+  },
   directionsButton: {
+    flex: 1.2,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -344,11 +610,127 @@ const styles = StyleSheet.create({
     backgroundColor: colors.goldButton,
     paddingVertical: 10,
     borderRadius: radius.md,
-    marginTop: 4,
     ...shadow.button,
   },
   directionsButtonText: {
-    fontSize: 13,
+    fontSize: 12.5,
+    fontWeight: '700',
+    color: colors.navy,
+    letterSpacing: 0.2,
+  },
+
+  // Fullscreen Modal Styles
+  fullscreenModalContainer: {
+    flex: 1,
+    backgroundColor: colors.navyDeep,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm + 4,
+    backgroundColor: colors.navyDeep,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.08)',
+  },
+  modalBackBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalHeaderTitleWrap: {
+    flex: 1,
+    marginHorizontal: spacing.md,
+  },
+  modalHeaderTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  modalHeaderSubtitle: {
+    fontSize: 11,
+    color: colors.gold,
+    marginTop: 2,
+  },
+  modalDirectionsBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: colors.gold,
+    justifyContent: 'center',
+    alignItems: 'center',
+    ...shadow.card,
+  },
+  modalMapArea: {
+    flex: 1,
+    position: 'relative',
+  },
+  fullscreenWebView: {
+    flex: 1,
+    backgroundColor: colors.navyDeep,
+  },
+  modalFloatingCard: {
+    position: 'absolute',
+    bottom: spacing.lg,
+    left: spacing.md,
+    right: spacing.md,
+    backgroundColor: '#FFFFFF',
+    borderRadius: radius.lg,
+    padding: spacing.md,
+    gap: spacing.sm + 2,
+    borderWidth: 1,
+    borderColor: colors.border,
+    ...shadow.modal,
+  },
+  modalFloatingHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  modalFloatingIconBox: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: colors.goldSoft,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalFloatingTitle: {
+    fontSize: 14.5,
+    fontWeight: '700',
+    color: colors.charcoal,
+  },
+  modalFloatingAddress: {
+    fontSize: 12,
+    color: colors.charcoalSub,
+    marginTop: 2,
+  },
+  modalDistanceBadge: {
+    backgroundColor: colors.navySoft,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: radius.full,
+  },
+  modalDistanceText: {
+    fontSize: 10.5,
+    fontWeight: '700',
+    color: colors.navy,
+  },
+  modalPrimaryDirectionsBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.goldButton,
+    paddingVertical: 12,
+    borderRadius: radius.md,
+    ...shadow.button,
+  },
+  modalPrimaryDirectionsText: {
+    fontSize: 13.5,
     fontWeight: '700',
     color: colors.navy,
     letterSpacing: 0.2,
