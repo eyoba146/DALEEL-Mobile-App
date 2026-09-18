@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { adminApi } from '../api';
-import { Plus, Search, Edit2, Trash2, TrendingUp, FileText, RefreshCw } from 'lucide-react';
+import { Plus, Search, Edit3, Trash2, RefreshCw, ArrowLeft, Check, DollarSign } from 'lucide-react';
 
 interface InvestmentItem {
   id: string;
@@ -40,8 +40,8 @@ export const InvestmentsManager: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
 
-  // Modal State
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  // Dedicated In-Page Editor State (NO POPUPS)
+  const [isEditorActive, setIsEditorActive] = useState(false);
   const [editingItem, setEditingItem] = useState<InvestmentItem | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
@@ -97,7 +97,8 @@ export const InvestmentsManager: React.FC = () => {
       contactPhone: '+251 11 551 7000',
     });
     setErrorMessage('');
-    setIsModalOpen(true);
+    setIsEditorActive(true);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleOpenEdit = (item: InvestmentItem) => {
@@ -116,14 +117,23 @@ export const InvestmentsManager: React.FC = () => {
       contactPhone: item.contactPhone || '',
     });
     setErrorMessage('');
-    setIsModalOpen(true);
+    setIsEditorActive(true);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const handleDelete = async (id: string) => {
-    if (!window.confirm('Are you sure you wish to remove this investment opportunity?')) return;
+  const handleCloseEditor = () => {
+    setIsEditorActive(false);
+    setEditingItem(null);
+  };
+
+  const handleDelete = async (id: string, title: string) => {
+    if (!window.confirm(`Are you sure you wish to delete "${title}"?`)) return;
     try {
       await adminApi.deleteInvestment(id);
       loadData();
+      if (editingItem?.id === id) {
+        handleCloseEditor();
+      }
     } catch (err: any) {
       setErrorMessage(err.message || 'Failed to delete investment deal');
     }
@@ -140,7 +150,7 @@ export const InvestmentsManager: React.FC = () => {
       } else {
         await adminApi.createInvestment(formData);
       }
-      setIsModalOpen(false);
+      setIsEditorActive(false);
       loadData();
     } catch (err: any) {
       setErrorMessage(err.message || 'Failed to save investment deal');
@@ -165,6 +175,205 @@ export const InvestmentsManager: React.FC = () => {
       item.location.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  // Dedicated In-Page Full Workspace Editor (NO POPUP)
+  if (isEditorActive) {
+    return (
+      <div style={styles.container}>
+        {/* Editor Top Navigation Bar */}
+        <div style={styles.editorNav}>
+          <div style={styles.editorNavLeft}>
+            <button style={styles.backBtn} onClick={handleCloseEditor}>
+              <ArrowLeft size={16} color="#07152B" />
+              <span>Back to Deals</span>
+            </button>
+            <div style={styles.editorBreadcrumbs}>
+              <span style={styles.breadcrumbMuted}>Investments</span>
+              <span style={styles.breadcrumbSep}>/</span>
+              <span style={styles.breadcrumbCurrent}>
+                {editingItem ? `Edit: ${editingItem.title}` : 'Post New Investment Opportunity'}
+              </span>
+            </div>
+          </div>
+
+          <div style={styles.editorNavActions}>
+            <button type="button" className="btn btn-secondary" onClick={handleCloseEditor}>
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="btn btn-primary"
+              disabled={isSaving}
+              onClick={handleSave}
+            >
+              <Check size={16} color="#07152B" />
+              <span>{isSaving ? 'Saving...' : editingItem ? 'Save Deal' : 'Publish Opportunity'}</span>
+            </button>
+          </div>
+        </div>
+
+        {errorMessage && <div style={styles.errorBox}>{errorMessage}</div>}
+
+        {/* 2-Column Dedicated Editor Workspace */}
+        <form onSubmit={handleSave} style={styles.editorGrid}>
+          {/* Left Column: Investment Terms */}
+          <div style={styles.formCard}>
+            <h3 style={styles.cardSectionTitle}>Investment Terms & Financials</h3>
+            <p style={styles.cardSectionSub}>Target sector, minimum entry capital, projected ROI, and horizon</p>
+
+            <div style={styles.formStack}>
+              <div>
+                <label style={styles.label}>Opportunity Title *</label>
+                <input
+                  type="text"
+                  required
+                  value={formData.title}
+                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                  placeholder="e.g. Sidama Specialty Coffee Cold-Chain Logistics"
+                  style={styles.fullInput}
+                />
+              </div>
+
+              <div style={styles.inputRow}>
+                <div style={{ flex: 1 }}>
+                  <label style={styles.label}>Sector *</label>
+                  <select
+                    value={formData.sector}
+                    onChange={(e) => setFormData({ ...formData, sector: e.target.value })}
+                    style={styles.fullInput}
+                  >
+                    <option value="Agro-Processing & Specialty Export">Agro-Processing & Specialty Export</option>
+                    <option value="Commercial Real Estate & Hospitality">Commercial Real Estate & Hospitality</option>
+                    <option value="Renewable Energy & Solar Parks">Renewable Energy & Solar Parks</option>
+                    <option value="Fintech & Digital Infrastructure">Fintech & Digital Infrastructure</option>
+                    <option value="Pharmaceuticals & Health Tech">Pharmaceuticals & Health Tech</option>
+                    <option value="Mining & Minerals">Mining & Minerals</option>
+                  </select>
+                </div>
+
+                <div style={{ flex: 1 }}>
+                  <label style={styles.label}>Minimum Investment (USD) *</label>
+                  <input
+                    type="number"
+                    required
+                    min={1000}
+                    value={formData.minInvestment}
+                    onChange={(e) => setFormData({ ...formData, minInvestment: Number(e.target.value) })}
+                    style={styles.fullInput}
+                  />
+                </div>
+              </div>
+
+              <div style={styles.inputRow}>
+                <div style={{ flex: 1 }}>
+                  <label style={styles.label}>Projected Return (ROI)</label>
+                  <input
+                    type="text"
+                    value={formData.expectedReturn}
+                    onChange={(e) => setFormData({ ...formData, expectedReturn: e.target.value })}
+                    placeholder="e.g. 22% Target IRR"
+                    style={styles.fullInput}
+                  />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <label style={styles.label}>Horizon / Timeline</label>
+                  <input
+                    type="text"
+                    value={formData.timeline}
+                    onChange={(e) => setFormData({ ...formData, timeline: e.target.value })}
+                    placeholder="e.g. 3 - 5 Years"
+                    style={styles.fullInput}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label style={styles.label}>Location / Region *</label>
+                <input
+                  type="text"
+                  required
+                  value={formData.location}
+                  onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                  placeholder="e.g. Hawassa Industrial Park, Sidama"
+                  style={styles.fullInput}
+                />
+              </div>
+
+              <div>
+                <label style={styles.label}>Executive Summary (Blurb) *</label>
+                <input
+                  type="text"
+                  required
+                  value={formData.blurb}
+                  onChange={(e) => setFormData({ ...formData, blurb: e.target.value })}
+                  placeholder="High-growth agro-processing export venture..."
+                  style={styles.fullInput}
+                />
+              </div>
+
+              <div>
+                <label style={styles.label}>Full Prospectus Description</label>
+                <textarea
+                  rows={5}
+                  value={formData.description}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  placeholder="Detailed business plan, feasibility metrics, and partnership terms..."
+                  style={styles.textarea}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Right Column: Imagery & Investor Relations Contact */}
+          <div style={styles.formCard}>
+            <h3 style={styles.cardSectionTitle}>Prospectus Imagery & Relations</h3>
+            <p style={styles.cardSectionSub}>Hero photo preview and deal officer contact details</p>
+
+            <div style={styles.formStack}>
+              <div>
+                <label style={styles.label}>Hero Image URL *</label>
+                <input
+                  type="url"
+                  required
+                  value={formData.image}
+                  onChange={(e) => setFormData({ ...formData, image: e.target.value })}
+                  style={styles.fullInput}
+                />
+                {formData.image && (
+                  <div style={styles.imagePreviewWrap}>
+                    <img src={formData.image} alt="Preview" style={styles.imagePreview} />
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <label style={styles.label}>Deal Officer Email</label>
+                <input
+                  type="email"
+                  value={formData.contactEmail}
+                  onChange={(e) => setFormData({ ...formData, contactEmail: e.target.value })}
+                  placeholder="invest@daleel.et"
+                  style={styles.fullInput}
+                />
+              </div>
+
+              <div>
+                <label style={styles.label}>Direct Contact Phone</label>
+                <input
+                  type="text"
+                  value={formData.contactPhone}
+                  onChange={(e) => setFormData({ ...formData, contactPhone: e.target.value })}
+                  placeholder="+251 11 551 7000"
+                  style={styles.fullInput}
+                />
+              </div>
+            </div>
+          </div>
+        </form>
+      </div>
+    );
+  }
+
+  // Catalog Directory List View
   return (
     <div style={styles.container}>
       {/* Top Header Row */}
@@ -172,7 +381,7 @@ export const InvestmentsManager: React.FC = () => {
         <div>
           <h2 style={styles.sectionTitle}>Diaspora Investments & Syndicates</h2>
           <p style={styles.sectionDesc}>
-            Manage high-growth Ethiopian investment opportunities, syndicates, capital projects, and review investor prospectus inquiries.
+            Manage high-growth Ethiopian investment opportunities, syndicates, capital projects, and review investor inquiries.
           </p>
         </div>
 
@@ -197,8 +406,7 @@ export const InvestmentsManager: React.FC = () => {
           }}
           onClick={() => setActiveSubTab('deals')}
         >
-          <TrendingUp size={15} color={activeSubTab === 'deals' ? '#07152B' : '#5A687A'} />
-          <span>Active Investment Deals</span>
+          <span>Active Deals</span>
           <span style={styles.tabBadge}>{investments.length}</span>
         </button>
 
@@ -209,101 +417,85 @@ export const InvestmentsManager: React.FC = () => {
           }}
           onClick={() => setActiveSubTab('inquiries')}
         >
-          <FileText size={15} color={activeSubTab === 'inquiries' ? '#07152B' : '#5A687A'} />
-          <span>Investor Prospectus Requests</span>
+          <span>Prospectus Requests</span>
           <span style={styles.tabBadge}>{inquiries.length}</span>
         </button>
       </div>
 
-      {/* Deals Catalog Tab */}
+      {/* Deals Tab View */}
       {activeSubTab === 'deals' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
           <div style={styles.searchWrapper}>
             <Search size={16} color="#8A9AA8" style={{ position: 'absolute', left: '12px' }} />
             <input
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Filter by deal title, sector, or region..."
-              style={{ width: '340px', paddingLeft: '36px' }}
+              placeholder="Search deals by title, sector, or region..."
+              style={styles.searchInput}
             />
           </div>
 
-          <div className="table-wrap">
-            <table className="admin-table">
-              <thead>
-                <tr>
-                  <th>Deal Title & Location</th>
-                  <th>Sector</th>
-                  <th>Minimum Entry</th>
-                  <th>Projected ROI</th>
-                  <th>Horizon</th>
-                  <th style={{ textAlign: 'right' }}>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {loading ? (
-                  <tr>
-                    <td colSpan={6} style={{ textAlign: 'center', padding: '36px', color: '#5A687A' }}>
-                      Loading investment opportunities...
-                    </td>
-                  </tr>
-                ) : filteredInvestments.length === 0 ? (
-                  <tr>
-                    <td colSpan={6} style={{ textAlign: 'center', padding: '36px', color: '#5A687A' }}>
-                      No investment opportunities found.
-                    </td>
-                  </tr>
-                ) : (
-                  filteredInvestments.map((inv) => (
-                    <tr key={inv.id}>
-                      <td>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                          <img src={inv.image} alt={inv.title} style={styles.thumbImg} />
-                          <div>
-                            <div style={styles.dealTitle}>{inv.title}</div>
-                            <div style={styles.dealSub}>{inv.location}</div>
-                          </div>
-                        </div>
-                      </td>
-                      <td>
-                        <span className="badge badge-navy">{inv.sector}</span>
-                      </td>
-                      <td>
-                        <div style={{ fontWeight: 700, color: '#07152B', fontSize: '14px' }}>
-                          ${inv.minInvestment?.toLocaleString()} USD
-                        </div>
-                      </td>
-                      <td>
-                        <span className="badge badge-gold">
-                          {inv.expectedReturn || 'Competitive IRR'}
-                        </span>
-                      </td>
-                      <td>
-                        <span style={{ fontSize: '12.5px', color: '#5A687A' }}>
-                          {inv.timeline || '3 - 5 Years'}
-                        </span>
-                      </td>
-                      <td style={{ textAlign: 'right' }}>
-                        <div style={{ display: 'inline-flex', gap: '6px' }}>
-                          <button className="btn-icon" onClick={() => handleOpenEdit(inv)} title="Edit Deal">
-                            <Edit2 size={15} />
-                          </button>
-                          <button className="btn-icon" onClick={() => handleDelete(inv.id)} title="Delete Deal">
-                            <Trash2 size={15} color="#D63031" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
+          {loading ? (
+            <div style={styles.emptyState}>Loading investment deals...</div>
+          ) : filteredInvestments.length === 0 ? (
+            <div style={styles.emptyState}>No investment opportunities found.</div>
+          ) : (
+            <div style={styles.cardsGrid}>
+              {filteredInvestments.map((inv) => (
+                <div key={inv.id} style={styles.dealCard}>
+                  <div style={styles.cardThumbWrap}>
+                    <img src={inv.image} alt={inv.title} style={styles.cardThumb} />
+                    <div style={styles.cardOverlayRow}>
+                      <span style={styles.sectorBadge}>{inv.sector}</span>
+                      <span style={styles.returnBadge}>{inv.expectedReturn || 'Competitive IRR'}</span>
+                    </div>
+                  </div>
+
+                  <div style={styles.cardBody}>
+                    <div style={styles.cardHeaderRow}>
+                      <h3 style={styles.dealTitle}>{inv.title}</h3>
+                      <div style={styles.minCapitalTag}>
+                        <DollarSign size={13} color="#8C6A21" style={{ display: 'inline' }} />
+                        <span>${inv.minInvestment?.toLocaleString()} USD</span>
+                      </div>
+                    </div>
+
+                    <p style={styles.dealBlurb}>{inv.blurb}</p>
+
+                    <div style={styles.dealMetaRow}>
+                      <span style={styles.locationText}>{inv.location}</span>
+                      <span style={{ color: '#CBD5E1' }}>•</span>
+                      <span style={styles.timelineText}>{inv.timeline || '3 - 5 Years'}</span>
+                    </div>
+                  </div>
+
+                  <div style={styles.cardFooter}>
+                    <button
+                      type="button"
+                      style={styles.editBtn}
+                      onClick={() => handleOpenEdit(inv)}
+                    >
+                      <Edit3 size={13} color="#07152B" />
+                      <span>Edit Deal</span>
+                    </button>
+                    <button
+                      type="button"
+                      style={styles.deleteBtn}
+                      onClick={() => handleDelete(inv.id, inv.title)}
+                      title="Delete Deal"
+                    >
+                      <Trash2 size={14} color="#C53030" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
-      {/* Investor Prospectus Requests Tab */}
+      {/* Prospectus Inquiries Tab View */}
       {activeSubTab === 'inquiries' && (
         <div className="table-wrap">
           <table className="admin-table">
@@ -391,162 +583,6 @@ export const InvestmentsManager: React.FC = () => {
           </table>
         </div>
       )}
-
-      {/* Create / Edit Modal */}
-      {isModalOpen && (
-        <div className="modal-overlay">
-          <div className="modal-window modal-window-wide">
-            <div className="modal-header">
-              <h3 className="modal-title">
-                {editingItem ? 'Edit Investment Opportunity' : 'Post New Investment Opportunity'}
-              </h3>
-              <button className="btn-icon" onClick={() => setIsModalOpen(false)}>
-                ✕
-              </button>
-            </div>
-
-            <form onSubmit={handleSave}>
-              <div className="modal-body">
-                {errorMessage && <div style={styles.errorBox}>{errorMessage}</div>}
-
-                <div style={styles.formGrid}>
-                  <div>
-                    <label style={styles.label}>Opportunity Title *</label>
-                    <input
-                      type="text"
-                      required
-                      value={formData.title}
-                      onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                      placeholder="e.g. Sidama Specialty Coffee Cold-Chain Logistics"
-                      style={{ width: '100%' }}
-                    />
-                  </div>
-
-                  <div>
-                    <label style={styles.label}>Sector *</label>
-                    <select
-                      value={formData.sector}
-                      onChange={(e) => setFormData({ ...formData, sector: e.target.value })}
-                      style={{ width: '100%' }}
-                    >
-                      <option value="Agro-Processing & Specialty Export">Agro-Processing & Specialty Export</option>
-                      <option value="Commercial Real Estate & Hospitality">Commercial Real Estate & Hospitality</option>
-                      <option value="Renewable Energy & Solar Parks">Renewable Energy & Solar Parks</option>
-                      <option value="Fintech & Digital Infrastructure">Fintech & Digital Infrastructure</option>
-                      <option value="Pharmaceuticals & Health Tech">Pharmaceuticals & Health Tech</option>
-                      <option value="Mining & Precious Minerals">Mining & Precious Minerals</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div style={styles.formGrid}>
-                  <div>
-                    <label style={styles.label}>Minimum Investment (USD) *</label>
-                    <input
-                      type="number"
-                      required
-                      min={1000}
-                      value={formData.minInvestment}
-                      onChange={(e) => setFormData({ ...formData, minInvestment: Number(e.target.value) })}
-                      style={{ width: '100%' }}
-                    />
-                  </div>
-
-                  <div>
-                    <label style={styles.label}>Project Location / Region *</label>
-                    <input
-                      type="text"
-                      required
-                      value={formData.location}
-                      onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-                      placeholder="e.g. Hawassa Industrial Park, Sidama"
-                      style={{ width: '100%' }}
-                    />
-                  </div>
-                </div>
-
-                <div style={styles.formGrid}>
-                  <div>
-                    <label style={styles.label}>Projected Return (ROI)</label>
-                    <input
-                      type="text"
-                      value={formData.expectedReturn}
-                      onChange={(e) => setFormData({ ...formData, expectedReturn: e.target.value })}
-                      placeholder="e.g. 22% Target IRR"
-                      style={{ width: '100%' }}
-                    />
-                  </div>
-                  <div>
-                    <label style={styles.label}>Investment Horizon</label>
-                    <input
-                      type="text"
-                      value={formData.timeline}
-                      onChange={(e) => setFormData({ ...formData, timeline: e.target.value })}
-                      placeholder="e.g. 3 - 5 Years"
-                      style={{ width: '100%' }}
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label style={styles.label}>Prospectus Image URL *</label>
-                  <input
-                    type="url"
-                    required
-                    value={formData.image}
-                    onChange={(e) => setFormData({ ...formData, image: e.target.value })}
-                    style={{ width: '100%' }}
-                  />
-                </div>
-
-                <div>
-                  <label style={styles.label}>Executive Summary (Blurb) *</label>
-                  <input
-                    type="text"
-                    required
-                    value={formData.blurb}
-                    onChange={(e) => setFormData({ ...formData, blurb: e.target.value })}
-                    placeholder="High-growth agro-processing export venture..."
-                    style={{ width: '100%' }}
-                  />
-                </div>
-
-                <div style={styles.formGrid}>
-                  <div>
-                    <label style={styles.label}>Contact Email</label>
-                    <input
-                      type="email"
-                      value={formData.contactEmail}
-                      onChange={(e) => setFormData({ ...formData, contactEmail: e.target.value })}
-                      placeholder="invest@daleel.et"
-                      style={{ width: '100%' }}
-                    />
-                  </div>
-                  <div>
-                    <label style={styles.label}>Contact Phone</label>
-                    <input
-                      type="text"
-                      value={formData.contactPhone}
-                      onChange={(e) => setFormData({ ...formData, contactPhone: e.target.value })}
-                      placeholder="+251 11 551 7000"
-                      style={{ width: '100%' }}
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <div className="modal-footer">
-                <button type="button" className="btn btn-secondary" onClick={() => setIsModalOpen(false)}>
-                  Cancel
-                </button>
-                <button type="submit" className="btn btn-primary" disabled={isSaving}>
-                  {isSaving ? 'Saving Deal...' : editingItem ? 'Update Deal' : 'Publish Opportunity'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
@@ -619,36 +655,278 @@ const styles: { [key: string]: React.CSSProperties } = {
     position: 'relative',
     display: 'flex',
     alignItems: 'center',
+    width: '360px',
   },
-  thumbImg: {
-    width: '46px',
-    height: '46px',
-    borderRadius: '8px',
-    objectFit: 'cover',
+  searchInput: {
+    width: '100%',
+    padding: '10px 14px 10px 36px',
+    backgroundColor: '#FFFFFF',
     border: '1px solid #E4E9F0',
+    borderRadius: '8px',
+    fontSize: '13.5px',
+    color: '#07152B',
+  },
+  cardsGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))',
+    gap: '20px',
+  },
+  dealCard: {
+    backgroundColor: '#FFFFFF',
+    border: '1px solid #E4E9F0',
+    borderRadius: '14px',
+    overflow: 'hidden',
+    boxShadow: '0 2px 8px rgba(7, 21, 43, 0.04)',
+    display: 'flex',
+    flexDirection: 'column',
+  },
+  cardThumbWrap: {
+    position: 'relative',
+    height: '170px',
+    width: '100%',
+    overflow: 'hidden',
+  },
+  cardThumb: {
+    width: '100%',
+    height: '100%',
+    objectFit: 'cover',
+  },
+  cardOverlayRow: {
+    position: 'absolute',
+    top: '12px',
+    left: '12px',
+    right: '12px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  sectorBadge: {
+    backgroundColor: 'rgba(7, 21, 43, 0.85)',
+    backdropFilter: 'blur(6px)',
+    color: '#FFFFFF',
+    fontSize: '10.5px',
+    fontWeight: 700,
+    padding: '4px 10px',
+    borderRadius: '9999px',
+  },
+  returnBadge: {
+    backgroundColor: '#F8F4EC',
+    border: '1px solid #E0C582',
+    color: '#8C6A21',
+    fontSize: '11px',
+    fontWeight: 800,
+    padding: '4px 10px',
+    borderRadius: '9999px',
+  },
+  cardBody: {
+    padding: '16px 18px',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '6px',
+    flex: 1,
+  },
+  cardHeaderRow: {
+    display: 'flex',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: '8px',
   },
   dealTitle: {
+    fontSize: '16px',
+    fontWeight: 700,
+    color: '#07152B',
+    margin: 0,
+  },
+  minCapitalTag: {
+    fontSize: '13px',
+    fontWeight: 800,
+    color: '#07152B',
+    backgroundColor: '#F8FAFC',
+    border: '1px solid #E2E8F0',
+    padding: '3px 8px',
+    borderRadius: '6px',
+    flexShrink: 0,
+  },
+  dealBlurb: {
+    fontSize: '12.5px',
+    color: '#475569',
+    lineHeight: 1.5,
+    margin: 0,
+  },
+  dealMetaRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    fontSize: '12px',
+    marginTop: 'auto',
+    paddingTop: '8px',
+  },
+  locationText: {
+    fontWeight: 600,
+    color: '#07152B',
+  },
+  timelineText: {
+    color: '#5A687A',
+  },
+  cardFooter: {
+    padding: '12px 18px',
+    borderTop: '1px solid #EAEFF6',
+    backgroundColor: '#FAFCFE',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: '8px',
+  },
+  editBtn: {
+    flex: 1,
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: '6px',
+    padding: '8px 14px',
+    backgroundColor: '#FFFFFF',
+    border: '1px solid #CBD5E1',
+    borderRadius: '8px',
+    fontSize: '12.5px',
+    fontWeight: 700,
+    color: '#07152B',
+    cursor: 'pointer',
+  },
+  deleteBtn: {
+    width: '34px',
+    height: '34px',
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FFF5F5',
+    border: '1px solid #FED7D7',
+    borderRadius: '8px',
+    cursor: 'pointer',
+  },
+  emptyState: {
+    padding: '48px',
+    textAlign: 'center',
+    backgroundColor: '#FFFFFF',
+    border: '1px solid #E4E9F0',
+    borderRadius: '12px',
+    color: '#5A687A',
     fontSize: '14px',
+  },
+  // In-Page Dedicated Editor Styles
+  editorNav: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#FFFFFF',
+    border: '1px solid #E4E9F0',
+    borderRadius: '12px',
+    padding: '16px 20px',
+    boxShadow: '0 2px 8px rgba(7, 21, 43, 0.03)',
+  },
+  editorNavLeft: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '16px',
+  },
+  backBtn: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '6px',
+    padding: '8px 14px',
+    backgroundColor: '#F8FAFC',
+    border: '1px solid #E4E9F0',
+    borderRadius: '8px',
+    fontSize: '13px',
+    fontWeight: 600,
+    color: '#07152B',
+    cursor: 'pointer',
+  },
+  editorBreadcrumbs: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    fontSize: '13px',
+  },
+  breadcrumbMuted: {
+    color: '#8A9AA8',
+  },
+  breadcrumbSep: {
+    color: '#CBD5E1',
+  },
+  breadcrumbCurrent: {
     fontWeight: 700,
     color: '#07152B',
   },
-  dealSub: {
-    fontSize: '12px',
-    color: '#5A687A',
-    marginTop: '2px',
+  editorNavActions: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '10px',
   },
-  errorBox: {
-    backgroundColor: '#FFF0F0',
-    border: '1px solid rgba(214, 48, 49, 0.3)',
-    color: '#D63031',
-    padding: '10px 14px',
-    borderRadius: '8px',
-    fontSize: '13px',
-  },
-  formGrid: {
+  editorGrid: {
     display: 'grid',
     gridTemplateColumns: 'repeat(2, 1fr)',
+    gap: '24px',
+    alignItems: 'start',
+  },
+  formCard: {
+    backgroundColor: '#FFFFFF',
+    border: '1px solid #E4E9F0',
+    borderRadius: '14px',
+    padding: '24px',
+    boxShadow: '0 2px 8px rgba(7, 21, 43, 0.03)',
+  },
+  cardSectionTitle: {
+    fontSize: '18px',
+    color: '#07152B',
+    margin: '0 0 4px 0',
+  },
+  cardSectionSub: {
+    fontSize: '12.5px',
+    color: '#5A687A',
+    margin: '0 0 18px 0',
+  },
+  formStack: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '16px',
+  },
+  inputRow: {
+    display: 'flex',
     gap: '14px',
+  },
+  fullInput: {
+    width: '100%',
+    boxSizing: 'border-box',
+    padding: '10px 14px',
+    backgroundColor: '#FFFFFF',
+    border: '1px solid #E4E9F0',
+    borderRadius: '8px',
+    fontSize: '13.5px',
+    color: '#07152B',
+  },
+  textarea: {
+    width: '100%',
+    boxSizing: 'border-box',
+    padding: '10px 14px',
+    backgroundColor: '#FFFFFF',
+    border: '1px solid #E4E9F0',
+    borderRadius: '8px',
+    fontSize: '13.5px',
+    color: '#07152B',
+    fontFamily: 'inherit',
+  },
+  imagePreviewWrap: {
+    marginTop: '8px',
+    height: '140px',
+    width: '100%',
+    borderRadius: '8px',
+    overflow: 'hidden',
+    border: '1px solid #E4E9F0',
+  },
+  imagePreview: {
+    width: '100%',
+    height: '100%',
+    objectFit: 'cover',
   },
   label: {
     display: 'block',
@@ -656,5 +934,13 @@ const styles: { [key: string]: React.CSSProperties } = {
     fontWeight: 700,
     color: '#07152B',
     marginBottom: '6px',
+  },
+  errorBox: {
+    backgroundColor: '#FFF0F0',
+    border: '1px solid rgba(214, 48, 49, 0.3)',
+    color: '#D63031',
+    padding: '12px 16px',
+    borderRadius: '8px',
+    fontSize: '13px',
   },
 };

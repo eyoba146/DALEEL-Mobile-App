@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { adminApi } from '../api';
 import { MapPicker } from './MapPicker';
-import { Plus, Search, Edit2, Trash2, Crosshair, Ribbon, Star, RefreshCw } from 'lucide-react';
+import { Plus, Search, Edit3, Trash2, Crosshair, Award, Star, ArrowLeft, Check, RefreshCw } from 'lucide-react';
 
 interface DestinationItem {
   id: string;
@@ -18,14 +18,16 @@ interface DestinationItem {
   longitude?: number | null;
 }
 
+const REGIONS = ['All', 'Amhara', 'Oromia', 'Tigray', 'SNNPR', 'Afar', 'Harari', 'Addis Ababa'];
+
 export const DestinationsManager: React.FC = () => {
   const [destinations, setDestinations] = useState<DestinationItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedRegion, setSelectedRegion] = useState('All');
 
-  // Modal State
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  // Dedicated In-Page Editor State (NO POPUPS)
+  const [isEditorActive, setIsEditorActive] = useState(false);
   const [editingItem, setEditingItem] = useState<DestinationItem | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
@@ -36,13 +38,13 @@ export const DestinationsManager: React.FC = () => {
     region: 'Amhara',
     blurb: '',
     description: '',
-    image: '',
-    elevation: '',
-    bestTimeToVisit: '',
+    image: 'https://images.unsplash.com/photo-1523805009345-7448845a9e53?w=800',
+    elevation: '2,500m (8,200 ft)',
+    bestTimeToVisit: 'October to March (Dry highlands season)',
     unescoStatus: false,
     rating: 4.9,
-    latitude: 9.0105 as number | null,
-    longitude: 38.7615 as number | null,
+    latitude: 12.0322 as number | null,
+    longitude: 39.0416 as number | null,
   });
 
   const loadDestinations = async () => {
@@ -77,7 +79,8 @@ export const DestinationsManager: React.FC = () => {
       longitude: 39.0416,
     });
     setErrorMessage('');
-    setIsModalOpen(true);
+    setIsEditorActive(true);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleOpenEdit = (item: DestinationItem) => {
@@ -91,21 +94,30 @@ export const DestinationsManager: React.FC = () => {
       elevation: item.elevation || '',
       bestTimeToVisit: item.bestTimeToVisit || '',
       unescoStatus: item.unescoStatus,
-      rating: item.rating,
+      rating: item.rating || 4.9,
       latitude: item.latitude ?? 9.0105,
       longitude: item.longitude ?? 38.7615,
     });
     setErrorMessage('');
-    setIsModalOpen(true);
+    setIsEditorActive(true);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const handleDelete = async (id: string) => {
-    if (!window.confirm('Are you sure you want to remove this heritage destination?')) return;
+  const handleCloseEditor = () => {
+    setIsEditorActive(false);
+    setEditingItem(null);
+  };
+
+  const handleDelete = async (id: string, name: string) => {
+    if (!window.confirm(`Are you sure you wish to delete "${name}"?`)) return;
     try {
       await adminApi.deleteDestination(id);
       loadDestinations();
+      if (editingItem?.id === id) {
+        handleCloseEditor();
+      }
     } catch (err: any) {
-      alert(err.message || 'Failed to remove destination');
+      setErrorMessage(err.message || 'Failed to remove destination');
     }
   };
 
@@ -120,7 +132,7 @@ export const DestinationsManager: React.FC = () => {
       } else {
         await adminApi.createDestination(formData);
       }
-      setIsModalOpen(false);
+      setIsEditorActive(false);
       loadDestinations();
     } catch (err: any) {
       setErrorMessage(err.message || 'Failed to save destination');
@@ -132,35 +144,227 @@ export const DestinationsManager: React.FC = () => {
   const filtered = destinations.filter((item) => {
     const matchesSearch =
       item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.region.toLowerCase().includes(searchTerm.toLowerCase());
+      item.region.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.blurb.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesRegion = selectedRegion === 'All' || item.region === selectedRegion;
     return matchesSearch && matchesRegion;
   });
 
+  // Dedicated Full-Page In-Place Editor View (NO POPUP)
+  if (isEditorActive) {
+    return (
+      <div style={styles.container}>
+        {/* Editor Top Navigation Bar */}
+        <div style={styles.editorNav}>
+          <div style={styles.editorNavLeft}>
+            <button style={styles.backBtn} onClick={handleCloseEditor}>
+              <ArrowLeft size={16} color="#07152B" />
+              <span>Back to Destinations</span>
+            </button>
+            <div style={styles.editorBreadcrumbs}>
+              <span style={styles.breadcrumbMuted}>Destinations</span>
+              <span style={styles.breadcrumbSep}>/</span>
+              <span style={styles.breadcrumbCurrent}>
+                {editingItem ? `Edit: ${editingItem.name}` : 'New Destination'}
+              </span>
+            </div>
+          </div>
+
+          <div style={styles.editorNavActions}>
+            <button type="button" className="btn btn-secondary" onClick={handleCloseEditor}>
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="btn btn-primary"
+              disabled={isSaving}
+              onClick={handleSave}
+            >
+              <Check size={16} color="#07152B" />
+              <span>{isSaving ? 'Saving Changes...' : editingItem ? 'Save Destination' : 'Publish Destination'}</span>
+            </button>
+          </div>
+        </div>
+
+        {errorMessage && <div style={styles.errorBox}>{errorMessage}</div>}
+
+        {/* 2-Column Dedicated Editor Workspace */}
+        <form onSubmit={handleSave} style={styles.editorGrid}>
+          {/* Left Column: Core Destination Information */}
+          <div style={styles.formCard}>
+            <h3 style={styles.cardSectionTitle}>Destination Information</h3>
+            <p style={styles.cardSectionSub}>Core details displayed to users in the explore catalog</p>
+
+            <div style={styles.formStack}>
+              <div>
+                <label style={styles.label}>Destination Name *</label>
+                <input
+                  type="text"
+                  required
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  placeholder="e.g. Lalibela Rock-Hewn Churches"
+                  style={styles.fullInput}
+                />
+              </div>
+
+              <div style={styles.inputRow}>
+                <div style={{ flex: 1 }}>
+                  <label style={styles.label}>Region *</label>
+                  <select
+                    value={formData.region}
+                    onChange={(e) => setFormData({ ...formData, region: e.target.value })}
+                    style={styles.fullInput}
+                  >
+                    {REGIONS.filter((r) => r !== 'All').map((r) => (
+                      <option key={r} value={r}>
+                        {r}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div style={{ flex: 1 }}>
+                  <label style={styles.label}>Rating (1.0 to 5.0)</label>
+                  <input
+                    type="number"
+                    step="0.1"
+                    min="1"
+                    max="5"
+                    value={formData.rating}
+                    onChange={(e) => setFormData({ ...formData, rating: parseFloat(e.target.value) })}
+                    style={styles.fullInput}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label style={styles.label}>Hero Photo URL *</label>
+                <input
+                  type="url"
+                  required
+                  value={formData.image}
+                  onChange={(e) => setFormData({ ...formData, image: e.target.value })}
+                  placeholder="https://images.unsplash.com/..."
+                  style={styles.fullInput}
+                />
+                {formData.image && (
+                  <div style={styles.imagePreviewWrap}>
+                    <img src={formData.image} alt="Preview" style={styles.imagePreview} />
+                  </div>
+                )}
+              </div>
+
+              <div style={styles.inputRow}>
+                <div style={{ flex: 1 }}>
+                  <label style={styles.label}>Elevation (e.g. 2,500m)</label>
+                  <input
+                    type="text"
+                    value={formData.elevation}
+                    onChange={(e) => setFormData({ ...formData, elevation: e.target.value })}
+                    placeholder="e.g. 2,500m (8,200 ft)"
+                    style={styles.fullInput}
+                  />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <label style={styles.label}>Best Time to Visit</label>
+                  <input
+                    type="text"
+                    value={formData.bestTimeToVisit}
+                    onChange={(e) => setFormData({ ...formData, bestTimeToVisit: e.target.value })}
+                    placeholder="e.g. October to March"
+                    style={styles.fullInput}
+                  />
+                </div>
+              </div>
+
+              <div style={styles.checkboxRow}>
+                <input
+                  type="checkbox"
+                  id="unescoCheck"
+                  checked={formData.unescoStatus}
+                  onChange={(e) => setFormData({ ...formData, unescoStatus: e.target.checked })}
+                  style={styles.checkbox}
+                />
+                <label htmlFor="unescoCheck" style={styles.checkboxLabel}>
+                  Designated UNESCO World Heritage Site
+                </label>
+              </div>
+
+              <div>
+                <label style={styles.label}>Summary Blurb *</label>
+                <input
+                  type="text"
+                  required
+                  value={formData.blurb}
+                  onChange={(e) => setFormData({ ...formData, blurb: e.target.value })}
+                  placeholder="Eleventh-century monolithic rock-cut churches..."
+                  style={styles.fullInput}
+                />
+              </div>
+
+              <div>
+                <label style={styles.label}>Historical & Cultural Description</label>
+                <textarea
+                  rows={5}
+                  value={formData.description}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  placeholder="Comprehensive guide detailing historical significance..."
+                  style={styles.textarea}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Right Column: Interactive GIS Map Coordinator */}
+          <div style={styles.formCard}>
+            <h3 style={styles.cardSectionTitle}>Interactive Map Coordinator</h3>
+            <p style={styles.cardSectionSub}>
+              Search for landmarks or click anywhere to coordinate real-time GPS coordinates
+            </p>
+
+            <div style={{ marginTop: '16px' }}>
+              <MapPicker
+                latitude={formData.latitude}
+                longitude={formData.longitude}
+                title={formData.name || 'Destination'}
+                address={`${formData.name || 'Site'}, ${formData.region}`}
+                onCoordinatesChange={(lat, lng) => {
+                  setFormData((prev) => ({ ...prev, latitude: lat, longitude: lng }));
+                }}
+              />
+            </div>
+          </div>
+        </form>
+      </div>
+    );
+  }
+
+  // Catalog Directory List View
   return (
     <div style={styles.container}>
-      {/* Top Controls Row */}
+      {/* Top Header Row */}
       <div style={styles.topRow}>
         <div>
-          <h2 style={styles.sectionTitle}>Heritage Destinations & Regional Guides</h2>
+          <h2 style={styles.sectionTitle}>Heritage Destinations & Tourism</h2>
           <p style={styles.sectionDesc}>
-            Manage UNESCO sites, national parks, and coordinate precise GIS map coordinates for traveler navigation.
+            Manage cultural attractions, UNESCO heritage sites, regional landmarks, and interactive map pins.
           </p>
         </div>
 
         <div style={styles.actionsGroup}>
-          <button className="btn btn-secondary" onClick={loadDestinations} title="Refresh catalog">
+          <button className="btn btn-secondary" onClick={loadDestinations}>
             <RefreshCw size={15} color="#07152B" />
             <span>Refresh</span>
           </button>
           <button className="btn btn-primary" onClick={handleOpenCreate}>
             <Plus size={16} color="#07152B" />
-            <span>Coordinate New Destination</span>
+            <span>Add Destination</span>
           </button>
         </div>
       </div>
 
-      {/* Filter & Search Bar */}
+      {/* Filter and Search Bar */}
       <div style={styles.filterBar}>
         <div style={styles.searchWrapper}>
           <Search size={16} color="#8A9AA8" style={{ position: 'absolute', left: '12px' }} />
@@ -168,279 +372,96 @@ export const DestinationsManager: React.FC = () => {
             type="text"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Search destination by name or region..."
-            style={{ width: '100%', paddingLeft: '36px' }}
+            placeholder="Search by destination name, region, or history..."
+            style={styles.searchInput}
           />
         </div>
 
         <div style={styles.regionFilterRow}>
-          {['All', 'Amhara', 'Addis Ababa', 'Oromia', 'Tigray', 'Harari'].map((r) => (
+          {REGIONS.map((region) => (
             <button
-              key={r}
+              key={region}
               style={{
                 ...styles.regionChip,
-                ...(selectedRegion === r ? styles.regionChipActive : {}),
+                ...(selectedRegion === region ? styles.regionChipActive : {}),
               }}
-              onClick={() => setSelectedRegion(r)}
+              onClick={() => setSelectedRegion(region)}
             >
-              {r}
+              {region}
             </button>
           ))}
         </div>
       </div>
 
-      {/* Destinations Table */}
-      <div className="table-wrap">
-        <table className="admin-table">
-          <thead>
-            <tr>
-              <th>Heritage Destination</th>
-              <th>Region</th>
-              <th>GIS Coordinates</th>
-              <th>Elevation / Advisory</th>
-              <th>Status</th>
-              <th style={{ textAlign: 'right' }}>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {loading ? (
-              <tr>
-                <td colSpan={6} style={{ textAlign: 'center', padding: '36px', color: '#5A687A' }}>
-                  Loading destinations from database...
-                </td>
-              </tr>
-            ) : filtered.length === 0 ? (
-              <tr>
-                <td colSpan={6} style={{ textAlign: 'center', padding: '36px', color: '#5A687A' }}>
-                  No destinations found matching your query.
-                </td>
-              </tr>
-            ) : (
-              filtered.map((item) => (
-                <tr key={item.id}>
-                  <td>
-                    <div style={styles.destinationCell}>
-                      <img src={item.image} alt={item.name} style={styles.thumbImg} />
-                      <div>
-                        <div style={styles.destName}>{item.name}</div>
-                        <div style={styles.destBlurb}>
-                          {item.blurb.slice(0, 75)}...
-                        </div>
-                      </div>
-                    </div>
-                  </td>
-                  <td>
-                    <span className="badge badge-navy">{item.region}</span>
-                  </td>
-                  <td>
-                    {item.latitude && item.longitude ? (
-                      <div style={styles.coordBadge}>
-                        <Crosshair size={12} color="#07152B" />
-                        <span>
-                          {item.latitude.toFixed(4)}N, {item.longitude.toFixed(4)}E
-                        </span>
-                      </div>
-                    ) : (
-                      <span style={{ color: '#8A9AA8', fontSize: '12px' }}>Unpinned</span>
-                    )}
-                  </td>
-                  <td>
-                    <div style={{ fontSize: '12px', color: '#5A687A' }}>
-                      {item.elevation ? <strong>{item.elevation}</strong> : 'Standard elevation'}
-                    </div>
-                    <div style={{ fontSize: '11px', color: '#8A9AA8', marginTop: '2px' }}>
-                      {item.bestTimeToVisit ? item.bestTimeToVisit.slice(0, 30) + '...' : ''}
-                    </div>
-                  </td>
-                  <td>
-                    <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-                      {item.unescoStatus && (
-                        <span className="badge badge-gold" title="UNESCO World Heritage Site">
-                          <Ribbon size={12} color="#8C6A21" />
-                          <span>UNESCO</span>
-                        </span>
-                      )}
-                      <span style={styles.ratingBadge}>
-                        <Star size={11} color="#C59B43" fill="#C59B43" />
-                        <span>{item.rating.toFixed(1)}</span>
+      {/* Modern Catalog Grid (Replaced Cramped Table) */}
+      {loading ? (
+        <div style={styles.emptyState}>Loading destinations catalog...</div>
+      ) : filtered.length === 0 ? (
+        <div style={styles.emptyState}>No destinations match your search or filter criteria.</div>
+      ) : (
+        <div style={styles.cardsGrid}>
+          {filtered.map((item) => (
+            <div key={item.id} style={styles.destinationCard}>
+              <div style={styles.cardThumbWrap}>
+                <img src={item.image} alt={item.name} style={styles.cardThumb} />
+                <div style={styles.cardOverlayRow}>
+                  <span style={styles.regionBadge}>{item.region}</span>
+                  {item.unescoStatus && (
+                    <span style={styles.unescoBadge}>
+                      <Award size={12} color="#8C6A21" />
+                      <span>UNESCO</span>
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              <div style={styles.cardBody}>
+                <div style={styles.cardHeaderRow}>
+                  <h3 style={styles.cardTitle}>{item.name}</h3>
+                  <div style={styles.ratingBadge}>
+                    <Star size={13} fill="#DFB76C" color="#DFB76C" />
+                    <span>{item.rating || 4.9}</span>
+                  </div>
+                </div>
+
+                <p style={styles.cardBlurb}>{item.blurb}</p>
+
+                <div style={styles.cardMetaRow}>
+                  {item.latitude && item.longitude ? (
+                    <div style={styles.coordPill}>
+                      <Crosshair size={12} color="#07152B" />
+                      <span>
+                        {item.latitude.toFixed(3)}N, {item.longitude.toFixed(3)}E
                       </span>
                     </div>
-                  </td>
-                  <td style={{ textAlign: 'right' }}>
-                    <div style={{ display: 'inline-flex', gap: '6px' }}>
-                      <button
-                        className="btn-icon"
-                        onClick={() => handleOpenEdit(item)}
-                        title="Edit Destination & Coordinates"
-                      >
-                        <Edit2 size={15} />
-                      </button>
-                      <button
-                        className="btn-icon"
-                        onClick={() => handleDelete(item.id)}
-                        title="Delete Destination"
-                      >
-                        <Trash2 size={15} color="#D63031" />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+                  ) : (
+                    <span style={{ fontSize: '11.5px', color: '#8A9AA8' }}>Coordinates unpinned</span>
+                  )}
+                  {item.elevation && <span style={styles.metaNote}>{item.elevation}</span>}
+                </div>
+              </div>
 
-      {/* Create / Edit Modal with Visual Map Picker */}
-      {isModalOpen && (
-        <div className="modal-overlay">
-          <div className="modal-window modal-window-wide">
-            <div className="modal-header">
-              <h3 className="modal-title">
-                {editingItem ? 'Edit Heritage Destination & Map Coordinates' : 'Coordinate New Heritage Destination'}
-              </h3>
-              <button className="btn-icon" onClick={() => setIsModalOpen(false)}>
-                ✕
-              </button>
+              {/* Dedicated Card Action Buttons */}
+              <div style={styles.cardFooter}>
+                <button
+                  type="button"
+                  style={styles.editBtn}
+                  onClick={() => handleOpenEdit(item)}
+                >
+                  <Edit3 size={14} color="#07152B" />
+                  <span>Edit Details</span>
+                </button>
+                <button
+                  type="button"
+                  style={styles.deleteBtn}
+                  onClick={() => handleDelete(item.id, item.name)}
+                  title="Delete Destination"
+                >
+                  <Trash2 size={15} color="#C53030" />
+                </button>
+              </div>
             </div>
-
-            <form onSubmit={handleSave}>
-              <div className="modal-body">
-                {errorMessage && (
-                  <div style={styles.errorBox}>{errorMessage}</div>
-                )}
-
-                <div style={styles.formGrid}>
-                  <div>
-                    <label style={styles.label}>Destination Name *</label>
-                    <input
-                      type="text"
-                      required
-                      value={formData.name}
-                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                      placeholder="e.g. Lalibela Rock-Hewn Churches"
-                      style={{ width: '100%' }}
-                    />
-                  </div>
-
-                  <div>
-                    <label style={styles.label}>Region *</label>
-                    <select
-                      value={formData.region}
-                      onChange={(e) => setFormData({ ...formData, region: e.target.value })}
-                      style={{ width: '100%' }}
-                    >
-                      <option value="Amhara">Amhara</option>
-                      <option value="Addis Ababa">Addis Ababa</option>
-                      <option value="Oromia">Oromia</option>
-                      <option value="Tigray">Tigray</option>
-                      <option value="Harari">Harari</option>
-                      <option value="Sidama">Sidama</option>
-                      <option value="Afar">Afar</option>
-                      <option value="Southern Ethiopia">Southern Ethiopia</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div>
-                  <label style={styles.label}>Hero Image URL *</label>
-                  <input
-                    type="url"
-                    required
-                    value={formData.image}
-                    onChange={(e) => setFormData({ ...formData, image: e.target.value })}
-                    placeholder="https://..."
-                    style={{ width: '100%' }}
-                  />
-                </div>
-
-                <div>
-                  <label style={styles.label}>Short Blurb (Headline Summary) *</label>
-                  <input
-                    type="text"
-                    required
-                    value={formData.blurb}
-                    onChange={(e) => setFormData({ ...formData, blurb: e.target.value })}
-                    placeholder="12th-century engineering miracle carved from volcanic bedrock..."
-                    style={{ width: '100%' }}
-                  />
-                </div>
-
-                <div>
-                  <label style={styles.label}>About the Heritage (Full Overview)</label>
-                  <textarea
-                    rows={3}
-                    value={formData.description}
-                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                    placeholder="Historical background, King Lalibela's vision, architecture, and religious significance..."
-                    style={{ width: '100%', resize: 'vertical' }}
-                  />
-                </div>
-
-                <div style={styles.formGrid}>
-                  <div>
-                    <label style={styles.label}>Elevation</label>
-                    <input
-                      type="text"
-                      value={formData.elevation}
-                      onChange={(e) => setFormData({ ...formData, elevation: e.target.value })}
-                      placeholder="e.g. 2,500m (8,200 ft)"
-                      style={{ width: '100%' }}
-                    />
-                  </div>
-
-                  <div>
-                    <label style={styles.label}>Best Time to Visit</label>
-                    <input
-                      type="text"
-                      value={formData.bestTimeToVisit}
-                      onChange={(e) => setFormData({ ...formData, bestTimeToVisit: e.target.value })}
-                      placeholder="e.g. October to March"
-                      style={{ width: '100%' }}
-                    />
-                  </div>
-                </div>
-
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <input
-                    type="checkbox"
-                    id="unescoCheck"
-                    checked={formData.unescoStatus}
-                    onChange={(e) => setFormData({ ...formData, unescoStatus: e.target.checked })}
-                    style={{ width: '16px', height: '16px', cursor: 'pointer' }}
-                  />
-                  <label htmlFor="unescoCheck" style={{ fontSize: '13px', fontWeight: 600, color: '#07152B', cursor: 'pointer' }}>
-                    Certified UNESCO World Heritage Site
-                  </label>
-                </div>
-
-                {/* Visual Map Coordinate Coordinator Component */}
-                <div>
-                  <label style={styles.label}>
-                    Interactive Map Pin Coordination (Click or Drag Pin to Set Exact Coordinates)
-                  </label>
-                  <MapPicker
-                    latitude={formData.latitude}
-                    longitude={formData.longitude}
-                    title={formData.name || 'Destination Title'}
-                    address={`${formData.name || 'Destination'}, ${formData.region}, Ethiopia`}
-                    onCoordinatesChange={(lat, lng) => {
-                      setFormData((prev) => ({ ...prev, latitude: lat, longitude: lng }));
-                    }}
-                  />
-                </div>
-              </div>
-
-              <div className="modal-footer">
-                <button type="button" className="btn btn-secondary" onClick={() => setIsModalOpen(false)}>
-                  Cancel
-                </button>
-                <button type="submit" className="btn btn-primary" disabled={isSaving}>
-                  {isSaving ? 'Saving Destination...' : editingItem ? 'Update Destination' : 'Publish Destination'}
-                </button>
-              </div>
-            </form>
-          </div>
+          ))}
         </div>
       )}
     </div>
@@ -489,7 +510,16 @@ const styles: { [key: string]: React.CSSProperties } = {
     position: 'relative',
     display: 'flex',
     alignItems: 'center',
-    width: '320px',
+    width: '360px',
+  },
+  searchInput: {
+    width: '100%',
+    padding: '10px 14px 10px 36px',
+    backgroundColor: '#FFFFFF',
+    border: '1px solid #E4E9F0',
+    borderRadius: '8px',
+    fontSize: '13.5px',
+    color: '#07152B',
   },
   regionFilterRow: {
     display: 'flex',
@@ -513,60 +543,294 @@ const styles: { [key: string]: React.CSSProperties } = {
     borderColor: '#07152B',
     color: '#FFFFFF',
   },
-  destinationCell: {
+  cardsGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))',
+    gap: '20px',
+  },
+  destinationCard: {
+    backgroundColor: '#FFFFFF',
+    border: '1px solid #E4E9F0',
+    borderRadius: '14px',
+    overflow: 'hidden',
+    boxShadow: '0 2px 8px rgba(7, 21, 43, 0.04)',
+    display: 'flex',
+    flexDirection: 'column',
+    transition: 'all 0.2s ease',
+  },
+  cardThumbWrap: {
+    position: 'relative',
+    height: '180px',
+    width: '100%',
+    overflow: 'hidden',
+  },
+  cardThumb: {
+    width: '100%',
+    height: '100%',
+    objectFit: 'cover',
+  },
+  cardOverlayRow: {
+    position: 'absolute',
+    top: '12px',
+    left: '12px',
+    right: '12px',
     display: 'flex',
     alignItems: 'center',
-    gap: '12px',
+    justifyContent: 'space-between',
   },
-  thumbImg: {
-    width: '54px',
-    height: '54px',
-    borderRadius: '8px',
-    objectFit: 'cover',
-    border: '1px solid #E4E9F0',
-  },
-  destName: {
-    fontSize: '14px',
+  regionBadge: {
+    backgroundColor: 'rgba(7, 21, 43, 0.85)',
+    backdropFilter: 'blur(6px)',
+    color: '#FFFFFF',
+    fontSize: '11px',
     fontWeight: 700,
-    color: '#07152B',
+    padding: '4px 10px',
+    borderRadius: '9999px',
   },
-  destBlurb: {
-    fontSize: '12px',
-    color: '#5A687A',
-    marginTop: '2px',
-    maxWidth: '300px',
-  },
-  coordBadge: {
+  unescoBadge: {
+    backgroundColor: '#F8F4EC',
+    border: '1px solid #E0C582',
+    color: '#8C6A21',
+    fontSize: '10.5px',
+    fontWeight: 800,
+    padding: '4px 10px',
+    borderRadius: '9999px',
     display: 'inline-flex',
     alignItems: 'center',
     gap: '4px',
-    backgroundColor: '#F0F3F8',
+  },
+  cardBody: {
+    padding: '16px 18px',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '8px',
+    flex: 1,
+  },
+  cardHeaderRow: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: '8px',
+  },
+  cardTitle: {
+    fontSize: '16px',
+    fontWeight: 700,
+    color: '#07152B',
+    margin: 0,
+  },
+  ratingBadge: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '4px',
+    fontSize: '12px',
+    fontWeight: 700,
+    color: '#07152B',
+  },
+  cardBlurb: {
+    fontSize: '12.5px',
+    color: '#475569',
+    lineHeight: 1.5,
+    margin: 0,
+  },
+  cardMetaRow: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 'auto',
+    paddingTop: '8px',
+  },
+  coordPill: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '5px',
+    backgroundColor: '#F8FAFC',
+    border: '1px solid #E4E9F0',
     padding: '4px 8px',
     borderRadius: '6px',
     fontSize: '11px',
     fontWeight: 600,
     color: '#07152B',
   },
-  ratingBadge: {
+  metaNote: {
+    fontSize: '11.5px',
+    color: '#5A687A',
+  },
+  cardFooter: {
+    padding: '12px 18px',
+    borderTop: '1px solid #EAEFF6',
+    backgroundColor: '#FAFCFE',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: '8px',
+  },
+  editBtn: {
+    flex: 1,
     display: 'inline-flex',
     alignItems: 'center',
-    gap: '3px',
-    fontSize: '12px',
+    justifyContent: 'center',
+    gap: '6px',
+    padding: '8px 14px',
+    backgroundColor: '#FFFFFF',
+    border: '1px solid #CBD5E1',
+    borderRadius: '8px',
+    fontSize: '12.5px',
+    fontWeight: 700,
+    color: '#07152B',
+    cursor: 'pointer',
+    transition: 'all 0.15s ease',
+  },
+  deleteBtn: {
+    width: '34px',
+    height: '34px',
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FFF5F5',
+    border: '1px solid #FED7D7',
+    borderRadius: '8px',
+    cursor: 'pointer',
+  },
+  emptyState: {
+    padding: '48px',
+    textAlign: 'center',
+    backgroundColor: '#FFFFFF',
+    border: '1px solid #E4E9F0',
+    borderRadius: '12px',
+    color: '#5A687A',
+    fontSize: '14px',
+  },
+  // In-Page Dedicated Editor Styles
+  editorNav: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#FFFFFF',
+    border: '1px solid #E4E9F0',
+    borderRadius: '12px',
+    padding: '16px 20px',
+    boxShadow: '0 2px 8px rgba(7, 21, 43, 0.03)',
+  },
+  editorNavLeft: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '16px',
+  },
+  backBtn: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '6px',
+    padding: '8px 14px',
+    backgroundColor: '#F8FAFC',
+    border: '1px solid #E4E9F0',
+    borderRadius: '8px',
+    fontSize: '13px',
+    fontWeight: 600,
+    color: '#07152B',
+    cursor: 'pointer',
+  },
+  editorBreadcrumbs: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    fontSize: '13px',
+  },
+  breadcrumbMuted: {
+    color: '#8A9AA8',
+  },
+  breadcrumbSep: {
+    color: '#CBD5E1',
+  },
+  breadcrumbCurrent: {
     fontWeight: 700,
     color: '#07152B',
   },
-  errorBox: {
-    backgroundColor: '#FFF0F0',
-    border: '1px solid rgba(214, 48, 49, 0.3)',
-    color: '#D63031',
-    padding: '10px 14px',
-    borderRadius: '8px',
-    fontSize: '13px',
+  editorNavActions: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '10px',
   },
-  formGrid: {
+  editorGrid: {
     display: 'grid',
     gridTemplateColumns: 'repeat(2, 1fr)',
+    gap: '24px',
+    alignItems: 'start',
+  },
+  formCard: {
+    backgroundColor: '#FFFFFF',
+    border: '1px solid #E4E9F0',
+    borderRadius: '14px',
+    padding: '24px',
+    boxShadow: '0 2px 8px rgba(7, 21, 43, 0.03)',
+  },
+  cardSectionTitle: {
+    fontSize: '18px',
+    color: '#07152B',
+    margin: '0 0 4px 0',
+  },
+  cardSectionSub: {
+    fontSize: '12.5px',
+    color: '#5A687A',
+    margin: '0 0 18px 0',
+  },
+  formStack: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '16px',
+  },
+  inputRow: {
+    display: 'flex',
     gap: '14px',
+  },
+  fullInput: {
+    width: '100%',
+    boxSizing: 'border-box',
+    padding: '10px 14px',
+    backgroundColor: '#FFFFFF',
+    border: '1px solid #E4E9F0',
+    borderRadius: '8px',
+    fontSize: '13.5px',
+    color: '#07152B',
+  },
+  textarea: {
+    width: '100%',
+    boxSizing: 'border-box',
+    padding: '10px 14px',
+    backgroundColor: '#FFFFFF',
+    border: '1px solid #E4E9F0',
+    borderRadius: '8px',
+    fontSize: '13.5px',
+    color: '#07152B',
+    fontFamily: 'inherit',
+  },
+  imagePreviewWrap: {
+    marginTop: '8px',
+    height: '140px',
+    width: '100%',
+    borderRadius: '8px',
+    overflow: 'hidden',
+    border: '1px solid #E4E9F0',
+  },
+  imagePreview: {
+    width: '100%',
+    height: '100%',
+    objectFit: 'cover',
+  },
+  checkboxRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+  },
+  checkbox: {
+    width: '16px',
+    height: '16px',
+    cursor: 'pointer',
+  },
+  checkboxLabel: {
+    fontSize: '13px',
+    fontWeight: 600,
+    color: '#07152B',
+    cursor: 'pointer',
   },
   label: {
     display: 'block',
@@ -574,5 +838,13 @@ const styles: { [key: string]: React.CSSProperties } = {
     fontWeight: 700,
     color: '#07152B',
     marginBottom: '6px',
+  },
+  errorBox: {
+    backgroundColor: '#FFF0F0',
+    border: '1px solid rgba(214, 48, 49, 0.3)',
+    color: '#D63031',
+    padding: '12px 16px',
+    borderRadius: '8px',
+    fontSize: '13px',
   },
 };

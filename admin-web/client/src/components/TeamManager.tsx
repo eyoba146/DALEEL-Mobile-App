@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { adminApi } from '../api';
 import type { AdminUser } from '../api';
 import { useAdminAuth } from '../context/AuthContext';
-import { Plus, Search, Trash2, ShieldCheck, Mail, Phone, RefreshCw, KeyRound, AlertCircle } from 'lucide-react';
+import { Plus, Search, Trash2, ShieldCheck, Mail, Phone, RefreshCw, KeyRound, AlertCircle, ArrowLeft, Check, UserCheck } from 'lucide-react';
 
 const ROLE_OPTIONS: { value: string; label: string; desc: string }[] = [
   { value: 'SUPER_ADMIN', label: 'Full Administrator', desc: 'Complete management authority across all modules and staff' },
@@ -19,12 +19,12 @@ export const TeamManager: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
 
-  // Modal State
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  // Dedicated In-Page Editor State (NO POPUPS)
+  const [isEditorActive, setIsEditorActive] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
-  // Form
+  // Form Fields
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -58,7 +58,12 @@ export const TeamManager: React.FC = () => {
       phone: '',
     });
     setErrorMessage('');
-    setIsModalOpen(true);
+    setIsEditorActive(true);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleCloseEditor = () => {
+    setIsEditorActive(false);
   };
 
   const handleDelete = async (id: string, name: string) => {
@@ -72,7 +77,7 @@ export const TeamManager: React.FC = () => {
       await adminApi.deleteTeamMember(id);
       loadTeam();
     } catch (err: any) {
-      setErrorMessage(err.message || 'Failed to remove team member');
+      setErrorMessage(err.message || 'Failed to remove coordinator');
     }
   };
 
@@ -83,7 +88,7 @@ export const TeamManager: React.FC = () => {
 
     try {
       await adminApi.createTeamMember(formData);
-      setIsModalOpen(false);
+      setIsEditorActive(false);
       loadTeam();
     } catch (err: any) {
       setErrorMessage(err.message || 'Failed to onboard coordinator');
@@ -103,14 +108,155 @@ export const TeamManager: React.FC = () => {
       m.adminRole.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  // Dedicated In-Page Full Workspace Editor (NO POPUP)
+  if (isEditorActive) {
+    return (
+      <div style={styles.container}>
+        {/* Editor Top Navigation Bar */}
+        <div style={styles.editorNav}>
+          <div style={styles.editorNavLeft}>
+            <button style={styles.backBtn} onClick={handleCloseEditor}>
+              <ArrowLeft size={16} color="#07152B" />
+              <span>Back to Team</span>
+            </button>
+            <div style={styles.editorBreadcrumbs}>
+              <span style={styles.breadcrumbMuted}>Administrative Team</span>
+              <span style={styles.breadcrumbSep}>/</span>
+              <span style={styles.breadcrumbCurrent}>Onboard Coordinator</span>
+            </div>
+          </div>
+
+          <div style={styles.editorNavActions}>
+            <button type="button" className="btn btn-secondary" onClick={handleCloseEditor}>
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="btn btn-primary"
+              disabled={isSaving}
+              onClick={handleSave}
+            >
+              <Check size={16} color="#07152B" />
+              <span>{isSaving ? 'Authorizing...' : 'Authorize Coordinator'}</span>
+            </button>
+          </div>
+        </div>
+
+        {errorMessage && (
+          <div style={styles.errorBox}>
+            <AlertCircle size={16} />
+            <span>{errorMessage}</span>
+          </div>
+        )}
+
+        {/* 2-Column Dedicated Editor Workspace */}
+        <form onSubmit={handleSave} style={styles.editorGrid}>
+          {/* Left Column: Account Credentials */}
+          <div style={styles.formCard}>
+            <h3 style={styles.cardSectionTitle}>Coordinator Credentials</h3>
+            <p style={styles.cardSectionSub}>Staff identity, official email address, and initial access key</p>
+
+            <div style={styles.formStack}>
+              <div>
+                <label style={styles.label}>Full Name *</label>
+                <input
+                  type="text"
+                  required
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  placeholder="e.g. Rahel Tadesse"
+                  style={styles.fullInput}
+                />
+              </div>
+
+              <div>
+                <label style={styles.label}>Official Administrative Email *</label>
+                <input
+                  type="email"
+                  required
+                  value={formData.email}
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  placeholder="e.g. rahel@daleel.et"
+                  style={styles.fullInput}
+                />
+              </div>
+
+              <div>
+                <label style={styles.label}>Initial Access Key (Password) *</label>
+                <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                  <KeyRound size={16} color="#8A9AA8" style={{ position: 'absolute', left: '12px' }} />
+                  <input
+                    type="password"
+                    required
+                    value={formData.password}
+                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                    placeholder="Minimum 8 characters"
+                    style={{ ...styles.fullInput, paddingLeft: '38px' }}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label style={styles.label}>Direct Contact Phone (Optional)</label>
+                <input
+                  type="text"
+                  value={formData.phone}
+                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                  placeholder="+251 91 100 0000"
+                  style={styles.fullInput}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Right Column: Delegated Role Area */}
+          <div style={styles.formCard}>
+            <h3 style={styles.cardSectionTitle}>Area of Responsibility</h3>
+            <p style={styles.cardSectionSub}>Select which platform module this coordinator is authorized to manage</p>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              {ROLE_OPTIONS.map((opt) => {
+                const isSelected = formData.adminRole === opt.value;
+                return (
+                  <div
+                    key={opt.value}
+                    style={{
+                      ...styles.roleSelectCard,
+                      ...(isSelected ? styles.roleSelectCardActive : {}),
+                    }}
+                    onClick={() => setFormData({ ...formData, adminRole: opt.value })}
+                  >
+                    <div style={styles.roleSelectHeader}>
+                      <div style={styles.radioDotWrap}>
+                        <div
+                          style={{
+                            ...styles.radioDot,
+                            ...(isSelected ? styles.radioDotActive : {}),
+                          }}
+                        />
+                      </div>
+                      <span style={styles.roleOptionTitle}>{opt.label}</span>
+                    </div>
+                    <p style={styles.roleOptionDesc}>{opt.desc}</p>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </form>
+      </div>
+    );
+  }
+
+  // Catalog Directory List View
   return (
     <div style={styles.container}>
       {/* Top Header Row */}
       <div style={styles.topRow}>
         <div>
-          <h2 style={styles.sectionTitle}>Administrative Team & Coordinators</h2>
+          <h2 style={styles.sectionTitle}>Administrative Team & Staff</h2>
           <p style={styles.sectionDesc}>
-            Manage platform coordinators, assign module areas of responsibility, and maintain staff access.
+            Manage authorized platform coordinators, delegate management areas, and maintain operational staff.
           </p>
         </div>
 
@@ -148,7 +294,7 @@ export const TeamManager: React.FC = () => {
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             placeholder="Search staff by coordinator name, email, or role..."
-            style={{ width: '360px', paddingLeft: '36px' }}
+            style={styles.searchInput}
           />
         </div>
 
@@ -157,9 +303,9 @@ export const TeamManager: React.FC = () => {
             <thead>
               <tr>
                 <th>Administrative Coordinator</th>
-                <th>Assigned Role</th>
+                <th>Assigned Responsibility</th>
                 <th>Contact Phone</th>
-                <th>Authority Status</th>
+                <th>Status</th>
                 <th style={{ textAlign: 'right' }}>Actions</th>
               </tr>
             </thead>
@@ -209,7 +355,10 @@ export const TeamManager: React.FC = () => {
                       </div>
                     </td>
                     <td>
-                      <span className="badge badge-success">ACTIVE COORDINATOR</span>
+                      <span className="badge badge-success">
+                        <UserCheck size={12} color="#16803C" />
+                        <span>Active</span>
+                      </span>
                     </td>
                     <td style={{ textAlign: 'right' }}>
                       {member.id !== adminUser?.id ? (
@@ -218,7 +367,7 @@ export const TeamManager: React.FC = () => {
                           onClick={() => handleDelete(member.id, member.name)}
                           title="Revoke Access"
                         >
-                          <Trash2 size={15} color="#D63031" />
+                          <Trash2 size={15} color="#C53030" />
                         </button>
                       ) : (
                         <span style={{ fontSize: '11.5px', color: '#8A9AA8', fontStyle: 'italic' }}>
@@ -233,105 +382,6 @@ export const TeamManager: React.FC = () => {
           </table>
         </div>
       </div>
-
-      {/* Onboard Coordinator Modal */}
-      {isModalOpen && (
-        <div className="modal-overlay">
-          <div className="modal-window">
-            <div className="modal-header">
-              <h3 className="modal-title">Onboard Administrative Coordinator</h3>
-              <button className="btn-icon" onClick={() => setIsModalOpen(false)}>
-                ✕
-              </button>
-            </div>
-
-            <form onSubmit={handleSave}>
-              <div className="modal-body">
-                {errorMessage && (
-                  <div style={styles.errorBox}>
-                    <AlertCircle size={15} />
-                    <span>{errorMessage}</span>
-                  </div>
-                )}
-
-                <div>
-                  <label style={styles.label}>Full Name *</label>
-                  <input
-                    type="text"
-                    required
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    placeholder="e.g. Rahel Tadesse"
-                    style={{ width: '100%' }}
-                  />
-                </div>
-
-                <div>
-                  <label style={styles.label}>Official Administrative Email *</label>
-                  <input
-                    type="email"
-                    required
-                    value={formData.email}
-                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    placeholder="e.g. rahel@daleel.et"
-                    style={{ width: '100%' }}
-                  />
-                </div>
-
-                <div>
-                  <label style={styles.label}>Initial Master Access Key *</label>
-                  <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-                    <KeyRound size={16} color="#8A9AA8" style={{ position: 'absolute', left: '12px' }} />
-                    <input
-                      type="password"
-                      required
-                      value={formData.password}
-                      onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                      placeholder="Minimum 8 characters"
-                      style={{ width: '100%', paddingLeft: '38px' }}
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label style={styles.label}>Delegated Role *</label>
-                  <select
-                    value={formData.adminRole}
-                    onChange={(e) => setFormData({ ...formData, adminRole: e.target.value })}
-                    style={{ width: '100%' }}
-                  >
-                    {ROLE_OPTIONS.map((opt) => (
-                      <option key={opt.value} value={opt.value}>
-                        {opt.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label style={styles.label}>Direct Contact Phone (Optional)</label>
-                  <input
-                    type="text"
-                    value={formData.phone}
-                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                    placeholder="+251 91 100 0000"
-                    style={{ width: '100%' }}
-                  />
-                </div>
-              </div>
-
-              <div className="modal-footer">
-                <button type="button" className="btn btn-secondary" onClick={() => setIsModalOpen(false)}>
-                  Cancel
-                </button>
-                <button type="submit" className="btn btn-primary" disabled={isSaving}>
-                  {isSaving ? 'Creating Account...' : 'Authorize Coordinator'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
@@ -401,6 +451,16 @@ const styles: { [key: string]: React.CSSProperties } = {
     position: 'relative',
     display: 'flex',
     alignItems: 'center',
+    width: '360px',
+  },
+  searchInput: {
+    width: '100%',
+    padding: '10px 14px 10px 36px',
+    backgroundColor: '#FFFFFF',
+    border: '1px solid #E4E9F0',
+    borderRadius: '8px',
+    fontSize: '13.5px',
+    color: '#07152B',
   },
   avatarCircle: {
     width: '38px',
@@ -432,7 +492,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     backgroundColor: '#FFF0F0',
     border: '1px solid rgba(214, 48, 49, 0.3)',
     color: '#D63031',
-    padding: '10px 14px',
+    padding: '12px 16px',
     borderRadius: '8px',
     fontSize: '13px',
     display: 'flex',
@@ -445,5 +505,139 @@ const styles: { [key: string]: React.CSSProperties } = {
     fontWeight: 700,
     color: '#07152B',
     marginBottom: '6px',
+  },
+  // In-Page Dedicated Editor Styles
+  editorNav: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#FFFFFF',
+    border: '1px solid #E4E9F0',
+    borderRadius: '12px',
+    padding: '16px 20px',
+    boxShadow: '0 2px 8px rgba(7, 21, 43, 0.03)',
+  },
+  editorNavLeft: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '16px',
+  },
+  backBtn: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '6px',
+    padding: '8px 14px',
+    backgroundColor: '#F8FAFC',
+    border: '1px solid #E4E9F0',
+    borderRadius: '8px',
+    fontSize: '13px',
+    fontWeight: 600,
+    color: '#07152B',
+    cursor: 'pointer',
+  },
+  editorBreadcrumbs: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    fontSize: '13px',
+  },
+  breadcrumbMuted: {
+    color: '#8A9AA8',
+  },
+  breadcrumbSep: {
+    color: '#CBD5E1',
+  },
+  breadcrumbCurrent: {
+    fontWeight: 700,
+    color: '#07152B',
+  },
+  editorNavActions: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '10px',
+  },
+  editorGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(2, 1fr)',
+    gap: '24px',
+    alignItems: 'start',
+  },
+  formCard: {
+    backgroundColor: '#FFFFFF',
+    border: '1px solid #E4E9F0',
+    borderRadius: '14px',
+    padding: '24px',
+    boxShadow: '0 2px 8px rgba(7, 21, 43, 0.03)',
+  },
+  cardSectionTitle: {
+    fontSize: '18px',
+    color: '#07152B',
+    margin: '0 0 4px 0',
+  },
+  cardSectionSub: {
+    fontSize: '12.5px',
+    color: '#5A687A',
+    margin: '0 0 18px 0',
+  },
+  formStack: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '16px',
+  },
+  fullInput: {
+    width: '100%',
+    boxSizing: 'border-box',
+    padding: '10px 14px',
+    backgroundColor: '#FFFFFF',
+    border: '1px solid #E4E9F0',
+    borderRadius: '8px',
+    fontSize: '13.5px',
+    color: '#07152B',
+  },
+  roleSelectCard: {
+    padding: '14px',
+    borderRadius: '10px',
+    border: '1px solid #E4E9F0',
+    backgroundColor: '#FFFFFF',
+    cursor: 'pointer',
+    transition: 'all 0.15s ease',
+  },
+  roleSelectCardActive: {
+    borderColor: '#DFB76C',
+    backgroundColor: '#F8F4EC',
+    boxShadow: '0 2px 8px rgba(223, 183, 108, 0.18)',
+  },
+  roleSelectHeader: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '10px',
+  },
+  radioDotWrap: {
+    width: '16px',
+    height: '16px',
+    borderRadius: '50%',
+    border: '2px solid #CBD5E1',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  radioDot: {
+    width: '8px',
+    height: '8px',
+    borderRadius: '50%',
+    backgroundColor: 'transparent',
+  },
+  radioDotActive: {
+    backgroundColor: '#8C6A21',
+  },
+  roleOptionTitle: {
+    fontSize: '13.5px',
+    fontWeight: 700,
+    color: '#07152B',
+  },
+  roleOptionDesc: {
+    fontSize: '12px',
+    color: '#5A687A',
+    margin: '4px 0 0 26px',
   },
 };

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { adminApi } from '../api';
 import { MapPicker } from './MapPicker';
-import { Plus, Search, Edit2, Trash2, CheckCircle, MessageSquare, Crosshair, RefreshCw } from 'lucide-react';
+import { Plus, Search, Edit3, Trash2, CheckCircle, Crosshair, RefreshCw, ArrowLeft, Check, Phone, Mail, MapPin } from 'lucide-react';
 
 interface ServiceItem {
   id: string;
@@ -39,13 +39,13 @@ export const ServicesManager: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
 
-  // Modal State
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  // Dedicated In-Page Editor State (NO POPUPS)
+  const [isEditorActive, setIsEditorActive] = useState(false);
   const [editingItem, setEditingItem] = useState<ServiceItem | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
-  // Form
+  // Form Fields
   const [formData, setFormData] = useState({
     name: '',
     category: 'Legal & Relocation',
@@ -100,7 +100,8 @@ export const ServicesManager: React.FC = () => {
       longitude: 38.7615,
     });
     setErrorMessage('');
-    setIsModalOpen(true);
+    setIsEditorActive(true);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleOpenEdit = (item: ServiceItem) => {
@@ -121,16 +122,25 @@ export const ServicesManager: React.FC = () => {
       longitude: item.longitude ?? 38.7615,
     });
     setErrorMessage('');
-    setIsModalOpen(true);
+    setIsEditorActive(true);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const handleDelete = async (id: string) => {
-    if (!window.confirm('Remove this service provider?')) return;
+  const handleCloseEditor = () => {
+    setIsEditorActive(false);
+    setEditingItem(null);
+  };
+
+  const handleDelete = async (id: string, name: string) => {
+    if (!window.confirm(`Are you sure you wish to remove "${name}"?`)) return;
     try {
       await adminApi.deleteService(id);
       loadData();
+      if (editingItem?.id === id) {
+        handleCloseEditor();
+      }
     } catch (err: any) {
-      alert(err.message || 'Failed to remove service');
+      setErrorMessage(err.message || 'Failed to remove service');
     }
   };
 
@@ -145,7 +155,7 @@ export const ServicesManager: React.FC = () => {
       } else {
         await adminApi.createService(formData);
       }
-      setIsModalOpen(false);
+      setIsEditorActive(false);
       loadData();
     } catch (err: any) {
       setErrorMessage(err.message || 'Failed to save service partner');
@@ -159,15 +169,204 @@ export const ServicesManager: React.FC = () => {
       await adminApi.updateServiceInquiryStatus(id, status);
       loadData();
     } catch (err: any) {
-      alert(err.message || 'Failed to update status');
+      console.error('Failed to update status:', err);
     }
   };
 
   const filteredServices = services.filter((s) =>
     s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    s.category.toLowerCase().includes(searchTerm.toLowerCase())
+    s.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (s.location && s.location.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
+  // Dedicated In-Page Full Workspace Editor (NO POPUP)
+  if (isEditorActive) {
+    return (
+      <div style={styles.container}>
+        {/* Editor Top Navigation Bar */}
+        <div style={styles.editorNav}>
+          <div style={styles.editorNavLeft}>
+            <button style={styles.backBtn} onClick={handleCloseEditor}>
+              <ArrowLeft size={16} color="#07152B" />
+              <span>Back to Services</span>
+            </button>
+            <div style={styles.editorBreadcrumbs}>
+              <span style={styles.breadcrumbMuted}>Services</span>
+              <span style={styles.breadcrumbSep}>/</span>
+              <span style={styles.breadcrumbCurrent}>
+                {editingItem ? `Edit: ${editingItem.name}` : 'Onboard New Partner'}
+              </span>
+            </div>
+          </div>
+
+          <div style={styles.editorNavActions}>
+            <button type="button" className="btn btn-secondary" onClick={handleCloseEditor}>
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="btn btn-primary"
+              disabled={isSaving}
+              onClick={handleSave}
+            >
+              <Check size={16} color="#07152B" />
+              <span>{isSaving ? 'Saving...' : editingItem ? 'Save Partner Profile' : 'Onboard Partner'}</span>
+            </button>
+          </div>
+        </div>
+
+        {errorMessage && <div style={styles.errorBox}>{errorMessage}</div>}
+
+        {/* 2-Column Dedicated Editor Workspace */}
+        <form onSubmit={handleSave} style={styles.editorGrid}>
+          {/* Left Column: Business & Contact Info */}
+          <div style={styles.formCard}>
+            <h3 style={styles.cardSectionTitle}>Partner Business Profile</h3>
+            <p style={styles.cardSectionSub}>Verified credentials, category, and direct diaspora contact channels</p>
+
+            <div style={styles.formStack}>
+              <div>
+                <label style={styles.label}>Business Name *</label>
+                <input
+                  type="text"
+                  required
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  placeholder="e.g. Ethiopian Diaspora Trust Law Firm"
+                  style={styles.fullInput}
+                />
+              </div>
+
+              <div>
+                <label style={styles.label}>Category *</label>
+                <select
+                  value={formData.category}
+                  onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                  style={styles.fullInput}
+                >
+                  <option value="Legal & Relocation">Legal & Relocation</option>
+                  <option value="Banking & Diaspora Accounts">Banking & Diaspora Accounts</option>
+                  <option value="Healthcare & Concierge">Healthcare & Concierge</option>
+                  <option value="Real Estate & Architecture">Real Estate & Architecture</option>
+                  <option value="Car Rental & Transport">Car Rental & Transport</option>
+                  <option value="Logistics & Customs">Logistics & Customs</option>
+                </select>
+              </div>
+
+              <div style={styles.inputRow}>
+                <div style={{ flex: 1 }}>
+                  <label style={styles.label}>City / Region</label>
+                  <input
+                    type="text"
+                    value={formData.location}
+                    onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                    placeholder="e.g. Addis Ababa"
+                    style={styles.fullInput}
+                  />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <label style={styles.label}>Office Sub-City / Street</label>
+                  <input
+                    type="text"
+                    value={formData.subCity}
+                    onChange={(e) => setFormData({ ...formData, subCity: e.target.value })}
+                    placeholder="e.g. Bole Medhanealem, Atlas area"
+                    style={styles.fullInput}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label style={styles.label}>Hero Photo / Logo URL *</label>
+                <input
+                  type="url"
+                  required
+                  value={formData.image}
+                  onChange={(e) => setFormData({ ...formData, image: e.target.value })}
+                  style={styles.fullInput}
+                />
+                {formData.image && (
+                  <div style={styles.imagePreviewWrap}>
+                    <img src={formData.image} alt="Preview" style={styles.imagePreview} />
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <label style={styles.label}>Summary Overview *</label>
+                <input
+                  type="text"
+                  required
+                  value={formData.blurb}
+                  onChange={(e) => setFormData({ ...formData, blurb: e.target.value })}
+                  placeholder="Licensed legal & property deeds notary advisory in Addis Ababa..."
+                  style={styles.fullInput}
+                />
+              </div>
+
+              <div style={styles.inputRow}>
+                <div style={{ flex: 1 }}>
+                  <label style={styles.label}>Direct Phone</label>
+                  <input
+                    type="text"
+                    value={formData.phone}
+                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                    placeholder="+251 11 662 1000"
+                    style={styles.fullInput}
+                  />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <label style={styles.label}>Official Email</label>
+                  <input
+                    type="email"
+                    value={formData.email}
+                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    placeholder="contact@partner.et"
+                    style={styles.fullInput}
+                  />
+                </div>
+              </div>
+
+              <div style={styles.checkboxRow}>
+                <input
+                  type="checkbox"
+                  id="verifiedCheck"
+                  checked={formData.verified}
+                  onChange={(e) => setFormData({ ...formData, verified: e.target.checked })}
+                  style={styles.checkbox}
+                />
+                <label htmlFor="verifiedCheck" style={styles.checkboxLabel}>
+                  Certified DALEEL Verified Partner Badge
+                </label>
+              </div>
+            </div>
+          </div>
+
+          {/* Right Column: Office Location Map Coordinator */}
+          <div style={styles.formCard}>
+            <h3 style={styles.cardSectionTitle}>Office Location Map Coordinator</h3>
+            <p style={styles.cardSectionSub}>
+              Pin physical office coordinates so diaspora users can navigate directly via interactive maps
+            </p>
+
+            <div style={{ marginTop: '16px' }}>
+              <MapPicker
+                latitude={formData.latitude}
+                longitude={formData.longitude}
+                title={formData.name || 'Partner Office'}
+                address={`${formData.name || 'Office'}, ${formData.subCity || formData.location}`}
+                onCoordinatesChange={(lat, lng) => {
+                  setFormData((prev) => ({ ...prev, latitude: lat, longitude: lng }));
+                }}
+              />
+            </div>
+          </div>
+        </form>
+      </div>
+    );
+  }
+
+  // Catalog Directory List View
   return (
     <div style={styles.container}>
       {/* Header Row */}
@@ -175,7 +374,7 @@ export const ServicesManager: React.FC = () => {
         <div>
           <h2 style={styles.sectionTitle}>Verified Services & Partner Directory</h2>
           <p style={styles.sectionDesc}>
-            Manage institutional partners, legal consultancies, banking, health, and triage client inquiries.
+            Manage institutional partners, legal consultancies, banking, health, and review client inquiries.
           </p>
         </div>
 
@@ -186,7 +385,7 @@ export const ServicesManager: React.FC = () => {
           </button>
           <button className="btn btn-primary" onClick={handleOpenCreate}>
             <Plus size={16} color="#07152B" />
-            <span>Onboard Service Partner</span>
+            <span>Onboard Partner</span>
           </button>
         </div>
       </div>
@@ -211,114 +410,111 @@ export const ServicesManager: React.FC = () => {
           }}
           onClick={() => setActiveSubTab('inquiries')}
         >
-          <MessageSquare size={15} color={activeSubTab === 'inquiries' ? '#07152B' : '#5A687A'} />
-          <span>Client Inquiries Triage</span>
+          <span>Client Inquiries</span>
           <span style={styles.tabBadge}>{inquiries.length}</span>
         </button>
       </div>
 
       {/* Directory Tab View */}
       {activeSubTab === 'directory' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
           <div style={styles.searchWrapper}>
             <Search size={16} color="#8A9AA8" style={{ position: 'absolute', left: '12px' }} />
             <input
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Filter by partner name, category, or subcity..."
-              style={{ width: '320px', paddingLeft: '36px' }}
+              placeholder="Search partner name, category, or subcity..."
+              style={styles.searchInput}
             />
           </div>
 
-          <div className="table-wrap">
-            <table className="admin-table">
-              <thead>
-                <tr>
-                  <th>Partner Name & Subcity</th>
-                  <th>Category</th>
-                  <th>Verification</th>
-                  <th>Direct Contact</th>
-                  <th>Office Coordinates</th>
-                  <th style={{ textAlign: 'right' }}>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {loading ? (
-                  <tr>
-                    <td colSpan={6} style={{ textAlign: 'center', padding: '36px', color: '#5A687A' }}>
-                      Loading verified partners...
-                    </td>
-                  </tr>
-                ) : filteredServices.length === 0 ? (
-                  <tr>
-                    <td colSpan={6} style={{ textAlign: 'center', padding: '36px', color: '#5A687A' }}>
-                      No service partners found.
-                    </td>
-                  </tr>
-                ) : (
-                  filteredServices.map((svc) => (
-                    <tr key={svc.id}>
-                      <td>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                          <img src={svc.image} alt={svc.name} style={styles.thumbImg} />
-                          <div>
-                            <div style={styles.partnerName}>{svc.name}</div>
-                            <div style={styles.partnerSub}>{svc.address || svc.location}</div>
-                          </div>
-                        </div>
-                      </td>
-                      <td>
-                        <span className="badge badge-navy">{svc.category}</span>
-                      </td>
-                      <td>
-                        {svc.verified ? (
-                          <span className="badge badge-success">
+          {loading ? (
+            <div style={styles.emptyState}>Loading verified partners...</div>
+          ) : filteredServices.length === 0 ? (
+            <div style={styles.emptyState}>No service partners found.</div>
+          ) : (
+            <div style={styles.cardsGrid}>
+              {filteredServices.map((svc) => (
+                <div key={svc.id} style={styles.serviceCard}>
+                  <div style={styles.svcCardTop}>
+                    <img src={svc.image} alt={svc.name} style={styles.svcThumb} />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={styles.svcHeaderRow}>
+                        <h3 style={styles.svcName}>{svc.name}</h3>
+                        {svc.verified && (
+                          <span style={styles.verifiedChip}>
                             <CheckCircle size={12} color="#16803C" />
                             <span>VERIFIED</span>
                           </span>
-                        ) : (
-                          <span className="badge badge-warning">UNVERIFIED</span>
                         )}
-                      </td>
-                      <td>
-                        <div style={{ fontSize: '12px', color: '#5A687A', display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                          {svc.phone && <span>{svc.phone}</span>}
-                          {svc.email && <span style={{ color: '#8A9AA8' }}>{svc.email}</span>}
-                        </div>
-                      </td>
-                      <td>
-                        {svc.latitude && svc.longitude ? (
-                          <div style={styles.coordBadge}>
-                            <Crosshair size={12} color="#07152B" />
-                            <span>
-                              {svc.latitude.toFixed(4)}N, {svc.longitude.toFixed(4)}E
-                            </span>
-                          </div>
-                        ) : (
-                          <span style={{ color: '#8A9AA8', fontSize: '12px' }}>Unpinned</span>
-                        )}
-                      </td>
-                      <td style={{ textAlign: 'right' }}>
-                        <div style={{ display: 'inline-flex', gap: '6px' }}>
-                          <button className="btn-icon" onClick={() => handleOpenEdit(svc)} title="Edit Partner">
-                            <Edit2 size={15} />
-                          </button>
-                          <button className="btn-icon" onClick={() => handleDelete(svc.id)} title="Delete Partner">
-                            <Trash2 size={15} color="#D63031" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
+                      </div>
+                      <span className="badge badge-navy" style={{ marginTop: '4px' }}>
+                        {svc.category}
+                      </span>
+                    </div>
+                  </div>
+
+                  <p style={styles.svcBlurb}>{svc.blurb}</p>
+
+                  <div style={styles.contactDetails}>
+                    <div style={styles.contactItem}>
+                      <MapPin size={13} color="#8A9AA8" />
+                      <span>{svc.address || svc.location}</span>
+                    </div>
+                    {svc.phone && (
+                      <div style={styles.contactItem}>
+                        <Phone size={13} color="#8A9AA8" />
+                        <span>{svc.phone}</span>
+                      </div>
+                    )}
+                    {svc.email && (
+                      <div style={styles.contactItem}>
+                        <Mail size={13} color="#8A9AA8" />
+                        <span>{svc.email}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  <div style={styles.cardFooter}>
+                    {svc.latitude && svc.longitude ? (
+                      <div style={styles.coordPill}>
+                        <Crosshair size={12} color="#07152B" />
+                        <span>
+                          {svc.latitude.toFixed(3)}N, {svc.longitude.toFixed(3)}E
+                        </span>
+                      </div>
+                    ) : (
+                      <span style={{ fontSize: '11px', color: '#8A9AA8' }}>Unpinned</span>
+                    )}
+
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <button
+                        type="button"
+                        style={styles.editBtn}
+                        onClick={() => handleOpenEdit(svc)}
+                      >
+                        <Edit3 size={13} color="#07152B" />
+                        <span>Edit Profile</span>
+                      </button>
+                      <button
+                        type="button"
+                        style={styles.deleteBtn}
+                        onClick={() => handleDelete(svc.id, svc.name)}
+                        title="Remove Partner"
+                      >
+                        <Trash2 size={14} color="#C53030" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
-      {/* Inquiries Triage Tab View */}
+      {/* Inquiries Tab View */}
       {activeSubTab === 'inquiries' && (
         <div className="table-wrap">
           <table className="admin-table">
@@ -397,163 +593,6 @@ export const ServicesManager: React.FC = () => {
           </table>
         </div>
       )}
-
-      {/* Create / Edit Modal with MapPicker */}
-      {isModalOpen && (
-        <div className="modal-overlay">
-          <div className="modal-window modal-window-wide">
-            <div className="modal-header">
-              <h3 className="modal-title">
-                {editingItem ? 'Edit Service Partner & Office Coordinates' : 'Onboard New Verified Service Partner'}
-              </h3>
-              <button className="btn-icon" onClick={() => setIsModalOpen(false)}>
-                ✕
-              </button>
-            </div>
-
-            <form onSubmit={handleSave}>
-              <div className="modal-body">
-                {errorMessage && <div style={styles.errorBox}>{errorMessage}</div>}
-
-                <div style={styles.formGrid}>
-                  <div>
-                    <label style={styles.label}>Partner Business Name *</label>
-                    <input
-                      type="text"
-                      required
-                      value={formData.name}
-                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                      placeholder="e.g. Ethiopian Diaspora Trust Law Firm"
-                      style={{ width: '100%' }}
-                    />
-                  </div>
-
-                  <div>
-                    <label style={styles.label}>Category *</label>
-                    <select
-                      value={formData.category}
-                      onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                      style={{ width: '100%' }}
-                    >
-                      <option value="Legal & Relocation">Legal & Relocation</option>
-                      <option value="Banking & Diaspora Accounts">Banking & Diaspora Accounts</option>
-                      <option value="Healthcare & Concierge">Healthcare & Concierge</option>
-                      <option value="Real Estate & Architecture">Real Estate & Architecture</option>
-                      <option value="Car Rental & Transport">Car Rental & Transport</option>
-                      <option value="Logistics & Customs">Logistics & Customs</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div style={styles.formGrid}>
-                  <div>
-                    <label style={styles.label}>City / Region</label>
-                    <input
-                      type="text"
-                      value={formData.location}
-                      onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-                      placeholder="e.g. Addis Ababa"
-                      style={{ width: '100%' }}
-                    />
-                  </div>
-                  <div>
-                    <label style={styles.label}>Office Sub-City / Street</label>
-                    <input
-                      type="text"
-                      value={formData.subCity}
-                      onChange={(e) => setFormData({ ...formData, subCity: e.target.value })}
-                      placeholder="e.g. Bole Medhanealem, Atlas Hotel area"
-                      style={{ width: '100%' }}
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label style={styles.label}>Hero Photo / Logo URL *</label>
-                  <input
-                    type="url"
-                    required
-                    value={formData.image}
-                    onChange={(e) => setFormData({ ...formData, image: e.target.value })}
-                    style={{ width: '100%' }}
-                  />
-                </div>
-
-                <div>
-                  <label style={styles.label}>Partner Summary (Blurb) *</label>
-                  <input
-                    type="text"
-                    required
-                    value={formData.blurb}
-                    onChange={(e) => setFormData({ ...formData, blurb: e.target.value })}
-                    placeholder="Licensed legal & property deeds notary advisory in Addis Ababa..."
-                    style={{ width: '100%' }}
-                  />
-                </div>
-
-                <div style={styles.formGrid}>
-                  <div>
-                    <label style={styles.label}>Phone Number</label>
-                    <input
-                      type="text"
-                      value={formData.phone}
-                      onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                      placeholder="+251 91 100 0000"
-                      style={{ width: '100%' }}
-                    />
-                  </div>
-                  <div>
-                    <label style={styles.label}>Official Email</label>
-                    <input
-                      type="email"
-                      value={formData.email}
-                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                      placeholder="info@partner.et"
-                      style={{ width: '100%' }}
-                    />
-                  </div>
-                </div>
-
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <input
-                    type="checkbox"
-                    id="verifiedCheck"
-                    checked={formData.verified}
-                    onChange={(e) => setFormData({ ...formData, verified: e.target.checked })}
-                    style={{ width: '16px', height: '16px', cursor: 'pointer' }}
-                  />
-                  <label htmlFor="verifiedCheck" style={{ fontSize: '13px', fontWeight: 600, color: '#07152B', cursor: 'pointer' }}>
-                    Certified DALEEL Verified Partner Badge
-                  </label>
-                </div>
-
-                {/* Map Coordinator */}
-                <div>
-                  <label style={styles.label}>Partner Office Location on Map</label>
-                  <MapPicker
-                    latitude={formData.latitude}
-                    longitude={formData.longitude}
-                    title={formData.name || 'Partner Office'}
-                    address={`${formData.name || 'Office'}, ${formData.subCity || formData.location}`}
-                    onCoordinatesChange={(lat, lng) => {
-                      setFormData((prev) => ({ ...prev, latitude: lat, longitude: lng }));
-                    }}
-                  />
-                </div>
-              </div>
-
-              <div className="modal-footer">
-                <button type="button" className="btn btn-secondary" onClick={() => setIsModalOpen(false)}>
-                  Cancel
-                </button>
-                <button type="submit" className="btn btn-primary" disabled={isSaving}>
-                  {isSaving ? 'Saving Partner...' : editingItem ? 'Update Partner Profile' : 'Onboard Partner'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
@@ -626,47 +665,265 @@ const styles: { [key: string]: React.CSSProperties } = {
     position: 'relative',
     display: 'flex',
     alignItems: 'center',
+    width: '360px',
   },
-  thumbImg: {
-    width: '46px',
-    height: '46px',
-    borderRadius: '8px',
-    objectFit: 'cover',
+  searchInput: {
+    width: '100%',
+    padding: '10px 14px 10px 36px',
+    backgroundColor: '#FFFFFF',
     border: '1px solid #E4E9F0',
-  },
-  partnerName: {
-    fontSize: '14px',
-    fontWeight: 700,
+    borderRadius: '8px',
+    fontSize: '13.5px',
     color: '#07152B',
   },
-  partnerSub: {
-    fontSize: '12px',
-    color: '#5A687A',
-    marginTop: '2px',
+  cardsGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fill, minmax(380px, 1fr))',
+    gap: '20px',
   },
-  coordBadge: {
+  serviceCard: {
+    backgroundColor: '#FFFFFF',
+    border: '1px solid #E4E9F0',
+    borderRadius: '14px',
+    padding: '20px',
+    boxShadow: '0 2px 8px rgba(7, 21, 43, 0.04)',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '12px',
+  },
+  svcCardTop: {
+    display: 'flex',
+    alignItems: 'flex-start',
+    gap: '14px',
+  },
+  svcThumb: {
+    width: '56px',
+    height: '56px',
+    borderRadius: '10px',
+    objectFit: 'cover',
+    border: '1px solid #E4E9F0',
+    flexShrink: 0,
+  },
+  svcHeaderRow: {
+    display: 'flex',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: '8px',
+  },
+  svcName: {
+    fontSize: '15px',
+    fontWeight: 700,
+    color: '#07152B',
+    margin: 0,
+  },
+  verifiedChip: {
+    backgroundColor: '#E8F7ED',
+    border: '1px solid rgba(22, 128, 60, 0.25)',
+    color: '#16803C',
+    fontSize: '10px',
+    fontWeight: 800,
+    padding: '2px 6px',
+    borderRadius: '9999px',
     display: 'inline-flex',
     alignItems: 'center',
     gap: '4px',
-    backgroundColor: '#F0F3F8',
+    flexShrink: 0,
+  },
+  svcBlurb: {
+    fontSize: '12.5px',
+    color: '#475569',
+    lineHeight: 1.5,
+    margin: 0,
+  },
+  contactDetails: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '4px',
+    padding: '10px 12px',
+    backgroundColor: '#F8FAFC',
+    borderRadius: '8px',
+    border: '1px solid #E2E8F0',
+  },
+  contactItem: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    fontSize: '12px',
+    color: '#334155',
+  },
+  coordPill: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '4px',
+    backgroundColor: '#F8FAFC',
+    border: '1px solid #E4E9F0',
     padding: '4px 8px',
     borderRadius: '6px',
     fontSize: '11px',
     fontWeight: 600,
     color: '#07152B',
   },
-  errorBox: {
-    backgroundColor: '#FFF0F0',
-    border: '1px solid rgba(214, 48, 49, 0.3)',
-    color: '#D63031',
-    padding: '10px 14px',
+  cardFooter: {
+    marginTop: 'auto',
+    paddingTop: '8px',
+    borderTop: '1px solid #EAEFF6',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  editBtn: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '6px',
+    padding: '6px 12px',
+    backgroundColor: '#FFFFFF',
+    border: '1px solid #CBD5E1',
+    borderRadius: '6px',
+    fontSize: '12px',
+    fontWeight: 700,
+    color: '#07152B',
+    cursor: 'pointer',
+  },
+  deleteBtn: {
+    width: '30px',
+    height: '30px',
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FFF5F5',
+    border: '1px solid #FED7D7',
+    borderRadius: '6px',
+    cursor: 'pointer',
+  },
+  emptyState: {
+    padding: '48px',
+    textAlign: 'center',
+    backgroundColor: '#FFFFFF',
+    border: '1px solid #E4E9F0',
+    borderRadius: '12px',
+    color: '#5A687A',
+    fontSize: '14px',
+  },
+  // In-Page Dedicated Editor Styles
+  editorNav: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#FFFFFF',
+    border: '1px solid #E4E9F0',
+    borderRadius: '12px',
+    padding: '16px 20px',
+    boxShadow: '0 2px 8px rgba(7, 21, 43, 0.03)',
+  },
+  editorNavLeft: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '16px',
+  },
+  backBtn: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '6px',
+    padding: '8px 14px',
+    backgroundColor: '#F8FAFC',
+    border: '1px solid #E4E9F0',
     borderRadius: '8px',
     fontSize: '13px',
+    fontWeight: 600,
+    color: '#07152B',
+    cursor: 'pointer',
   },
-  formGrid: {
+  editorBreadcrumbs: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    fontSize: '13px',
+  },
+  breadcrumbMuted: {
+    color: '#8A9AA8',
+  },
+  breadcrumbSep: {
+    color: '#CBD5E1',
+  },
+  breadcrumbCurrent: {
+    fontWeight: 700,
+    color: '#07152B',
+  },
+  editorNavActions: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '10px',
+  },
+  editorGrid: {
     display: 'grid',
     gridTemplateColumns: 'repeat(2, 1fr)',
+    gap: '24px',
+    alignItems: 'start',
+  },
+  formCard: {
+    backgroundColor: '#FFFFFF',
+    border: '1px solid #E4E9F0',
+    borderRadius: '14px',
+    padding: '24px',
+    boxShadow: '0 2px 8px rgba(7, 21, 43, 0.03)',
+  },
+  cardSectionTitle: {
+    fontSize: '18px',
+    color: '#07152B',
+    margin: '0 0 4px 0',
+  },
+  cardSectionSub: {
+    fontSize: '12.5px',
+    color: '#5A687A',
+    margin: '0 0 18px 0',
+  },
+  formStack: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '16px',
+  },
+  inputRow: {
+    display: 'flex',
     gap: '14px',
+  },
+  fullInput: {
+    width: '100%',
+    boxSizing: 'border-box',
+    padding: '10px 14px',
+    backgroundColor: '#FFFFFF',
+    border: '1px solid #E4E9F0',
+    borderRadius: '8px',
+    fontSize: '13.5px',
+    color: '#07152B',
+  },
+  imagePreviewWrap: {
+    marginTop: '8px',
+    height: '140px',
+    width: '100%',
+    borderRadius: '8px',
+    overflow: 'hidden',
+    border: '1px solid #E4E9F0',
+  },
+  imagePreview: {
+    width: '100%',
+    height: '100%',
+    objectFit: 'cover',
+  },
+  checkboxRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+  },
+  checkbox: {
+    width: '16px',
+    height: '16px',
+    cursor: 'pointer',
+  },
+  checkboxLabel: {
+    fontSize: '13px',
+    fontWeight: 600,
+    color: '#07152B',
+    cursor: 'pointer',
   },
   label: {
     display: 'block',
@@ -674,5 +931,13 @@ const styles: { [key: string]: React.CSSProperties } = {
     fontWeight: 700,
     color: '#07152B',
     marginBottom: '6px',
+  },
+  errorBox: {
+    backgroundColor: '#FFF0F0',
+    border: '1px solid rgba(214, 48, 49, 0.3)',
+    color: '#D63031',
+    padding: '12px 16px',
+    borderRadius: '8px',
+    fontSize: '13px',
   },
 };

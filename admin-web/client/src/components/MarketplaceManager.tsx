@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { adminApi } from '../api';
-import { Plus, Search, Edit2, Trash2, ShoppingBag, MapPin, PackageCheck, RefreshCw } from 'lucide-react';
+import { Plus, Search, Edit3, Trash2, RefreshCw, ArrowLeft, Check, MapPin } from 'lucide-react';
 
 interface ProductItem {
   id: string;
@@ -49,8 +49,8 @@ export const MarketplaceManager: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
 
-  // Modal State
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  // Dedicated In-Page Editor State (NO POPUPS)
+  const [isEditorActive, setIsEditorActive] = useState(false);
   const [editingItem, setEditingItem] = useState<ProductItem | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
@@ -114,7 +114,8 @@ export const MarketplaceManager: React.FC = () => {
       inStock: true,
     });
     setErrorMessage('');
-    setIsModalOpen(true);
+    setIsEditorActive(true);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleOpenEdit = (item: ProductItem) => {
@@ -137,14 +138,23 @@ export const MarketplaceManager: React.FC = () => {
       inStock: item.inStock,
     });
     setErrorMessage('');
-    setIsModalOpen(true);
+    setIsEditorActive(true);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const handleDelete = async (id: string) => {
-    if (!window.confirm('Are you sure you wish to delete this artisan product?')) return;
+  const handleCloseEditor = () => {
+    setIsEditorActive(false);
+    setEditingItem(null);
+  };
+
+  const handleDelete = async (id: string, title: string) => {
+    if (!window.confirm(`Are you sure you wish to delete "${title}"?`)) return;
     try {
       await adminApi.deleteProduct(id);
       loadData();
+      if (editingItem?.id === id) {
+        handleCloseEditor();
+      }
     } catch (err: any) {
       setErrorMessage(err.message || 'Failed to delete product');
     }
@@ -161,7 +171,7 @@ export const MarketplaceManager: React.FC = () => {
       } else {
         await adminApi.createProduct(formData);
       }
-      setIsModalOpen(false);
+      setIsEditorActive(false);
       loadData();
     } catch (err: any) {
       setErrorMessage(err.message || 'Failed to save product');
@@ -186,14 +196,236 @@ export const MarketplaceManager: React.FC = () => {
       p.sellerName.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  // Dedicated In-Page Full Workspace Editor (NO POPUP)
+  if (isEditorActive) {
+    return (
+      <div style={styles.container}>
+        {/* Editor Top Navigation Bar */}
+        <div style={styles.editorNav}>
+          <div style={styles.editorNavLeft}>
+            <button style={styles.backBtn} onClick={handleCloseEditor}>
+              <ArrowLeft size={16} color="#07152B" />
+              <span>Back to Products</span>
+            </button>
+            <div style={styles.editorBreadcrumbs}>
+              <span style={styles.breadcrumbMuted}>Marketplace</span>
+              <span style={styles.breadcrumbSep}>/</span>
+              <span style={styles.breadcrumbCurrent}>
+                {editingItem ? `Edit: ${editingItem.title}` : 'Add New Artisan Product'}
+              </span>
+            </div>
+          </div>
+
+          <div style={styles.editorNavActions}>
+            <button type="button" className="btn btn-secondary" onClick={handleCloseEditor}>
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="btn btn-primary"
+              disabled={isSaving}
+              onClick={handleSave}
+            >
+              <Check size={16} color="#07152B" />
+              <span>{isSaving ? 'Saving...' : editingItem ? 'Save Product' : 'Publish Product'}</span>
+            </button>
+          </div>
+        </div>
+
+        {errorMessage && <div style={styles.errorBox}>{errorMessage}</div>}
+
+        {/* 2-Column Dedicated Editor Workspace */}
+        <form onSubmit={handleSave} style={styles.editorGrid}>
+          {/* Left Column: Product Details */}
+          <div style={styles.formCard}>
+            <h3 style={styles.cardSectionTitle}>Product Details & Pricing</h3>
+            <p style={styles.cardSectionSub}>Pricing, category, materials, and inventory availability</p>
+
+            <div style={styles.formStack}>
+              <div>
+                <label style={styles.label}>Product Title *</label>
+                <input
+                  type="text"
+                  required
+                  value={formData.title}
+                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                  placeholder="e.g. Royal Gonderian Silk Kemis"
+                  style={styles.fullInput}
+                />
+              </div>
+
+              <div style={styles.inputRow}>
+                <div style={{ flex: 1 }}>
+                  <label style={styles.label}>Category *</label>
+                  <select
+                    value={formData.category}
+                    onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                    style={styles.fullInput}
+                  >
+                    <option value="Textiles & Habesha Kemis">Textiles & Habesha Kemis</option>
+                    <option value="Coffee & Buna Ceremonial">Coffee & Buna Ceremonial</option>
+                    <option value="Jewelry & Silver Filigree">Jewelry & Silver Filigree</option>
+                    <option value="Leathercraft & Art">Leathercraft & Art</option>
+                    <option value="Spices & Specialty Foods">Spices & Specialty Foods</option>
+                  </select>
+                </div>
+
+                <div style={{ flex: 1 }}>
+                  <label style={styles.label}>Price (ETB) *</label>
+                  <input
+                    type="number"
+                    required
+                    min={1}
+                    value={formData.price}
+                    onChange={(e) => setFormData({ ...formData, price: Number(e.target.value) })}
+                    style={styles.fullInput}
+                  />
+                </div>
+              </div>
+
+              <div style={styles.inputRow}>
+                <div style={{ flex: 1 }}>
+                  <label style={styles.label}>Materials</label>
+                  <input
+                    type="text"
+                    value={formData.materials}
+                    onChange={(e) => setFormData({ ...formData, materials: e.target.value })}
+                    placeholder="e.g. 100% Cotton, Silver, Clay"
+                    style={styles.fullInput}
+                  />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <label style={styles.label}>Origin Region</label>
+                  <input
+                    type="text"
+                    value={formData.origin}
+                    onChange={(e) => setFormData({ ...formData, origin: e.target.value })}
+                    placeholder="e.g. Addis Ababa, Harar, Gondar"
+                    style={styles.fullInput}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label style={styles.label}>Summary Blurb</label>
+                <input
+                  type="text"
+                  value={formData.blurb}
+                  onChange={(e) => setFormData({ ...formData, blurb: e.target.value })}
+                  placeholder="Handcrafted authentic Ethiopian artisan good..."
+                  style={styles.fullInput}
+                />
+              </div>
+
+              <div>
+                <label style={styles.label}>Full Description</label>
+                <textarea
+                  rows={4}
+                  value={formData.description}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  placeholder="Detailed craftsmanship and ceremonial background..."
+                  style={styles.textarea}
+                />
+              </div>
+
+              <div style={styles.checkboxRow}>
+                <input
+                  type="checkbox"
+                  id="inStockCheck"
+                  checked={formData.inStock}
+                  onChange={(e) => setFormData({ ...formData, inStock: e.target.checked })}
+                  style={styles.checkbox}
+                />
+                <label htmlFor="inStockCheck" style={styles.checkboxLabel}>
+                  Available in Stock for Immediate Order
+                </label>
+              </div>
+            </div>
+          </div>
+
+          {/* Right Column: Imagery & Guild Seller Details */}
+          <div style={styles.formCard}>
+            <h3 style={styles.cardSectionTitle}>Artisan Guild & Imagery</h3>
+            <p style={styles.cardSectionSub}>Seller workshop details and high-resolution photo preview</p>
+
+            <div style={styles.formStack}>
+              <div>
+                <label style={styles.label}>Product Photo URL *</label>
+                <input
+                  type="url"
+                  required
+                  value={formData.image}
+                  onChange={(e) => setFormData({ ...formData, image: e.target.value })}
+                  style={styles.fullInput}
+                />
+                {formData.image && (
+                  <div style={styles.imagePreviewWrap}>
+                    <img src={formData.image} alt="Preview" style={styles.imagePreview} />
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <label style={styles.label}>Seller / Artisan Guild Name *</label>
+                <input
+                  type="text"
+                  required
+                  value={formData.sellerName}
+                  onChange={(e) => setFormData({ ...formData, sellerName: e.target.value })}
+                  placeholder="e.g. Sheba Heritage Weavers Guild"
+                  style={styles.fullInput}
+                />
+              </div>
+
+              <div>
+                <label style={styles.label}>Seller Location</label>
+                <input
+                  type="text"
+                  value={formData.sellerLocation}
+                  onChange={(e) => setFormData({ ...formData, sellerLocation: e.target.value })}
+                  placeholder="e.g. Shiro Meda, Addis Ababa"
+                  style={styles.fullInput}
+                />
+              </div>
+
+              <div style={styles.inputRow}>
+                <div style={{ flex: 1 }}>
+                  <label style={styles.label}>Contact Phone</label>
+                  <input
+                    type="text"
+                    value={formData.sellerPhone}
+                    onChange={(e) => setFormData({ ...formData, sellerPhone: e.target.value })}
+                    placeholder="+251 91 123 4567"
+                    style={styles.fullInput}
+                  />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <label style={styles.label}>WhatsApp (Optional)</label>
+                  <input
+                    type="text"
+                    value={formData.sellerWhatsapp}
+                    onChange={(e) => setFormData({ ...formData, sellerWhatsapp: e.target.value })}
+                    placeholder="+251 91 123 4567"
+                    style={styles.fullInput}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        </form>
+      </div>
+    );
+  }
+
+  // Catalog Directory List View
   return (
     <div style={styles.container}>
       {/* Top Header Row */}
       <div style={styles.topRow}>
         <div>
-          <h2 style={styles.sectionTitle}>Artisan Marketplace & Fulfillment</h2>
+          <h2 style={styles.sectionTitle}>Artisan Marketplace & Orders</h2>
           <p style={styles.sectionDesc}>
-            Curate authentic Ethiopian crafts, traditional apparel, Buna coffee ceremony sets, and manage delivery orders.
+            Curate authentic Ethiopian crafts, traditional apparel, Buna ceremony sets, and review customer orders.
           </p>
         </div>
 
@@ -204,7 +436,7 @@ export const MarketplaceManager: React.FC = () => {
           </button>
           <button className="btn btn-primary" onClick={handleOpenCreate}>
             <Plus size={16} color="#07152B" />
-            <span>Add Artisan Product</span>
+            <span>Add Product</span>
           </button>
         </div>
       </div>
@@ -218,7 +450,6 @@ export const MarketplaceManager: React.FC = () => {
           }}
           onClick={() => setActiveSubTab('products')}
         >
-          <ShoppingBag size={15} color={activeSubTab === 'products' ? '#07152B' : '#5A687A'} />
           <span>Product Catalog</span>
           <span style={styles.tabBadge}>{products.length}</span>
         </button>
@@ -230,114 +461,96 @@ export const MarketplaceManager: React.FC = () => {
           }}
           onClick={() => setActiveSubTab('orders')}
         >
-          <PackageCheck size={15} color={activeSubTab === 'orders' ? '#07152B' : '#5A687A'} />
-          <span>Customer Order Inquiries</span>
+          <span>Customer Orders</span>
           <span style={styles.tabBadge}>{orders.length}</span>
         </button>
       </div>
 
-      {/* Product Catalog Tab */}
+      {/* Products Tab View */}
       {activeSubTab === 'products' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
           <div style={styles.searchWrapper}>
             <Search size={16} color="#8A9AA8" style={{ position: 'absolute', left: '12px' }} />
             <input
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Search products by title, category, or guild..."
-              style={{ width: '340px', paddingLeft: '36px' }}
+              placeholder="Search products by title, category, or artisan..."
+              style={styles.searchInput}
             />
           </div>
 
-          <div className="table-wrap">
-            <table className="admin-table">
-              <thead>
-                <tr>
-                  <th>Product Details</th>
-                  <th>Category</th>
-                  <th>Unit Price</th>
-                  <th>Artisan / Guild</th>
-                  <th>Inventory Status</th>
-                  <th style={{ textAlign: 'right' }}>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {loading ? (
-                  <tr>
-                    <td colSpan={6} style={{ textAlign: 'center', padding: '36px', color: '#5A687A' }}>
-                      Loading artisan inventory...
-                    </td>
-                  </tr>
-                ) : filteredProducts.length === 0 ? (
-                  <tr>
-                    <td colSpan={6} style={{ textAlign: 'center', padding: '36px', color: '#5A687A' }}>
-                      No artisan products listed.
-                    </td>
-                  </tr>
-                ) : (
-                  filteredProducts.map((prod) => (
-                    <tr key={prod.id}>
-                      <td>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                          <img src={prod.image} alt={prod.title} style={styles.thumbImg} />
-                          <div>
-                            <div style={styles.prodTitle}>{prod.title}</div>
-                            <div style={styles.prodBlurb}>{prod.blurb || prod.origin || 'Addis Ababa'}</div>
-                          </div>
-                        </div>
-                      </td>
-                      <td>
-                        <span className="badge badge-navy">{prod.category}</span>
-                      </td>
-                      <td>
-                        <div style={{ fontWeight: 700, color: '#07152B', fontSize: '14px' }}>
-                          {prod.price?.toLocaleString()} {prod.currency || 'ETB'}
-                        </div>
-                      </td>
-                      <td>
-                        <div style={{ fontWeight: 600, color: '#07152B', fontSize: '13px' }}>
-                          {prod.sellerName}
-                        </div>
-                        <div style={{ fontSize: '11.5px', color: '#5A687A' }}>
-                          {prod.sellerLocation}
-                        </div>
-                      </td>
-                      <td>
-                        {prod.inStock ? (
-                          <span className="badge badge-success">In Stock</span>
-                        ) : (
-                          <span className="badge badge-error">Sold Out</span>
-                        )}
-                      </td>
-                      <td style={{ textAlign: 'right' }}>
-                        <div style={{ display: 'inline-flex', gap: '6px' }}>
-                          <button className="btn-icon" onClick={() => handleOpenEdit(prod)} title="Edit Product">
-                            <Edit2 size={15} />
-                          </button>
-                          <button className="btn-icon" onClick={() => handleDelete(prod.id)} title="Delete Product">
-                            <Trash2 size={15} color="#D63031" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
+          {loading ? (
+            <div style={styles.emptyState}>Loading artisan products...</div>
+          ) : filteredProducts.length === 0 ? (
+            <div style={styles.emptyState}>No products found.</div>
+          ) : (
+            <div style={styles.cardsGrid}>
+              {filteredProducts.map((prod) => (
+                <div key={prod.id} style={styles.productCard}>
+                  <div style={styles.cardThumbWrap}>
+                    <img src={prod.image} alt={prod.title} style={styles.cardThumb} />
+                    <div style={styles.cardOverlayRow}>
+                      <span style={styles.categoryBadge}>{prod.category}</span>
+                      {prod.inStock ? (
+                        <span style={styles.stockBadge}>In Stock</span>
+                      ) : (
+                        <span style={styles.outStockBadge}>Sold Out</span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div style={styles.cardBody}>
+                    <div style={styles.cardHeaderRow}>
+                      <h3 style={styles.prodTitle}>{prod.title}</h3>
+                      <div style={styles.priceTag}>
+                        {prod.price?.toLocaleString()} {prod.currency || 'ETB'}
+                      </div>
+                    </div>
+
+                    <p style={styles.prodBlurb}>{prod.blurb || prod.materials || 'Handcrafted authentic item'}</p>
+
+                    <div style={styles.sellerRow}>
+                      <span style={styles.sellerName}>{prod.sellerName}</span>
+                      <span style={{ color: '#CBD5E1' }}>•</span>
+                      <span style={styles.sellerLoc}>{prod.sellerLocation}</span>
+                    </div>
+                  </div>
+
+                  <div style={styles.cardFooter}>
+                    <button
+                      type="button"
+                      style={styles.editBtn}
+                      onClick={() => handleOpenEdit(prod)}
+                    >
+                      <Edit3 size={13} color="#07152B" />
+                      <span>Edit Product</span>
+                    </button>
+                    <button
+                      type="button"
+                      style={styles.deleteBtn}
+                      onClick={() => handleDelete(prod.id, prod.title)}
+                      title="Delete Product"
+                    >
+                      <Trash2 size={14} color="#C53030" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
-      {/* Customer Orders Tab */}
+      {/* Orders Tab View */}
       {activeSubTab === 'orders' && (
         <div className="table-wrap">
           <table className="admin-table">
             <thead>
               <tr>
                 <th>Customer Details</th>
-                <th>Ordered Product</th>
-                <th>Qty & Value</th>
+                <th>Ordered Item</th>
+                <th>Quantity & Total</th>
                 <th>Delivery Address</th>
                 <th>Status</th>
                 <th style={{ textAlign: 'right' }}>Update Status</th>
@@ -368,7 +581,7 @@ export const MarketplaceManager: React.FC = () => {
                     <td>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                         {ord.product?.image && (
-                          <img src={ord.product.image} alt={ord.product.title} style={styles.thumbImg} />
+                          <img src={ord.product.image} alt={ord.product.title} style={styles.tableThumb} />
                         )}
                         <div>
                           <div style={{ fontWeight: 600, color: '#07152B', fontSize: '13px' }}>
@@ -438,173 +651,6 @@ export const MarketplaceManager: React.FC = () => {
               )}
             </tbody>
           </table>
-        </div>
-      )}
-
-      {/* Create / Edit Modal */}
-      {isModalOpen && (
-        <div className="modal-overlay">
-          <div className="modal-window modal-window-wide">
-            <div className="modal-header">
-              <h3 className="modal-title">
-                {editingItem ? 'Edit Artisan Product' : 'Add New Artisan Product'}
-              </h3>
-              <button className="btn-icon" onClick={() => setIsModalOpen(false)}>
-                ✕
-              </button>
-            </div>
-
-            <form onSubmit={handleSave}>
-              <div className="modal-body">
-                {errorMessage && <div style={styles.errorBox}>{errorMessage}</div>}
-
-                <div style={styles.formGrid}>
-                  <div>
-                    <label style={styles.label}>Product Title *</label>
-                    <input
-                      type="text"
-                      required
-                      value={formData.title}
-                      onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                      placeholder="e.g. Royal Gonderian Silk Kemis"
-                      style={{ width: '100%' }}
-                    />
-                  </div>
-
-                  <div>
-                    <label style={styles.label}>Category *</label>
-                    <select
-                      value={formData.category}
-                      onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                      style={{ width: '100%' }}
-                    >
-                      <option value="Textiles & Habesha Kemis">Textiles & Habesha Kemis</option>
-                      <option value="Coffee & Buna Ceremonial">Coffee & Buna Ceremonial</option>
-                      <option value="Jewelry & Silver Filigree">Jewelry & Silver Filigree</option>
-                      <option value="Leathercraft & Art">Leathercraft & Art</option>
-                      <option value="Spices & Specialty Foods">Spices & Specialty Foods</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div style={styles.formGrid}>
-                  <div>
-                    <label style={styles.label}>Price (ETB) *</label>
-                    <input
-                      type="number"
-                      required
-                      min={1}
-                      value={formData.price}
-                      onChange={(e) => setFormData({ ...formData, price: Number(e.target.value) })}
-                      style={{ width: '100%' }}
-                    />
-                  </div>
-
-                  <div>
-                    <label style={styles.label}>Currency</label>
-                    <input
-                      type="text"
-                      value={formData.currency}
-                      onChange={(e) => setFormData({ ...formData, currency: e.target.value })}
-                      style={{ width: '100%' }}
-                    />
-                  </div>
-                </div>
-
-                <div style={styles.formGrid}>
-                  <div>
-                    <label style={styles.label}>Seller / Guild Name *</label>
-                    <input
-                      type="text"
-                      required
-                      value={formData.sellerName}
-                      onChange={(e) => setFormData({ ...formData, sellerName: e.target.value })}
-                      placeholder="e.g. Sheba Heritage Weavers Guild"
-                      style={{ width: '100%' }}
-                    />
-                  </div>
-
-                  <div>
-                    <label style={styles.label}>Seller Location</label>
-                    <input
-                      type="text"
-                      value={formData.sellerLocation}
-                      onChange={(e) => setFormData({ ...formData, sellerLocation: e.target.value })}
-                      placeholder="e.g. Shiro Meda, Addis Ababa"
-                      style={{ width: '100%' }}
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label style={styles.label}>Product Image URL *</label>
-                  <input
-                    type="url"
-                    required
-                    value={formData.image}
-                    onChange={(e) => setFormData({ ...formData, image: e.target.value })}
-                    style={{ width: '100%' }}
-                  />
-                </div>
-
-                <div>
-                  <label style={styles.label}>Short Summary (Blurb)</label>
-                  <input
-                    type="text"
-                    value={formData.blurb}
-                    onChange={(e) => setFormData({ ...formData, blurb: e.target.value })}
-                    placeholder="Handcrafted authentic Ethiopian artisan good..."
-                    style={{ width: '100%' }}
-                  />
-                </div>
-
-                <div style={styles.formGrid}>
-                  <div>
-                    <label style={styles.label}>Materials</label>
-                    <input
-                      type="text"
-                      value={formData.materials}
-                      onChange={(e) => setFormData({ ...formData, materials: e.target.value })}
-                      placeholder="e.g. 100% Cotton, Silver, Clay"
-                      style={{ width: '100%' }}
-                    />
-                  </div>
-                  <div>
-                    <label style={styles.label}>Origin Region</label>
-                    <input
-                      type="text"
-                      value={formData.origin}
-                      onChange={(e) => setFormData({ ...formData, origin: e.target.value })}
-                      placeholder="e.g. Harar, Gonder, Addis Ababa"
-                      style={{ width: '100%' }}
-                    />
-                  </div>
-                </div>
-
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <input
-                    type="checkbox"
-                    id="inStockCheck"
-                    checked={formData.inStock}
-                    onChange={(e) => setFormData({ ...formData, inStock: e.target.checked })}
-                    style={{ width: '16px', height: '16px', cursor: 'pointer' }}
-                  />
-                  <label htmlFor="inStockCheck" style={{ fontSize: '13px', fontWeight: 600, color: '#07152B', cursor: 'pointer' }}>
-                    Available In Stock for Purchase
-                  </label>
-                </div>
-              </div>
-
-              <div className="modal-footer">
-                <button type="button" className="btn btn-secondary" onClick={() => setIsModalOpen(false)}>
-                  Cancel
-                </button>
-                <button type="submit" className="btn btn-primary" disabled={isSaving}>
-                  {isSaving ? 'Saving Product...' : editingItem ? 'Update Product' : 'Add Product'}
-                </button>
-              </div>
-            </form>
-          </div>
         </div>
       )}
     </div>
@@ -679,36 +725,307 @@ const styles: { [key: string]: React.CSSProperties } = {
     position: 'relative',
     display: 'flex',
     alignItems: 'center',
+    width: '360px',
   },
-  thumbImg: {
-    width: '46px',
-    height: '46px',
+  searchInput: {
+    width: '100%',
+    padding: '10px 14px 10px 36px',
+    backgroundColor: '#FFFFFF',
+    border: '1px solid #E4E9F0',
     borderRadius: '8px',
+    fontSize: '13.5px',
+    color: '#07152B',
+  },
+  cardsGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
+    gap: '20px',
+  },
+  productCard: {
+    backgroundColor: '#FFFFFF',
+    border: '1px solid #E4E9F0',
+    borderRadius: '14px',
+    overflow: 'hidden',
+    boxShadow: '0 2px 8px rgba(7, 21, 43, 0.04)',
+    display: 'flex',
+    flexDirection: 'column',
+  },
+  cardThumbWrap: {
+    position: 'relative',
+    height: '180px',
+    width: '100%',
+    overflow: 'hidden',
+  },
+  cardThumb: {
+    width: '100%',
+    height: '100%',
+    objectFit: 'cover',
+  },
+  cardOverlayRow: {
+    position: 'absolute',
+    top: '12px',
+    left: '12px',
+    right: '12px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  categoryBadge: {
+    backgroundColor: 'rgba(7, 21, 43, 0.85)',
+    backdropFilter: 'blur(6px)',
+    color: '#FFFFFF',
+    fontSize: '10.5px',
+    fontWeight: 700,
+    padding: '4px 10px',
+    borderRadius: '9999px',
+  },
+  stockBadge: {
+    backgroundColor: '#E8F7ED',
+    border: '1px solid rgba(22, 128, 60, 0.25)',
+    color: '#16803C',
+    fontSize: '10px',
+    fontWeight: 800,
+    padding: '4px 8px',
+    borderRadius: '9999px',
+  },
+  outStockBadge: {
+    backgroundColor: '#FFF0F0',
+    border: '1px solid rgba(214, 48, 49, 0.25)',
+    color: '#D63031',
+    fontSize: '10px',
+    fontWeight: 800,
+    padding: '4px 8px',
+    borderRadius: '9999px',
+  },
+  cardBody: {
+    padding: '16px 18px',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '6px',
+    flex: 1,
+  },
+  cardHeaderRow: {
+    display: 'flex',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: '8px',
+  },
+  prodTitle: {
+    fontSize: '15px',
+    fontWeight: 700,
+    color: '#07152B',
+    margin: 0,
+  },
+  priceTag: {
+    fontSize: '14px',
+    fontWeight: 800,
+    color: '#07152B',
+    flexShrink: 0,
+  },
+  prodBlurb: {
+    fontSize: '12.5px',
+    color: '#475569',
+    lineHeight: 1.4,
+    margin: 0,
+  },
+  sellerRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '6px',
+    fontSize: '11.5px',
+    color: '#5A687A',
+    marginTop: 'auto',
+    paddingTop: '6px',
+  },
+  sellerName: {
+    fontWeight: 600,
+    color: '#07152B',
+  },
+  sellerLoc: {
+    color: '#8A9AA8',
+  },
+  cardFooter: {
+    padding: '12px 18px',
+    borderTop: '1px solid #EAEFF6',
+    backgroundColor: '#FAFCFE',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: '8px',
+  },
+  editBtn: {
+    flex: 1,
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: '6px',
+    padding: '8px 14px',
+    backgroundColor: '#FFFFFF',
+    border: '1px solid #CBD5E1',
+    borderRadius: '8px',
+    fontSize: '12.5px',
+    fontWeight: 700,
+    color: '#07152B',
+    cursor: 'pointer',
+  },
+  deleteBtn: {
+    width: '34px',
+    height: '34px',
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FFF5F5',
+    border: '1px solid #FED7D7',
+    borderRadius: '8px',
+    cursor: 'pointer',
+  },
+  tableThumb: {
+    width: '40px',
+    height: '40px',
+    borderRadius: '6px',
     objectFit: 'cover',
     border: '1px solid #E4E9F0',
   },
-  prodTitle: {
+  emptyState: {
+    padding: '48px',
+    textAlign: 'center',
+    backgroundColor: '#FFFFFF',
+    border: '1px solid #E4E9F0',
+    borderRadius: '12px',
+    color: '#5A687A',
     fontSize: '14px',
+  },
+  // In-Page Dedicated Editor Styles
+  editorNav: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#FFFFFF',
+    border: '1px solid #E4E9F0',
+    borderRadius: '12px',
+    padding: '16px 20px',
+    boxShadow: '0 2px 8px rgba(7, 21, 43, 0.03)',
+  },
+  editorNavLeft: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '16px',
+  },
+  backBtn: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '6px',
+    padding: '8px 14px',
+    backgroundColor: '#F8FAFC',
+    border: '1px solid #E4E9F0',
+    borderRadius: '8px',
+    fontSize: '13px',
+    fontWeight: 600,
+    color: '#07152B',
+    cursor: 'pointer',
+  },
+  editorBreadcrumbs: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    fontSize: '13px',
+  },
+  breadcrumbMuted: {
+    color: '#8A9AA8',
+  },
+  breadcrumbSep: {
+    color: '#CBD5E1',
+  },
+  breadcrumbCurrent: {
     fontWeight: 700,
     color: '#07152B',
   },
-  prodBlurb: {
-    fontSize: '12px',
-    color: '#5A687A',
-    marginTop: '2px',
+  editorNavActions: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '10px',
   },
-  errorBox: {
-    backgroundColor: '#FFF0F0',
-    border: '1px solid rgba(214, 48, 49, 0.3)',
-    color: '#D63031',
-    padding: '10px 14px',
-    borderRadius: '8px',
-    fontSize: '13px',
-  },
-  formGrid: {
+  editorGrid: {
     display: 'grid',
     gridTemplateColumns: 'repeat(2, 1fr)',
+    gap: '24px',
+    alignItems: 'start',
+  },
+  formCard: {
+    backgroundColor: '#FFFFFF',
+    border: '1px solid #E4E9F0',
+    borderRadius: '14px',
+    padding: '24px',
+    boxShadow: '0 2px 8px rgba(7, 21, 43, 0.03)',
+  },
+  cardSectionTitle: {
+    fontSize: '18px',
+    color: '#07152B',
+    margin: '0 0 4px 0',
+  },
+  cardSectionSub: {
+    fontSize: '12.5px',
+    color: '#5A687A',
+    margin: '0 0 18px 0',
+  },
+  formStack: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '16px',
+  },
+  inputRow: {
+    display: 'flex',
     gap: '14px',
+  },
+  fullInput: {
+    width: '100%',
+    boxSizing: 'border-box',
+    padding: '10px 14px',
+    backgroundColor: '#FFFFFF',
+    border: '1px solid #E4E9F0',
+    borderRadius: '8px',
+    fontSize: '13.5px',
+    color: '#07152B',
+  },
+  textarea: {
+    width: '100%',
+    boxSizing: 'border-box',
+    padding: '10px 14px',
+    backgroundColor: '#FFFFFF',
+    border: '1px solid #E4E9F0',
+    borderRadius: '8px',
+    fontSize: '13.5px',
+    color: '#07152B',
+    fontFamily: 'inherit',
+  },
+  imagePreviewWrap: {
+    marginTop: '8px',
+    height: '140px',
+    width: '100%',
+    borderRadius: '8px',
+    overflow: 'hidden',
+    border: '1px solid #E4E9F0',
+  },
+  imagePreview: {
+    width: '100%',
+    height: '100%',
+    objectFit: 'cover',
+  },
+  checkboxRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+  },
+  checkbox: {
+    width: '16px',
+    height: '16px',
+    cursor: 'pointer',
+  },
+  checkboxLabel: {
+    fontSize: '13px',
+    fontWeight: 600,
+    color: '#07152B',
+    cursor: 'pointer',
   },
   label: {
     display: 'block',
@@ -716,5 +1033,13 @@ const styles: { [key: string]: React.CSSProperties } = {
     fontWeight: 700,
     color: '#07152B',
     marginBottom: '6px',
+  },
+  errorBox: {
+    backgroundColor: '#FFF0F0',
+    border: '1px solid rgba(214, 48, 49, 0.3)',
+    color: '#D63031',
+    padding: '12px 16px',
+    borderRadius: '8px',
+    fontSize: '13px',
   },
 };
