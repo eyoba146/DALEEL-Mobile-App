@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import L from 'leaflet';
-import { Search, MapPin, Crosshair, Navigation } from 'lucide-react';
+import { Search, MapPin, Crosshair, Navigation, X, Check, Loader2 } from 'lucide-react';
 
 interface MapPickerProps {
   latitude: number | null;
@@ -10,13 +10,23 @@ interface MapPickerProps {
   onCoordinatesChange: (lat: number, lng: number, address?: string) => void;
 }
 
+interface SearchResultItem {
+  lat: number;
+  lng: number;
+  displayName: string;
+}
+
 const ETHIOPIAN_HUBS = [
   { name: 'Addis Ababa (Bole)', lat: 9.0105, lng: 38.7615 },
+  { name: 'Addis Ababa (Piazza)', lat: 9.0350, lng: 38.7520 },
   { name: 'Lalibela', lat: 12.0322, lng: 39.0416 },
-  { name: 'Gondar', lat: 12.6075, lng: 37.4667 },
+  { name: 'Gondar (Fasil Ghebbi)', lat: 12.6075, lng: 37.4667 },
   { name: 'Simien Mountains', lat: 13.1833, lng: 38.0667 },
   { name: 'Hawassa', lat: 7.0504, lng: 38.4763 },
-  { name: 'Harar', lat: 9.3139, lng: 42.1278 },
+  { name: 'Harar (Jugol)', lat: 9.3139, lng: 42.1278 },
+  { name: 'Bahir Dar (Lake Tana)', lat: 11.5936, lng: 37.3908 },
+  { name: 'Axum', lat: 14.1264, lng: 38.7217 },
+  { name: 'Arba Minch', lat: 6.0333, lng: 37.5500 },
 ];
 
 export const MapPicker: React.FC<MapPickerProps> = ({
@@ -32,8 +42,12 @@ export const MapPicker: React.FC<MapPickerProps> = ({
 
   const [currentLat, setCurrentLat] = useState<number>(latitude || 9.0105);
   const [currentLng, setCurrentLng] = useState<number>(longitude || 38.7615);
+  const [currentAddress, setCurrentAddress] = useState<string>(address || '');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [isSearching, setIsSearching] = useState<boolean>(false);
+  const [searchResults, setSearchResults] = useState<SearchResultItem[]>([]);
+  const [searchNotice, setSearchNotice] = useState<string>('');
+  const [showDropdown, setShowDropdown] = useState<boolean>(false);
 
   // Initialize Map
   useEffect(() => {
@@ -101,6 +115,7 @@ export const MapPicker: React.FC<MapPickerProps> = ({
       marker.setLatLng([lat, lng]);
       setCurrentLat(lat);
       setCurrentLng(lng);
+      setShowDropdown(false);
       onCoordinatesChange(lat, lng);
     });
 
@@ -109,6 +124,7 @@ export const MapPicker: React.FC<MapPickerProps> = ({
       const pos = marker.getLatLng();
       setCurrentLat(pos.lat);
       setCurrentLng(pos.lng);
+      setShowDropdown(false);
       onCoordinatesChange(pos.lat, pos.lng);
     });
 
@@ -128,69 +144,198 @@ export const MapPicker: React.FC<MapPickerProps> = ({
         setCurrentLng(longitude);
       }
     }
-  }, [latitude, longitude]);
+    if (address) {
+      setCurrentAddress(address);
+    }
+  }, [latitude, longitude, address]);
 
-  // Search Address via OpenStreetMap Nominatim
-  const handleSearch = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!searchQuery.trim() || !mapInstanceRef.current || !markerRef.current) return;
+  // Robust Search Handler (NO FORM, NEVER RESETS PAGE OR TAB)
+  const executeSearch = async () => {
+    const term = searchQuery.trim();
+    if (!term || !mapInstanceRef.current || !markerRef.current) return;
 
     setIsSearching(true);
+    setSearchNotice('');
+    setSearchResults([]);
+
     try {
-      const endpoint = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
-        searchQuery + ', Ethiopia'
-      )}&limit=1`;
-      const res = await fetch(endpoint, {
+      // 1. First attempt: Search within Ethiopia
+      let endpoint = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
+        term + ', Ethiopia'
+      )}&limit=5`;
+      let res = await fetch(endpoint, {
         headers: { 'Accept-Language': 'en' },
       });
-      const data = await res.json();
+      let data = await res.json();
+
+      // 2. Second attempt: Fallback to exact search query if no results
+      if (!data || data.length === 0) {
+        endpoint = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
+          term
+        )}&limit=5`;
+        res = await fetch(endpoint, {
+          headers: { 'Accept-Language': 'en' },
+        });
+        data = await res.json();
+      }
 
       if (data && data.length > 0) {
-        const resultLat = parseFloat(data[0].lat);
-        const resultLng = parseFloat(data[0].lon);
-        const displayName = data[0].display_name;
+        const results: SearchResultItem[] = data.map((item: any) => ({
+          lat: parseFloat(item.lat),
+          lng: parseFloat(item.lon),
+          displayName: item.display_name,
+        }));
 
-        mapInstanceRef.current.setView([resultLat, resultLng], 15);
-        markerRef.current.setLatLng([resultLat, resultLng]);
-        setCurrentLat(resultLat);
-        setCurrentLng(resultLng);
-        onCoordinatesChange(resultLat, resultLng, displayName);
+        setSearchResults(results);
+        setShowDropdown(true);
+
+        // Instantly fly to the best result
+        const best = results[0];
+        mapInstanceRef.current.flyTo([best.lat, best.lng], 15, { duration: 1.2 });
+        markerRef.current.setLatLng([best.lat, best.lng]);
+        setCurrentLat(best.lat);
+        setCurrentLng(best.lng);
+        setCurrentAddress(best.displayName);
+        onCoordinatesChange(best.lat, best.lng, best.displayName);
+      } else {
+        setSearchNotice(
+          `No coordinates found for "${term}". Try searching for a known city, landmark, or district (e.g. Bole, Lalibela, Meskel Square), or click the map directly.`
+        );
+        setShowDropdown(false);
       }
-    } catch (err) {
-      console.error('Failed to geocode search:', err);
+    } catch (err: any) {
+      console.error('Failed to geocode location:', err);
+      setSearchNotice('Location search is temporarily unavailable. Please click anywhere on the map to set coordinates.');
     } finally {
       setIsSearching(false);
     }
   };
 
+  const handleSelectResult = (result: SearchResultItem) => {
+    if (!mapInstanceRef.current || !markerRef.current) return;
+    mapInstanceRef.current.flyTo([result.lat, result.lng], 15, { duration: 1.0 });
+    markerRef.current.setLatLng([result.lat, result.lng]);
+    setCurrentLat(result.lat);
+    setCurrentLng(result.lng);
+    setCurrentAddress(result.displayName);
+    setShowDropdown(false);
+    onCoordinatesChange(result.lat, result.lng, result.displayName);
+  };
+
   const handleHubSelect = (hubLat: number, hubLng: number, hubName: string) => {
     if (!mapInstanceRef.current || !markerRef.current) return;
-    mapInstanceRef.current.setView([hubLat, hubLng], 14);
+    mapInstanceRef.current.flyTo([hubLat, hubLng], 14, { duration: 1.0 });
     markerRef.current.setLatLng([hubLat, hubLng]);
     setCurrentLat(hubLat);
     setCurrentLng(hubLng);
-    onCoordinatesChange(hubLat, hubLng, `${hubName}, Ethiopia`);
+    const addr = `${hubName}, Ethiopia`;
+    setCurrentAddress(addr);
+    setShowDropdown(false);
+    onCoordinatesChange(hubLat, hubLng, addr);
+  };
+
+  const clearSearch = () => {
+    setSearchQuery('');
+    setSearchResults([]);
+    setSearchNotice('');
+    setShowDropdown(false);
   };
 
   return (
     <div style={styles.container}>
-      {/* Top Search & Presets Toolbar */}
+      {/* Top Search & Presets Toolbar (NON-FORM TO PREVENT ANY TAB RESET) */}
       <div style={styles.toolbar}>
-        <form onSubmit={handleSearch} style={styles.searchForm}>
+        <div style={styles.searchRow}>
           <div style={styles.searchWrapper}>
             <Search size={16} color="#8A9AA8" style={styles.searchIcon} />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  executeSearch();
+                }
+              }}
               placeholder="Search landmark, avenue, or city in Ethiopia..."
               style={styles.searchInput}
             />
+            {searchQuery && (
+              <button
+                type="button"
+                style={styles.clearSearchBtn}
+                onClick={clearSearch}
+                title="Clear search"
+              >
+                <X size={14} color="#5A687A" />
+              </button>
+            )}
           </div>
-          <button type="submit" disabled={isSearching} style={styles.searchBtn}>
-            {isSearching ? 'Locating...' : 'Search'}
+
+          <button
+            type="button"
+            disabled={isSearching}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              executeSearch();
+            }}
+            style={styles.searchBtn}
+          >
+            {isSearching ? (
+              <>
+                <Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} />
+                <span>Locating...</span>
+              </>
+            ) : (
+              <>
+                <Search size={14} />
+                <span>Search Location</span>
+              </>
+            )}
           </button>
-        </form>
+        </div>
+
+        {/* Location Suggestions Dropdown */}
+        {showDropdown && searchResults.length > 0 && (
+          <div style={styles.resultsDropdown}>
+            <div style={styles.dropdownHeader}>
+              <span>Matching Locations ({searchResults.length})</span>
+              <button
+                type="button"
+                style={styles.closeDropdownBtn}
+                onClick={() => setShowDropdown(false)}
+              >
+                <X size={13} />
+              </button>
+            </div>
+            {searchResults.map((res, idx) => (
+              <div
+                key={idx}
+                style={styles.resultItem}
+                onClick={() => handleSelectResult(res)}
+              >
+                <MapPin size={14} color="#DFB76C" style={{ marginTop: '2px', flexShrink: 0 }} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={styles.resultName}>{res.displayName.split(',')[0]}</div>
+                  <div style={styles.resultFullAddress}>{res.displayName}</div>
+                </div>
+                <div style={styles.resultCoordTag}>
+                  {res.lat.toFixed(3)}N, {res.lng.toFixed(3)}E
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Search Notice / Guidance */}
+        {searchNotice && (
+          <div style={styles.noticeBanner}>
+            <span>{searchNotice}</span>
+          </div>
+        )}
 
         {/* Quick Regional Presets */}
         <div style={styles.presetsRow}>
@@ -231,13 +376,14 @@ export const MapPicker: React.FC<MapPickerProps> = ({
           <div style={styles.previewPinBox}>
             <MapPin size={18} color="#07152B" />
           </div>
-          <div style={{ flex: 1 }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
             <div style={styles.previewName}>{title || 'Location Title'}</div>
             <div style={styles.previewAddress}>
-              {address || `${currentLat.toFixed(4)}° N, ${currentLng.toFixed(4)}° E, Ethiopia`}
+              {currentAddress || `${currentLat.toFixed(4)}° N, ${currentLng.toFixed(4)}° E, Ethiopia`}
             </div>
           </div>
           <div style={styles.previewBadge}>
+            <Check size={11} color="#16803C" style={{ marginRight: '3px' }} />
             <span>{currentLat.toFixed(3)}N, {currentLng.toFixed(3)}E</span>
           </div>
         </div>
@@ -261,9 +407,10 @@ const styles: { [key: string]: React.CSSProperties } = {
     flexDirection: 'column',
     gap: '10px',
   },
-  searchForm: {
+  searchRow: {
     display: 'flex',
     gap: '8px',
+    position: 'relative',
   },
   searchWrapper: {
     position: 'relative',
@@ -278,14 +425,28 @@ const styles: { [key: string]: React.CSSProperties } = {
   },
   searchInput: {
     width: '100%',
-    padding: '9px 12px 9px 36px',
+    padding: '9px 36px 9px 36px',
     backgroundColor: '#FFFFFF',
     border: '1px solid #E4E9F0',
     borderRadius: '8px',
     fontSize: '13px',
     color: '#07152B',
   },
+  clearSearchBtn: {
+    position: 'absolute',
+    right: '10px',
+    background: 'none',
+    border: 'none',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: '2px',
+  },
   searchBtn: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '6px',
     padding: '9px 16px',
     backgroundColor: '#07152B',
     color: '#FFFFFF',
@@ -294,6 +455,79 @@ const styles: { [key: string]: React.CSSProperties } = {
     fontWeight: 600,
     cursor: 'pointer',
     border: 'none',
+    transition: 'all 0.15s ease',
+    flexShrink: 0,
+  },
+  resultsDropdown: {
+    backgroundColor: '#FFFFFF',
+    border: '1px solid #DFB76C',
+    borderRadius: '10px',
+    boxShadow: '0 8px 24px rgba(7, 21, 43, 0.12)',
+    overflow: 'hidden',
+    zIndex: 1000,
+    display: 'flex',
+    flexDirection: 'column',
+    maxHeight: '220px',
+    overflowY: 'auto',
+  },
+  dropdownHeader: {
+    padding: '8px 12px',
+    backgroundColor: '#FAFCFE',
+    borderBottom: '1px solid #E4E9F0',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    fontSize: '11px',
+    fontWeight: 700,
+    color: '#8C6A21',
+    textTransform: 'uppercase',
+    letterSpacing: '0.04em',
+  },
+  closeDropdownBtn: {
+    background: 'none',
+    border: 'none',
+    color: '#8A9AA8',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+  },
+  resultItem: {
+    display: 'flex',
+    alignItems: 'flex-start',
+    gap: '10px',
+    padding: '10px 14px',
+    borderBottom: '1px solid #F0F3F8',
+    cursor: 'pointer',
+    transition: 'background-color 0.12s ease',
+  },
+  resultName: {
+    fontSize: '13px',
+    fontWeight: 700,
+    color: '#07152B',
+  },
+  resultFullAddress: {
+    fontSize: '11px',
+    color: '#5A687A',
+    marginTop: '2px',
+    lineHeight: 1.35,
+  },
+  resultCoordTag: {
+    fontSize: '10.5px',
+    fontWeight: 600,
+    color: '#8C6A21',
+    backgroundColor: '#F8F4EC',
+    padding: '3px 7px',
+    borderRadius: '4px',
+    flexShrink: 0,
+  },
+  noticeBanner: {
+    backgroundColor: '#F8F4EC',
+    border: '1px solid #E0C582',
+    borderRadius: '8px',
+    padding: '8px 12px',
+    fontSize: '12px',
+    color: '#8C6A21',
+    lineHeight: 1.4,
   },
   presetsRow: {
     display: 'flex',

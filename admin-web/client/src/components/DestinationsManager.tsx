@@ -137,8 +137,17 @@ export const DestinationsManager: React.FC = () => {
     }
   };
 
-  const handleSave = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSave = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!formData.name.trim()) {
+      setErrorMessage('Destination name is required.');
+      return;
+    }
+    if (!formData.blurb.trim()) {
+      setErrorMessage('A short summary blurb is required.');
+      return;
+    }
+
     setIsSaving(true);
     setErrorMessage('');
 
@@ -158,10 +167,14 @@ export const DestinationsManager: React.FC = () => {
   };
 
   const filtered = destinations.filter((item) => {
+    const term = searchTerm.toLowerCase().trim();
     const matchesSearch =
-      item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.region.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.blurb.toLowerCase().includes(searchTerm.toLowerCase());
+      !term ||
+      item.name.toLowerCase().includes(term) ||
+      item.region.toLowerCase().includes(term) ||
+      item.blurb.toLowerCase().includes(term) ||
+      (item.description && item.description.toLowerCase().includes(term)) ||
+      (item.elevation && item.elevation.toLowerCase().includes(term));
     const matchesRegion = selectedRegion === 'All' || item.region === selectedRegion;
     return matchesSearch && matchesRegion;
   });
@@ -205,7 +218,7 @@ export const DestinationsManager: React.FC = () => {
         {errorMessage && <div style={styles.errorBox}>{errorMessage}</div>}
 
         {/* 2-Column Dedicated Editor Workspace */}
-        <form onSubmit={handleSave} style={styles.editorGrid}>
+        <div style={styles.editorGrid}>
           {/* Left Column: Core Destination Information */}
           <div style={styles.formCard}>
             <h3 style={styles.cardSectionTitle}>Destination Information</h3>
@@ -343,7 +356,7 @@ export const DestinationsManager: React.FC = () => {
               />
             </div>
           </div>
-        </form>
+        </div>
       </div>
     );
   }

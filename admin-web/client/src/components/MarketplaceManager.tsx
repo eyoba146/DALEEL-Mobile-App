@@ -174,8 +174,12 @@ export const MarketplaceManager: React.FC = () => {
     }
   };
 
-  const handleSave = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSave = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!formData.title.trim()) {
+      setErrorMessage('Product title is required.');
+      return;
+    }
     setIsSaving(true);
     setErrorMessage('');
 
@@ -249,7 +253,7 @@ export const MarketplaceManager: React.FC = () => {
         {errorMessage && <div style={styles.errorBox}>{errorMessage}</div>}
 
         {/* 2-Column Dedicated Editor Workspace */}
-        <form onSubmit={handleSave} style={styles.editorGrid}>
+        <div style={styles.editorGrid}>
           {/* Left Column: Product Details */}
           <div style={styles.formCard}>
             <h3 style={styles.cardSectionTitle}>Product Details & Pricing</h3>
@@ -418,7 +422,7 @@ export const MarketplaceManager: React.FC = () => {
               </div>
             </div>
           </div>
-        </form>
+        </div>
       </div>
     );
   }

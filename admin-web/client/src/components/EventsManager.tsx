@@ -166,8 +166,12 @@ export const EventsManager: React.FC = () => {
     }
   };
 
-  const handleSave = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSave = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!formData.title.trim()) {
+      setErrorMessage('Event title is required.');
+      return;
+    }
     setIsSaving(true);
     setErrorMessage('');
 
@@ -241,7 +245,7 @@ export const EventsManager: React.FC = () => {
         {errorMessage && <div style={styles.errorBox}>{errorMessage}</div>}
 
         {/* 2-Column Dedicated Editor Workspace */}
-        <form onSubmit={handleSave} style={styles.editorGrid}>
+        <div style={styles.editorGrid}>
           {/* Left Column: Event Details */}
           <div style={styles.formCard}>
             <h3 style={styles.cardSectionTitle}>Event Information & Schedule</h3>
@@ -397,7 +401,7 @@ export const EventsManager: React.FC = () => {
               />
             </div>
           </div>
-        </form>
+        </div>
       </div>
     );
   }

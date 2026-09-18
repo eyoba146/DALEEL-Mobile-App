@@ -161,8 +161,12 @@ export const ServicesManager: React.FC = () => {
     }
   };
 
-  const handleSave = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSave = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!formData.name.trim()) {
+      setErrorMessage('Business name is required.');
+      return;
+    }
     setIsSaving(true);
     setErrorMessage('');
 
@@ -235,7 +239,7 @@ export const ServicesManager: React.FC = () => {
         {errorMessage && <div style={styles.errorBox}>{errorMessage}</div>}
 
         {/* 2-Column Dedicated Editor Workspace */}
-        <form onSubmit={handleSave} style={styles.editorGrid}>
+        <div style={styles.editorGrid}>
           {/* Left Column: Business & Contact Info */}
           <div style={styles.formCard}>
             <h3 style={styles.cardSectionTitle}>Partner Business Profile</h3>
@@ -370,7 +374,7 @@ export const ServicesManager: React.FC = () => {
               />
             </div>
           </div>
-        </form>
+        </div>
       </div>
     );
   }

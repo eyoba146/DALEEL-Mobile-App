@@ -81,8 +81,12 @@ export const TeamManager: React.FC = () => {
     }
   };
 
-  const handleSave = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSave = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!formData.name.trim() || !formData.email.trim() || !formData.password.trim()) {
+      setErrorMessage('Full name, email, and initial password are required.');
+      return;
+    }
     setIsSaving(true);
     setErrorMessage('');
 
@@ -150,7 +154,7 @@ export const TeamManager: React.FC = () => {
         )}
 
         {/* 2-Column Dedicated Editor Workspace */}
-        <form onSubmit={handleSave} style={styles.editorGrid}>
+        <div style={styles.editorGrid}>
           {/* Left Column: Account Credentials */}
           <div style={styles.formCard}>
             <h3 style={styles.cardSectionTitle}>Coordinator Credentials</h3>
@@ -243,7 +247,7 @@ export const TeamManager: React.FC = () => {
               })}
             </div>
           </div>
-        </form>
+        </div>
       </div>
     );
   }
