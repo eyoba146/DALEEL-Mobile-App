@@ -1,7 +1,22 @@
 import React, { useEffect, useState } from 'react';
 import { adminApi } from '../api';
 import { MapPicker } from './MapPicker';
-import { Plus, Search, Edit3, Trash2, Crosshair, Award, Star, ArrowLeft, Check, RefreshCw } from 'lucide-react';
+import { ImageUploader } from './ImageUploader';
+import {
+  Plus,
+  Search,
+  Edit3,
+  Trash2,
+  Crosshair,
+  Award,
+  Star,
+  ArrowLeft,
+  Check,
+  RefreshCw,
+  LayoutGrid,
+  List,
+  MapPin,
+} from 'lucide-react';
 
 interface DestinationItem {
   id: string;
@@ -25,6 +40,7 @@ export const DestinationsManager: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedRegion, setSelectedRegion] = useState('All');
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
 
   // Dedicated In-Page Editor State (NO POPUPS)
   const [isEditorActive, setIsEditorActive] = useState(false);
@@ -238,21 +254,13 @@ export const DestinationsManager: React.FC = () => {
                 </div>
               </div>
 
+              {/* Advanced Image Uploader (File upload, Camera capture, or URL) */}
               <div>
-                <label style={styles.label}>Hero Photo URL *</label>
-                <input
-                  type="url"
-                  required
+                <ImageUploader
                   value={formData.image}
-                  onChange={(e) => setFormData({ ...formData, image: e.target.value })}
-                  placeholder="https://images.unsplash.com/..."
-                  style={styles.fullInput}
+                  onChange={(url) => setFormData({ ...formData, image: url })}
+                  label="Destination Photo"
                 />
-                {formData.image && (
-                  <div style={styles.imagePreviewWrap}>
-                    <img src={formData.image} alt="Preview" style={styles.imagePreview} />
-                  </div>
-                )}
               </div>
 
               <div style={styles.inputRow}>
@@ -364,7 +372,7 @@ export const DestinationsManager: React.FC = () => {
         </div>
       </div>
 
-      {/* Filter and Search Bar */}
+      {/* Filter and Search Bar with View Switcher */}
       <div style={styles.filterBar}>
         <div style={styles.searchWrapper}>
           <Search size={16} color="#8A9AA8" style={{ position: 'absolute', left: '12px' }} />
@@ -377,87 +385,210 @@ export const DestinationsManager: React.FC = () => {
           />
         </div>
 
-        <div style={styles.regionFilterRow}>
-          {REGIONS.map((region) => (
+        <div style={styles.filterActionsRight}>
+          <div style={styles.regionFilterRow}>
+            {REGIONS.map((region) => (
+              <button
+                key={region}
+                style={{
+                  ...styles.regionChip,
+                  ...(selectedRegion === region ? styles.regionChipActive : {}),
+                }}
+                onClick={() => setSelectedRegion(region)}
+              >
+                {region}
+              </button>
+            ))}
+          </div>
+
+          {/* Grid / List View Toggle */}
+          <div style={styles.viewToggleWrap}>
             <button
-              key={region}
+              type="button"
               style={{
-                ...styles.regionChip,
-                ...(selectedRegion === region ? styles.regionChipActive : {}),
+                ...styles.viewToggleBtn,
+                ...(viewMode === 'grid' ? styles.viewToggleBtnActive : {}),
               }}
-              onClick={() => setSelectedRegion(region)}
+              onClick={() => setViewMode('grid')}
+              title="Showcase Grid View"
             >
-              {region}
+              <LayoutGrid size={15} color={viewMode === 'grid' ? '#07152B' : '#5A687A'} />
             </button>
-          ))}
+            <button
+              type="button"
+              style={{
+                ...styles.viewToggleBtn,
+                ...(viewMode === 'list' ? styles.viewToggleBtnActive : {}),
+              }}
+              onClick={() => setViewMode('list')}
+              title="Compact List View"
+            >
+              <List size={15} color={viewMode === 'list' ? '#07152B' : '#5A687A'} />
+            </button>
+          </div>
         </div>
       </div>
 
-      {/* Modern Catalog Grid (Replaced Cramped Table) */}
+      {/* Empty State */}
       {loading ? (
         <div style={styles.emptyState}>Loading destinations catalog...</div>
       ) : filtered.length === 0 ? (
         <div style={styles.emptyState}>No destinations match your search or filter criteria.</div>
-      ) : (
-        <div style={styles.cardsGrid}>
+      ) : viewMode === 'grid' ? (
+        /* Luxury Editorial Cards Grid */
+        <div className="luxury-grid">
           {filtered.map((item) => (
-            <div key={item.id} style={styles.destinationCard}>
-              <div style={styles.cardThumbWrap}>
-                <img src={item.image} alt={item.name} style={styles.cardThumb} />
-                <div style={styles.cardOverlayRow}>
-                  <span style={styles.regionBadge}>{item.region}</span>
-                  {item.unescoStatus && (
-                    <span style={styles.unescoBadge}>
-                      <Award size={12} color="#8C6A21" />
+            <div key={item.id} className="luxury-card">
+              {/* Media Wrap with 16:10 Aspect, Scrim Gradient, and Floating Badges */}
+              <div className="luxury-card-media">
+                <img src={item.image} alt={item.name} className="luxury-card-img" />
+                <div className="luxury-card-scrim" />
+
+                {/* Top Badges */}
+                <div className="luxury-badge-top-left">
+                  <span className="glass-pill">{item.region}</span>
+                </div>
+
+                <div className="luxury-badge-top-right">
+                  <span className="glass-pill-light">
+                    <Star size={12} fill="#DFB76C" color="#DFB76C" />
+                    <span>{item.rating || 4.9}</span>
+                  </span>
+                </div>
+
+                {/* Bottom Badges */}
+                {item.unescoStatus && (
+                  <div className="luxury-badge-bottom-left">
+                    <span className="gold-glow-badge">
+                      <Award size={12} color="#07152B" />
                       <span>UNESCO</span>
                     </span>
-                  )}
-                </div>
+                  </div>
+                )}
+
+                {item.elevation && (
+                  <div className="luxury-badge-bottom-right">
+                    <span className="glass-pill" style={{ textTransform: 'none', fontSize: '10.5px' }}>
+                      {item.elevation}
+                    </span>
+                  </div>
+                )}
               </div>
 
-              <div style={styles.cardBody}>
-                <div style={styles.cardHeaderRow}>
-                  <h3 style={styles.cardTitle}>{item.name}</h3>
-                  <div style={styles.ratingBadge}>
-                    <Star size={13} fill="#DFB76C" color="#DFB76C" />
-                    <span>{item.rating || 4.9}</span>
-                  </div>
+              {/* Card Body */}
+              <div className="luxury-card-body">
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <MapPin size={13} color="#C59B43" />
+                  <span style={{ fontSize: '12px', fontWeight: 600, color: '#C59B43', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                    {item.region}, Ethiopia
+                  </span>
                 </div>
 
-                <p style={styles.cardBlurb}>{item.blurb}</p>
+                <h3 className="luxury-card-title">{item.name}</h3>
 
-                <div style={styles.cardMetaRow}>
+                <p className="luxury-card-blurb">{item.blurb}</p>
+
+                <div className="luxury-card-meta">
                   {item.latitude && item.longitude ? (
-                    <div style={styles.coordPill}>
-                      <Crosshair size={12} color="#07152B" />
+                    <div className="luxury-coord-chip">
+                      <Crosshair size={12} color="#C59B43" />
                       <span>
-                        {item.latitude.toFixed(3)}N, {item.longitude.toFixed(3)}E
+                        {item.latitude.toFixed(4)}°N, {item.longitude.toFixed(4)}°E
                       </span>
                     </div>
                   ) : (
                     <span style={{ fontSize: '11.5px', color: '#8A9AA8' }}>Coordinates unpinned</span>
                   )}
-                  {item.elevation && <span style={styles.metaNote}>{item.elevation}</span>}
+
+                  {item.bestTimeToVisit && (
+                    <span style={{ fontSize: '11.5px', color: '#5A687A', fontStyle: 'italic' }}>
+                      {item.bestTimeToVisit.split('(')[0].trim()}
+                    </span>
+                  )}
                 </div>
               </div>
 
               {/* Dedicated Card Action Buttons */}
-              <div style={styles.cardFooter}>
+              <div className="luxury-card-footer">
                 <button
                   type="button"
-                  style={styles.editBtn}
+                  className="luxury-edit-btn"
                   onClick={() => handleOpenEdit(item)}
                 >
-                  <Edit3 size={14} color="#07152B" />
-                  <span>Edit Details</span>
+                  <Edit3 size={14} color="#DFB76C" />
+                  <span>Edit Destination</span>
                 </button>
                 <button
                   type="button"
-                  style={styles.deleteBtn}
+                  className="luxury-icon-btn"
                   onClick={() => handleDelete(item.id, item.name)}
                   title="Delete Destination"
                 >
-                  <Trash2 size={15} color="#C53030" />
+                  <Trash2 size={16} />
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        /* Compact List View */
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          {filtered.map((item) => (
+            <div key={item.id} className="luxury-list-row">
+              <img src={item.image} alt={item.name} className="luxury-list-thumb" />
+
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                  <h4 style={{ fontSize: '16px', fontWeight: 700, color: '#07152B', margin: 0 }}>
+                    {item.name}
+                  </h4>
+                  <span className="badge badge-navy">{item.region}</span>
+                  {item.unescoStatus && (
+                    <span className="badge badge-gold">
+                      <Award size={11} />
+                      <span>UNESCO</span>
+                    </span>
+                  )}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '3px', marginLeft: 'auto' }}>
+                    <Star size={13} fill="#DFB76C" color="#DFB76C" />
+                    <span style={{ fontSize: '12.5px', fontWeight: 700, color: '#07152B' }}>
+                      {item.rating || 4.9}
+                    </span>
+                  </div>
+                </div>
+
+                <p style={{ fontSize: '13px', color: '#5A687A', margin: '0 0 6px 0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  {item.blurb}
+                </p>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '14px', fontSize: '12px', color: '#8A9AA8' }}>
+                  {item.latitude && item.longitude && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#07152B' }}>
+                      <Crosshair size={12} color="#C59B43" />
+                      <span>{item.latitude.toFixed(4)}°N, {item.longitude.toFixed(4)}°E</span>
+                    </div>
+                  )}
+                  {item.elevation && <span>Elevation: {item.elevation}</span>}
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <button
+                  type="button"
+                  className="btn btn-navy"
+                  style={{ padding: '8px 14px', fontSize: '12.5px' }}
+                  onClick={() => handleOpenEdit(item)}
+                >
+                  <Edit3 size={13} color="#DFB76C" />
+                  <span>Edit</span>
+                </button>
+                <button
+                  type="button"
+                  className="luxury-icon-btn"
+                  onClick={() => handleDelete(item.id, item.name)}
+                  title="Delete Destination"
+                >
+                  <Trash2 size={15} />
                 </button>
               </div>
             </div>
@@ -521,11 +652,42 @@ const styles: { [key: string]: React.CSSProperties } = {
     fontSize: '13.5px',
     color: '#07152B',
   },
+  filterActionsRight: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '12px',
+    flexWrap: 'wrap',
+  },
   regionFilterRow: {
     display: 'flex',
     alignItems: 'center',
     gap: '6px',
     flexWrap: 'wrap',
+  },
+  viewToggleWrap: {
+    display: 'flex',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    border: '1px solid #E4E9F0',
+    borderRadius: '8px',
+    padding: '3px',
+    gap: '2px',
+  },
+  viewToggleBtn: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '32px',
+    height: '32px',
+    borderRadius: '6px',
+    backgroundColor: 'transparent',
+    border: 'none',
+    cursor: 'pointer',
+    transition: 'all 0.15s ease',
+  },
+  viewToggleBtnActive: {
+    backgroundColor: '#F0F3F8',
+    boxShadow: '0 1px 3px rgba(7, 21, 43, 0.08)',
   },
   regionChip: {
     padding: '6px 14px',

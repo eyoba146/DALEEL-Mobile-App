@@ -71,6 +71,13 @@ export const adminApi = {
 
   getMe: () => request<AdminUser>('/admin/me'),
 
+  // Media & Photo Upload
+  uploadImage: (imageBase64: string) =>
+    request<{ url: string; filename: string }>('/admin/upload', {
+      method: 'POST',
+      body: JSON.stringify({ imageBase64 }),
+    }),
+
   // Metrics
   getStats: () => request<PlatformStats>('/admin/stats'),
 

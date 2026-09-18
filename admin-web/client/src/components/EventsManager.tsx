@@ -1,7 +1,23 @@
 import React, { useEffect, useState } from 'react';
 import { adminApi } from '../api';
 import { MapPicker } from './MapPicker';
-import { Plus, Search, Edit3, Trash2, Calendar, Crosshair, RefreshCw, ArrowLeft, Check, Users, MapPin, Clock } from 'lucide-react';
+import { ImageUploader } from './ImageUploader';
+import {
+  Plus,
+  Search,
+  Edit3,
+  Trash2,
+  Calendar,
+  Crosshair,
+  RefreshCw,
+  ArrowLeft,
+  Check,
+  Users,
+  MapPin,
+  Clock,
+  LayoutGrid,
+  List,
+} from 'lucide-react';
 
 interface EventItemData {
   id: string;
@@ -40,6 +56,7 @@ export const EventsManager: React.FC = () => {
   const [rsvps, setRsvps] = useState<EventRsvpItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
 
   // Dedicated In-Page Editor State (NO POPUPS)
   const [isEditorActive, setIsEditorActive] = useState(false);
@@ -318,19 +335,11 @@ export const EventsManager: React.FC = () => {
               </div>
 
               <div>
-                <label style={styles.label}>Hero Poster URL *</label>
-                <input
-                  type="url"
-                  required
+                <ImageUploader
                   value={formData.image}
-                  onChange={(e) => setFormData({ ...formData, image: e.target.value })}
-                  style={styles.fullInput}
+                  onChange={(url) => setFormData({ ...formData, image: url })}
+                  label="Event Poster / Artwork"
                 />
-                {formData.image && (
-                  <div style={styles.imagePreviewWrap}>
-                    <img src={formData.image} alt="Preview" style={styles.imagePreview} />
-                  </div>
-                )}
               </div>
 
               <div style={styles.inputRow}>
@@ -445,84 +454,196 @@ export const EventsManager: React.FC = () => {
       {/* Events Tab View */}
       {activeSubTab === 'events' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          <div style={styles.searchWrapper}>
-            <Search size={16} color="#8A9AA8" style={{ position: 'absolute', left: '12px' }} />
-            <input
-              type="text"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Search events by title, category, or city..."
-              style={styles.searchInput}
-            />
+          <div style={styles.filterBar}>
+            <div style={styles.searchWrapper}>
+              <Search size={16} color="#8A9AA8" style={{ position: 'absolute', left: '12px' }} />
+              <input
+                type="text"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Search events by title, category, or city..."
+                style={styles.searchInput}
+              />
+            </div>
+
+            {/* Grid / List View Toggle */}
+            <div style={styles.viewToggleWrap}>
+              <button
+                type="button"
+                style={{
+                  ...styles.viewToggleBtn,
+                  ...(viewMode === 'grid' ? styles.viewToggleBtnActive : {}),
+                }}
+                onClick={() => setViewMode('grid')}
+                title="Showcase Grid View"
+              >
+                <LayoutGrid size={15} color={viewMode === 'grid' ? '#07152B' : '#5A687A'} />
+              </button>
+              <button
+                type="button"
+                style={{
+                  ...styles.viewToggleBtn,
+                  ...(viewMode === 'list' ? styles.viewToggleBtnActive : {}),
+                }}
+                onClick={() => setViewMode('list')}
+                title="Compact List View"
+              >
+                <List size={15} color={viewMode === 'list' ? '#07152B' : '#5A687A'} />
+              </button>
+            </div>
           </div>
 
           {loading ? (
             <div style={styles.emptyState}>Loading events...</div>
           ) : filteredEvents.length === 0 ? (
             <div style={styles.emptyState}>No events scheduled yet.</div>
-          ) : (
-            <div style={styles.cardsGrid}>
+          ) : viewMode === 'grid' ? (
+            /* Luxury Cards Grid */
+            <div className="luxury-grid">
               {filteredEvents.map((ev) => (
-                <div key={ev.id} style={styles.eventCard}>
-                  <div style={styles.cardThumbWrap}>
-                    <img src={ev.image} alt={ev.title} style={styles.cardThumb} />
-                    <div style={styles.cardOverlayRow}>
-                      <span style={styles.categoryBadge}>{ev.category}</span>
-                      <span style={styles.priceBadge}>{ev.price || 'Free'}</span>
+                <div key={ev.id} className="luxury-card">
+                  {/* Media Banner with 16:10 Aspect Ratio, Scrim, and Badges */}
+                  <div className="luxury-card-media">
+                    <img src={ev.image} alt={ev.title} className="luxury-card-img" />
+                    <div className="luxury-card-scrim" />
+
+                    <div className="luxury-badge-top-left">
+                      <span className="glass-pill">{ev.category}</span>
+                    </div>
+
+                    <div className="luxury-badge-top-right">
+                      <span className="glass-pill-light" style={{ color: '#07152B', fontWeight: 800 }}>
+                        {ev.price || 'Free RSVP'}
+                      </span>
+                    </div>
+
+                    <div className="luxury-badge-bottom-left">
+                      <span className="glass-pill" style={{ textTransform: 'none', fontSize: '11px' }}>
+                        <Calendar size={11} color="#DFB76C" />
+                        <span>{new Date(ev.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                      </span>
+                    </div>
+
+                    <div className="luxury-badge-bottom-right">
+                      <span className="glass-pill" style={{ textTransform: 'none', fontSize: '10.5px' }}>
+                        <Users size={11} color="#DFB76C" />
+                        <span>{ev._count?.rsvps ?? 0} RSVPs</span>
+                      </span>
                     </div>
                   </div>
 
-                  <div style={styles.cardBody}>
-                    <div style={styles.dateBanner}>
-                      <Calendar size={13} color="#8C6A21" />
-                      <span>{new Date(ev.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                  {/* Card Body */}
+                  <div className="luxury-card-body">
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <MapPin size={12} color="#C59B43" />
+                      <span style={{ fontSize: '12px', fontWeight: 600, color: '#C59B43', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                        {ev.venue || ev.city}
+                      </span>
+                    </div>
+
+                    <h3 className="luxury-card-title">{ev.title}</h3>
+
+                    {ev.description && (
+                      <p className="luxury-card-blurb">{ev.description}</p>
+                    )}
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '12px', color: '#5A687A', marginTop: '2px' }}>
                       {ev.time && (
-                        <>
-                          <span style={{ color: '#CBD5E1' }}>•</span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                           <Clock size={12} color="#8A9AA8" />
-                          <span style={{ color: '#5A687A' }}>{ev.time}</span>
-                        </>
+                          <span>{ev.time}</span>
+                        </div>
                       )}
-                    </div>
-
-                    <h3 style={styles.eventTitle}>{ev.title}</h3>
-
-                    <div style={styles.venueRow}>
-                      <MapPin size={13} color="#8A9AA8" style={{ marginTop: '2px', flexShrink: 0 }} />
-                      <span>{ev.venue || ev.city}</span>
-                    </div>
-
-                    <div style={styles.cardMetaRow}>
-                      <div style={styles.rsvpBadge}>
-                        <Users size={13} color="#07152B" />
-                        <span>{ev._count?.rsvps ?? 0} RSVPs Registered</span>
-                      </div>
-
-                      {ev.latitude && ev.longitude && (
-                        <div style={styles.coordPill}>
-                          <Crosshair size={12} color="#07152B" />
-                          <span>Pinned</span>
+                      {ev.organizer && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          <span>Hosted by <strong style={{ color: '#07152B' }}>{ev.organizer}</strong></span>
                         </div>
                       )}
                     </div>
+
+                    <div className="luxury-card-meta">
+                      {ev.latitude && ev.longitude ? (
+                        <div className="luxury-coord-chip">
+                          <Crosshair size={12} color="#C59B43" />
+                          <span>{ev.latitude.toFixed(4)}°N, {ev.longitude.toFixed(4)}°E</span>
+                        </div>
+                      ) : (
+                        <span style={{ fontSize: '11px', color: '#8A9AA8' }}>Venue coordinates unpinned</span>
+                      )}
+                    </div>
                   </div>
 
-                  <div style={styles.cardFooter}>
+                  {/* Card Action Footer */}
+                  <div className="luxury-card-footer">
                     <button
                       type="button"
-                      style={styles.editBtn}
+                      className="luxury-edit-btn"
                       onClick={() => handleOpenEdit(ev)}
                     >
-                      <Edit3 size={13} color="#07152B" />
+                      <Edit3 size={14} color="#DFB76C" />
                       <span>Edit Event</span>
                     </button>
                     <button
                       type="button"
-                      style={styles.deleteBtn}
+                      className="luxury-icon-btn"
                       onClick={() => handleDelete(ev.id, ev.title)}
                       title="Delete Event"
                     >
-                      <Trash2 size={14} color="#C53030" />
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            /* Compact List View */
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              {filteredEvents.map((ev) => (
+                <div key={ev.id} className="luxury-list-row">
+                  <img src={ev.image} alt={ev.title} className="luxury-list-thumb" />
+
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                      <h4 style={{ fontSize: '16px', fontWeight: 700, color: '#07152B', margin: 0 }}>
+                        {ev.title}
+                      </h4>
+                      <span className="badge badge-navy">{ev.category}</span>
+                      <span className="badge badge-gold">{ev.price || 'Free RSVP'}</span>
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '16px', fontSize: '12.5px', color: '#5A687A', margin: '4px 0' }}>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <Calendar size={12} color="#C59B43" />
+                        <span>{new Date(ev.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                      </span>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <MapPin size={12} color="#C59B43" />
+                        <span>{ev.venue || ev.city}</span>
+                      </span>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <Users size={12} color="#C59B43" />
+                        <span>{ev._count?.rsvps ?? 0} RSVPs</span>
+                      </span>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <button
+                      type="button"
+                      className="btn btn-navy"
+                      style={{ padding: '8px 14px', fontSize: '12.5px' }}
+                      onClick={() => handleOpenEdit(ev)}
+                    >
+                      <Edit3 size={13} color="#DFB76C" />
+                      <span>Edit</span>
+                    </button>
+                    <button
+                      type="button"
+                      className="luxury-icon-btn"
+                      onClick={() => handleDelete(ev.id, ev.title)}
+                      title="Delete Event"
+                    >
+                      <Trash2 size={15} />
                     </button>
                   </div>
                 </div>
@@ -685,6 +806,13 @@ const styles: { [key: string]: React.CSSProperties } = {
     padding: '2px 8px',
     borderRadius: '9999px',
   },
+  filterBar: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: '16px',
+    flexWrap: 'wrap',
+  },
   searchWrapper: {
     position: 'relative',
     display: 'flex',
@@ -699,6 +827,31 @@ const styles: { [key: string]: React.CSSProperties } = {
     borderRadius: '8px',
     fontSize: '13.5px',
     color: '#07152B',
+  },
+  viewToggleWrap: {
+    display: 'flex',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    border: '1px solid #E4E9F0',
+    borderRadius: '8px',
+    padding: '3px',
+    gap: '2px',
+  },
+  viewToggleBtn: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '32px',
+    height: '32px',
+    borderRadius: '6px',
+    backgroundColor: 'transparent',
+    border: 'none',
+    cursor: 'pointer',
+    transition: 'all 0.15s ease',
+  },
+  viewToggleBtnActive: {
+    backgroundColor: '#F0F3F8',
+    boxShadow: '0 1px 3px rgba(7, 21, 43, 0.08)',
   },
   cardsGrid: {
     display: 'grid',

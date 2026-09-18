@@ -1,7 +1,23 @@
 import React, { useEffect, useState } from 'react';
 import { adminApi } from '../api';
 import { MapPicker } from './MapPicker';
-import { Plus, Search, Edit3, Trash2, CheckCircle, Crosshair, RefreshCw, ArrowLeft, Check, Phone, Mail, MapPin } from 'lucide-react';
+import { ImageUploader } from './ImageUploader';
+import {
+  Plus,
+  Search,
+  Edit3,
+  Trash2,
+  CheckCircle,
+  Crosshair,
+  RefreshCw,
+  ArrowLeft,
+  Check,
+  Phone,
+  Mail,
+  MapPin,
+  LayoutGrid,
+  List,
+} from 'lucide-react';
 
 interface ServiceItem {
   id: string;
@@ -38,6 +54,7 @@ export const ServicesManager: React.FC = () => {
   const [inquiries, setInquiries] = useState<ServiceInquiryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
 
   // Dedicated In-Page Editor State (NO POPUPS)
   const [isEditorActive, setIsEditorActive] = useState(false);
@@ -277,19 +294,11 @@ export const ServicesManager: React.FC = () => {
               </div>
 
               <div>
-                <label style={styles.label}>Hero Photo / Logo URL *</label>
-                <input
-                  type="url"
-                  required
+                <ImageUploader
                   value={formData.image}
-                  onChange={(e) => setFormData({ ...formData, image: e.target.value })}
-                  style={styles.fullInput}
+                  onChange={(url) => setFormData({ ...formData, image: url })}
+                  label="Partner Brand Photo / Logo"
                 />
-                {formData.image && (
-                  <div style={styles.imagePreviewWrap}>
-                    <img src={formData.image} alt="Preview" style={styles.imagePreview} />
-                  </div>
-                )}
               </div>
 
               <div>
@@ -418,94 +427,201 @@ export const ServicesManager: React.FC = () => {
       {/* Directory Tab View */}
       {activeSubTab === 'directory' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          <div style={styles.searchWrapper}>
-            <Search size={16} color="#8A9AA8" style={{ position: 'absolute', left: '12px' }} />
-            <input
-              type="text"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Search partner name, category, or subcity..."
-              style={styles.searchInput}
-            />
+          <div style={styles.filterBar}>
+            <div style={styles.searchWrapper}>
+              <Search size={16} color="#8A9AA8" style={{ position: 'absolute', left: '12px' }} />
+              <input
+                type="text"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Search partner name, category, or subcity..."
+                style={styles.searchInput}
+              />
+            </div>
+
+            {/* Grid / List View Toggle */}
+            <div style={styles.viewToggleWrap}>
+              <button
+                type="button"
+                style={{
+                  ...styles.viewToggleBtn,
+                  ...(viewMode === 'grid' ? styles.viewToggleBtnActive : {}),
+                }}
+                onClick={() => setViewMode('grid')}
+                title="Showcase Grid View"
+              >
+                <LayoutGrid size={15} color={viewMode === 'grid' ? '#07152B' : '#5A687A'} />
+              </button>
+              <button
+                type="button"
+                style={{
+                  ...styles.viewToggleBtn,
+                  ...(viewMode === 'list' ? styles.viewToggleBtnActive : {}),
+                }}
+                onClick={() => setViewMode('list')}
+                title="Compact List View"
+              >
+                <List size={15} color={viewMode === 'list' ? '#07152B' : '#5A687A'} />
+              </button>
+            </div>
           </div>
 
           {loading ? (
             <div style={styles.emptyState}>Loading verified partners...</div>
           ) : filteredServices.length === 0 ? (
             <div style={styles.emptyState}>No service partners found.</div>
-          ) : (
-            <div style={styles.cardsGrid}>
+          ) : viewMode === 'grid' ? (
+            /* Luxury Cards Grid */
+            <div className="luxury-grid">
               {filteredServices.map((svc) => (
-                <div key={svc.id} style={styles.serviceCard}>
-                  <div style={styles.svcCardTop}>
-                    <img src={svc.image} alt={svc.name} style={styles.svcThumb} />
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={styles.svcHeaderRow}>
-                        <h3 style={styles.svcName}>{svc.name}</h3>
-                        {svc.verified && (
-                          <span style={styles.verifiedChip}>
-                            <CheckCircle size={12} color="#16803C" />
-                            <span>VERIFIED</span>
-                          </span>
-                        )}
+                <div key={svc.id} className="luxury-card">
+                  {/* Media Banner with 16:10 Aspect Ratio, Scrim, and Badges */}
+                  <div className="luxury-card-media">
+                    <img src={svc.image} alt={svc.name} className="luxury-card-img" />
+                    <div className="luxury-card-scrim" />
+
+                    <div className="luxury-badge-top-left">
+                      <span className="glass-pill">{svc.category}</span>
+                    </div>
+
+                    {svc.verified && (
+                      <div className="luxury-badge-top-right">
+                        <span className="glass-pill-light" style={{ color: '#16803C' }}>
+                          <CheckCircle size={12} color="#16803C" />
+                          <span>VERIFIED</span>
+                        </span>
                       </div>
-                      <span className="badge badge-navy" style={{ marginTop: '4px' }}>
-                        {svc.category}
+                    )}
+
+                    <div className="luxury-badge-bottom-left">
+                      <span className="glass-pill" style={{ textTransform: 'none', fontSize: '11px' }}>
+                        <MapPin size={11} color="#DFB76C" />
+                        <span>{svc.address || svc.location}</span>
                       </span>
                     </div>
                   </div>
 
-                  <p style={styles.svcBlurb}>{svc.blurb}</p>
+                  {/* Card Body */}
+                  <div className="luxury-card-body">
+                    <h3 className="luxury-card-title">{svc.name}</h3>
 
-                  <div style={styles.contactDetails}>
-                    <div style={styles.contactItem}>
-                      <MapPin size={13} color="#8A9AA8" />
-                      <span>{svc.address || svc.location}</span>
+                    <p className="luxury-card-blurb">{svc.blurb}</p>
+
+                    {/* Direct Contact Channels */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', margin: '4px 0', fontSize: '12px', color: '#5A687A' }}>
+                      {svc.phone && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <Phone size={12} color="#C59B43" />
+                          <span>{svc.phone}</span>
+                        </div>
+                      )}
+                      {svc.email && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <Mail size={12} color="#C59B43" />
+                          <span>{svc.email}</span>
+                        </div>
+                      )}
                     </div>
-                    {svc.phone && (
-                      <div style={styles.contactItem}>
-                        <Phone size={13} color="#8A9AA8" />
-                        <span>{svc.phone}</span>
-                      </div>
-                    )}
-                    {svc.email && (
-                      <div style={styles.contactItem}>
-                        <Mail size={13} color="#8A9AA8" />
-                        <span>{svc.email}</span>
-                      </div>
-                    )}
+
+                    <div className="luxury-card-meta">
+                      {svc.latitude && svc.longitude ? (
+                        <div className="luxury-coord-chip">
+                          <Crosshair size={12} color="#C59B43" />
+                          <span>
+                            {svc.latitude.toFixed(4)}°N, {svc.longitude.toFixed(4)}°E
+                          </span>
+                        </div>
+                      ) : (
+                        <span style={{ fontSize: '11px', color: '#8A9AA8' }}>Office unpinned</span>
+                      )}
+                    </div>
                   </div>
 
-                  <div style={styles.cardFooter}>
-                    {svc.latitude && svc.longitude ? (
-                      <div style={styles.coordPill}>
-                        <Crosshair size={12} color="#07152B" />
-                        <span>
-                          {svc.latitude.toFixed(3)}N, {svc.longitude.toFixed(3)}E
-                        </span>
-                      </div>
-                    ) : (
-                      <span style={{ fontSize: '11px', color: '#8A9AA8' }}>Unpinned</span>
-                    )}
+                  {/* Card Action Footer */}
+                  <div className="luxury-card-footer">
+                    <button
+                      type="button"
+                      className="luxury-edit-btn"
+                      onClick={() => handleOpenEdit(svc)}
+                    >
+                      <Edit3 size={14} color="#DFB76C" />
+                      <span>Edit Partner</span>
+                    </button>
+                    <button
+                      type="button"
+                      className="luxury-icon-btn"
+                      onClick={() => handleDelete(svc.id, svc.name)}
+                      title="Remove Partner"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            /* Compact List View */
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              {filteredServices.map((svc) => (
+                <div key={svc.id} className="luxury-list-row">
+                  <img src={svc.image} alt={svc.name} className="luxury-list-thumb" />
 
-                    <div style={{ display: 'flex', gap: '8px' }}>
-                      <button
-                        type="button"
-                        style={styles.editBtn}
-                        onClick={() => handleOpenEdit(svc)}
-                      >
-                        <Edit3 size={13} color="#07152B" />
-                        <span>Edit Profile</span>
-                      </button>
-                      <button
-                        type="button"
-                        style={styles.deleteBtn}
-                        onClick={() => handleDelete(svc.id, svc.name)}
-                        title="Remove Partner"
-                      >
-                        <Trash2 size={14} color="#C53030" />
-                      </button>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                      <h4 style={{ fontSize: '16px', fontWeight: 700, color: '#07152B', margin: 0 }}>
+                        {svc.name}
+                      </h4>
+                      <span className="badge badge-navy">{svc.category}</span>
+                      {svc.verified && (
+                        <span className="badge badge-success">
+                          <CheckCircle size={11} />
+                          <span>VERIFIED</span>
+                        </span>
+                      )}
                     </div>
+
+                    <p style={{ fontSize: '13px', color: '#5A687A', margin: '0 0 6px 0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {svc.blurb}
+                    </p>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '16px', fontSize: '12px', color: '#8A9AA8' }}>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <MapPin size={12} color="#C59B43" />
+                        <span>{svc.address || svc.location}</span>
+                      </span>
+                      {svc.phone && (
+                        <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          <Phone size={12} color="#C59B43" />
+                          <span>{svc.phone}</span>
+                        </span>
+                      )}
+                      {svc.latitude && svc.longitude && (
+                        <span style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#07152B' }}>
+                          <Crosshair size={12} color="#C59B43" />
+                          <span>{svc.latitude.toFixed(4)}°N, {svc.longitude.toFixed(4)}°E</span>
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <button
+                      type="button"
+                      className="btn btn-navy"
+                      style={{ padding: '8px 14px', fontSize: '12.5px' }}
+                      onClick={() => handleOpenEdit(svc)}
+                    >
+                      <Edit3 size={13} color="#DFB76C" />
+                      <span>Edit</span>
+                    </button>
+                    <button
+                      type="button"
+                      className="luxury-icon-btn"
+                      onClick={() => handleDelete(svc.id, svc.name)}
+                      title="Remove Partner"
+                    >
+                      <Trash2 size={15} />
+                    </button>
                   </div>
                 </div>
               ))}
@@ -661,6 +777,13 @@ const styles: { [key: string]: React.CSSProperties } = {
     padding: '2px 8px',
     borderRadius: '9999px',
   },
+  filterBar: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: '16px',
+    flexWrap: 'wrap',
+  },
   searchWrapper: {
     position: 'relative',
     display: 'flex',
@@ -675,6 +798,31 @@ const styles: { [key: string]: React.CSSProperties } = {
     borderRadius: '8px',
     fontSize: '13.5px',
     color: '#07152B',
+  },
+  viewToggleWrap: {
+    display: 'flex',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    border: '1px solid #E4E9F0',
+    borderRadius: '8px',
+    padding: '3px',
+    gap: '2px',
+  },
+  viewToggleBtn: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '32px',
+    height: '32px',
+    borderRadius: '6px',
+    backgroundColor: 'transparent',
+    border: 'none',
+    cursor: 'pointer',
+    transition: 'all 0.15s ease',
+  },
+  viewToggleBtnActive: {
+    backgroundColor: '#F0F3F8',
+    boxShadow: '0 1px 3px rgba(7, 21, 43, 0.08)',
   },
   cardsGrid: {
     display: 'grid',

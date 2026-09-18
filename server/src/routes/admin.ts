@@ -1,6 +1,8 @@
 import { Router, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import fs from 'fs';
+import path from 'path';
 import { prisma } from '../lib/prisma';
 import { authenticateAdmin, requireRole, AdminRequest } from '../middleware/adminAuth';
 import { AdminRole } from '@prisma/client';
@@ -67,6 +69,49 @@ adminRouter.get('/me', (req: AdminRequest, res: Response) => {
     phone: user.phone,
     avatarUrl: user.avatarUrl,
   });
+});
+
+// --- Image & Media Upload (Base64 & Camera) ---
+
+adminRouter.post('/upload', async (req: AdminRequest, res: Response) => {
+  try {
+    const { imageBase64 } = req.body;
+    if (!imageBase64) {
+      return res.status(400).json({ error: 'Image data is required' });
+    }
+
+    const matches = String(imageBase64).match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
+    let buffer: Buffer;
+    let ext = 'jpg';
+
+    if (matches && matches.length === 3) {
+      const mimeType = matches[1];
+      if (mimeType.includes('png')) ext = 'png';
+      else if (mimeType.includes('webp')) ext = 'webp';
+      else if (mimeType.includes('gif')) ext = 'gif';
+      buffer = Buffer.from(matches[2], 'base64');
+    } else {
+      buffer = Buffer.from(String(imageBase64), 'base64');
+    }
+
+    const uniqueName = `daleel-${Date.now()}-${Math.random().toString(36).substring(2, 8)}.${ext}`;
+    const uploadsDir = path.join(process.cwd(), 'uploads');
+    if (!fs.existsSync(uploadsDir)) {
+      fs.mkdirSync(uploadsDir, { recursive: true });
+    }
+
+    const filePath = path.join(uploadsDir, uniqueName);
+    fs.writeFileSync(filePath, buffer);
+
+    const host = req.get('host') || 'localhost:4000';
+    const protocol = req.protocol || 'http';
+    const url = `${protocol}://${host}/uploads/${uniqueName}`;
+
+    res.json({ url, filename: uniqueName });
+  } catch (error) {
+    console.error('Error uploading admin image:', error);
+    res.status(500).json({ error: 'Failed to process image upload' });
+  }
 });
 
 // --- Platform Stats Overview ---
