@@ -1,6 +1,38 @@
 import React, { useEffect, useRef, useState } from 'react';
 import L from 'leaflet';
-import { Search, MapPin, Crosshair, Navigation, X, Check, Loader2 } from 'lucide-react';
+import { Search, MapPin, Crosshair, Navigation, X, Check, Loader2, Map, Globe, Mountain } from 'lucide-react';
+
+export type MapLayerMode = 'streets' | 'satellite' | 'topographic';
+
+interface LayerConfig {
+  name: string;
+  url: string;
+  labelsUrl?: string;
+  attribution: string;
+  maxZoom: number;
+}
+
+const TILE_LAYERS: Record<MapLayerMode, LayerConfig> = {
+  streets: {
+    name: 'Streets',
+    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}',
+    attribution: 'Esri World Street Map',
+    maxZoom: 19,
+  },
+  satellite: {
+    name: 'Satellite',
+    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+    labelsUrl: 'https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}',
+    attribution: 'Esri World Imagery & Labels',
+    maxZoom: 19,
+  },
+  topographic: {
+    name: 'Topographic',
+    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}',
+    attribution: 'Esri World Topo Map',
+    maxZoom: 19,
+  },
+};
 
 interface MapPickerProps {
   latitude: number | null;
@@ -49,6 +81,12 @@ export const MapPicker: React.FC<MapPickerProps> = ({
   const [searchNotice, setSearchNotice] = useState<string>('');
   const [showDropdown, setShowDropdown] = useState<boolean>(false);
 
+  const [activeLayer, setActiveLayer] = useState<MapLayerMode>(() => {
+    return (localStorage.getItem('daleel_admin_map_layer') as MapLayerMode) || 'streets';
+  });
+  const currentTileLayerRef = useRef<L.TileLayer | null>(null);
+  const currentLabelsLayerRef = useRef<L.TileLayer | null>(null);
+
   // Initialize Map
   useEffect(() => {
     if (!mapContainerRef.current) return;
@@ -63,11 +101,20 @@ export const MapPicker: React.FC<MapPickerProps> = ({
       attributionControl: false,
     });
 
-    // High resolution Esri World Street Map matching mobile app
-    L.tileLayer(
-      'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}',
-      { maxZoom: 19 }
-    ).addTo(map);
+    // Initialize active layer (Streets, Satellite, or Topographic)
+    const initialConfig = TILE_LAYERS[activeLayer] || TILE_LAYERS.streets;
+    const baseTileLayer = L.tileLayer(initialConfig.url, {
+      maxZoom: initialConfig.maxZoom,
+    }).addTo(map);
+    currentTileLayerRef.current = baseTileLayer;
+
+    if (activeLayer === 'satellite' && initialConfig.labelsUrl) {
+      const labelsLayer = L.tileLayer(initialConfig.labelsUrl, {
+        maxZoom: initialConfig.maxZoom,
+        opacity: 0.9,
+      }).addTo(map);
+      currentLabelsLayerRef.current = labelsLayer;
+    }
 
     // Custom Luxury Gold Pin Icon matching DALEEL mobile marker
     const goldPinHtml = `
@@ -131,8 +178,44 @@ export const MapPicker: React.FC<MapPickerProps> = ({
     return () => {
       map.remove();
       mapInstanceRef.current = null;
+      currentTileLayerRef.current = null;
+      currentLabelsLayerRef.current = null;
     };
   }, []);
+
+  // Switch Layer Handler (Streets | Satellite | Topographic)
+  const handleLayerSwitch = (mode: MapLayerMode) => {
+    if (!mapInstanceRef.current || mode === activeLayer) return;
+    setActiveLayer(mode);
+    localStorage.setItem('daleel_admin_map_layer', mode);
+
+    if (currentTileLayerRef.current) {
+      mapInstanceRef.current.removeLayer(currentTileLayerRef.current);
+      currentTileLayerRef.current = null;
+    }
+    if (currentLabelsLayerRef.current) {
+      mapInstanceRef.current.removeLayer(currentLabelsLayerRef.current);
+      currentLabelsLayerRef.current = null;
+    }
+
+    const cfg = TILE_LAYERS[mode];
+    const newTileLayer = L.tileLayer(cfg.url, {
+      maxZoom: cfg.maxZoom,
+    }).addTo(mapInstanceRef.current);
+    currentTileLayerRef.current = newTileLayer;
+
+    if (mode === 'satellite' && cfg.labelsUrl) {
+      const labelsLayer = L.tileLayer(cfg.labelsUrl, {
+        maxZoom: cfg.maxZoom,
+        opacity: 0.9,
+      }).addTo(mapInstanceRef.current);
+      currentLabelsLayerRef.current = labelsLayer;
+    }
+
+    if (markerRef.current) {
+      markerRef.current.setZIndexOffset(1000);
+    }
+  };
 
   // Update marker position if props change externally
   useEffect(() => {
@@ -357,6 +440,46 @@ export const MapPicker: React.FC<MapPickerProps> = ({
       <div style={styles.mapWrap}>
         <div ref={mapContainerRef} style={styles.mapCanvas} />
 
+        {/* Floating Map Layer Switcher Dock */}
+        <div style={styles.layerSwitcherDock}>
+          <button
+            type="button"
+            style={{
+              ...styles.layerBtn,
+              ...(activeLayer === 'streets' ? styles.layerBtnActive : {}),
+            }}
+            onClick={() => handleLayerSwitch('streets')}
+            title="Standard High-Res Street Map"
+          >
+            <Map size={12} />
+            <span>Streets</span>
+          </button>
+          <button
+            type="button"
+            style={{
+              ...styles.layerBtn,
+              ...(activeLayer === 'satellite' ? styles.layerBtnActive : {}),
+            }}
+            onClick={() => handleLayerSwitch('satellite')}
+            title="High-Resolution Satellite Imagery"
+          >
+            <Globe size={12} />
+            <span>Satellite</span>
+          </button>
+          <button
+            type="button"
+            style={{
+              ...styles.layerBtn,
+              ...(activeLayer === 'topographic' ? styles.layerBtnActive : {}),
+            }}
+            onClick={() => handleLayerSwitch('topographic')}
+            title="Topographic Terrain & Elevation Relief"
+          >
+            <Mountain size={12} />
+            <span>Topographic</span>
+          </button>
+        </div>
+
         {/* Floating Coordinates Tag */}
         <div style={styles.floatingTag}>
           <Crosshair size={13} color="#07152B" />
@@ -554,10 +677,46 @@ const styles: { [key: string]: React.CSSProperties } = {
   mapWrap: {
     position: 'relative',
     width: '100%',
-    height: '280px',
+    height: '310px',
     borderRadius: '10px',
     overflow: 'hidden',
     border: '1px solid #E4E9F0',
+  },
+  layerSwitcherDock: {
+    position: 'absolute',
+    top: '12px',
+    right: '12px',
+    zIndex: 1000,
+    display: 'flex',
+    alignItems: 'center',
+    backgroundColor: 'rgba(7, 21, 43, 0.88)',
+    backdropFilter: 'blur(8px)',
+    WebkitBackdropFilter: 'blur(8px)',
+    border: '1px solid rgba(223, 183, 108, 0.4)',
+    borderRadius: '8px',
+    padding: '3px',
+    gap: '2px',
+    boxShadow: '0 4px 14px rgba(7, 21, 43, 0.35)',
+  },
+  layerBtn: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '5px',
+    padding: '5px 10px',
+    borderRadius: '6px',
+    backgroundColor: 'transparent',
+    border: 'none',
+    color: '#E2E8F0',
+    fontSize: '11.5px',
+    fontWeight: 600,
+    cursor: 'pointer',
+    transition: 'all 0.16s ease',
+  },
+  layerBtnActive: {
+    backgroundColor: '#DFB76C',
+    color: '#07152B',
+    fontWeight: 750,
+    boxShadow: '0 1px 6px rgba(223, 183, 108, 0.4)',
   },
   mapCanvas: {
     width: '100%',

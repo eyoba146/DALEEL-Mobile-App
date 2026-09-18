@@ -16,6 +16,8 @@ import {
   LayoutGrid,
   List,
   MapPin,
+  Mountain,
+  Compass,
 } from 'lucide-react';
 
 interface DestinationItem {
@@ -448,96 +450,91 @@ export const DestinationsManager: React.FC = () => {
       ) : filtered.length === 0 ? (
         <div style={styles.emptyState}>No destinations match your search or filter criteria.</div>
       ) : viewMode === 'grid' ? (
-        /* Luxury Editorial Cards Grid */
-        <div className="luxury-grid">
+        /* Editorial Luxury Destination Cards Grid */
+        <div className="editorial-grid">
           {filtered.map((item) => (
-            <div key={item.id} className="luxury-card">
-              {/* Media Wrap with 16:10 Aspect, Scrim Gradient, and Floating Badges */}
-              <div className="luxury-card-media">
-                <img src={item.image} alt={item.name} className="luxury-card-img" />
-                <div className="luxury-card-scrim" />
+            <div key={item.id} className="editorial-card">
+              {/* Media Wrap with Clean Aspect, Gentle Top Vignette, and Elegant Badges */}
+              <div className="editorial-card-media">
+                <img src={item.image} alt={item.name} className="editorial-card-img" />
+                <div className="editorial-card-top-scrim" />
 
-                {/* Top Badges */}
-                <div className="luxury-badge-top-left">
-                  <span className="glass-pill">{item.region}</span>
+                {/* Top-Left: Primary Distinction (UNESCO Heritage or Region) */}
+                <div className="editorial-badge-top-left">
+                  {item.unescoStatus ? (
+                    <span className="editorial-badge-unesco">
+                      <Award size={12} color="#DFB76C" />
+                      <span>UNESCO Heritage</span>
+                    </span>
+                  ) : (
+                    <span className="editorial-badge-region">
+                      {item.region}
+                    </span>
+                  )}
                 </div>
 
-                <div className="luxury-badge-top-right">
-                  <span className="glass-pill-light">
-                    <Star size={12} fill="#DFB76C" color="#DFB76C" />
-                    <span>{item.rating || 4.9}</span>
+                {/* Top-Right: Rating Badge */}
+                <div className="editorial-badge-top-right">
+                  <span className="editorial-badge-rating">
+                    <Star size={11} fill="#DFB76C" color="#DFB76C" />
+                    <span>{item.rating ? item.rating.toFixed(1) : '4.9'}</span>
                   </span>
                 </div>
-
-                {/* Bottom Badges */}
-                {item.unescoStatus && (
-                  <div className="luxury-badge-bottom-left">
-                    <span className="gold-glow-badge">
-                      <Award size={12} color="#07152B" />
-                      <span>UNESCO</span>
-                    </span>
-                  </div>
-                )}
-
-                {item.elevation && (
-                  <div className="luxury-badge-bottom-right">
-                    <span className="glass-pill" style={{ textTransform: 'none', fontSize: '10.5px' }}>
-                      {item.elevation}
-                    </span>
-                  </div>
-                )}
               </div>
 
-              {/* Card Body */}
-              <div className="luxury-card-body">
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <MapPin size={13} color="#C59B43" />
-                  <span style={{ fontSize: '12px', fontWeight: 600, color: '#C59B43', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                    {item.region}, Ethiopia
-                  </span>
+              {/* Editorial Card Body */}
+              <div className="editorial-card-body">
+                <div className="editorial-geography">
+                  <MapPin size={12} color="#C59B43" />
+                  <span>{item.region.toUpperCase()} • ETHIOPIA</span>
                 </div>
 
-                <h3 className="luxury-card-title">{item.name}</h3>
+                <h3 className="editorial-title">{item.name}</h3>
 
-                <p className="luxury-card-blurb">{item.blurb}</p>
+                <p className="editorial-blurb">{item.blurb}</p>
 
-                <div className="luxury-card-meta">
-                  {item.latitude && item.longitude ? (
-                    <div className="luxury-coord-chip">
-                      <Crosshair size={12} color="#C59B43" />
-                      <span>
-                        {item.latitude.toFixed(4)}°N, {item.longitude.toFixed(4)}°E
-                      </span>
-                    </div>
-                  ) : (
-                    <span style={{ fontSize: '11.5px', color: '#8A9AA8' }}>Coordinates unpinned</span>
+                {/* Refined Metadata Micro-Chips Row */}
+                <div className="editorial-chips-row">
+                  {item.elevation && (
+                    <span className="editorial-chip" title="Elevation">
+                      <Mountain size={12} color="#C59B43" />
+                      <span>{item.elevation}</span>
+                    </span>
                   )}
 
                   {item.bestTimeToVisit && (
-                    <span style={{ fontSize: '11.5px', color: '#5A687A', fontStyle: 'italic' }}>
-                      {item.bestTimeToVisit.split('(')[0].trim()}
+                    <span className="editorial-chip" title="Best Time to Visit">
+                      <Compass size={12} color="#8A9AA8" />
+                      <span>{item.bestTimeToVisit.split('(')[0].trim()}</span>
+                    </span>
+                  )}
+
+                  {item.latitude && item.longitude && (
+                    <span className="editorial-chip" title="Coordinates">
+                      <Crosshair size={12} color="#8A9AA8" />
+                      <span>{item.latitude.toFixed(2)}°N, {item.longitude.toFixed(2)}°E</span>
                     </span>
                   )}
                 </div>
               </div>
 
-              {/* Dedicated Card Action Buttons */}
-              <div className="luxury-card-footer">
+              {/* Seamless Action Buttons */}
+              <div className="editorial-card-footer">
                 <button
                   type="button"
-                  className="luxury-edit-btn"
+                  className="editorial-edit-btn"
                   onClick={() => handleOpenEdit(item)}
                 >
-                  <Edit3 size={14} color="#DFB76C" />
+                  <Edit3 size={13} color="#DFB76C" />
                   <span>Edit Destination</span>
                 </button>
                 <button
                   type="button"
-                  className="luxury-icon-btn"
+                  className="editorial-delete-btn"
                   onClick={() => handleDelete(item.id, item.name)}
                   title="Delete Destination"
                 >
-                  <Trash2 size={16} />
+                  <Trash2 size={15} />
                 </button>
               </div>
             </div>
