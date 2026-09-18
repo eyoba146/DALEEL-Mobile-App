@@ -19,6 +19,9 @@ import {
   Mountain,
   Compass,
 } from 'lucide-react';
+import { useDynamicCategories } from '../utils/categories';
+import { CategoryFilterBar } from './CategoryFilterBar';
+import { DynamicCategorySelect } from './DynamicCategorySelect';
 
 interface DestinationItem {
   id: string;
@@ -35,7 +38,19 @@ interface DestinationItem {
   longitude?: number | null;
 }
 
-const REGIONS = ['All', 'Amhara', 'Oromia', 'Tigray', 'SNNPR', 'Afar', 'Harari', 'Addis Ababa'];
+const DEFAULT_REGIONS = [
+  'Amhara',
+  'Oromia',
+  'Tigray',
+  'SNNPR',
+  'Afar',
+  'Harari',
+  'Addis Ababa',
+  'Sidama',
+  'Somali',
+  'Dire Dawa',
+  'Benishangul-Gumuz',
+];
 
 export const DestinationsManager: React.FC = () => {
   const [destinations, setDestinations] = useState<DestinationItem[]>([]);
@@ -43,6 +58,14 @@ export const DestinationsManager: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedRegion, setSelectedRegion] = useState('All');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+
+  // Dynamic Categories / Regions Engine
+  const { categories: regions, addCategory: addRegion } = useDynamicCategories<DestinationItem>(
+    'destinations',
+    DEFAULT_REGIONS,
+    destinations,
+    (d) => d.region
+  );
 
   // Dedicated In-Page Editor State (NO POPUPS)
   const [isEditorActive, setIsEditorActive] = useState(false);
@@ -241,18 +264,14 @@ export const DestinationsManager: React.FC = () => {
 
               <div style={styles.inputRow}>
                 <div style={{ flex: 1 }}>
-                  <label style={styles.label}>Region *</label>
-                  <select
+                  <label style={styles.label}>Region / Category *</label>
+                  <DynamicCategorySelect
                     value={formData.region}
-                    onChange={(e) => setFormData({ ...formData, region: e.target.value })}
-                    style={styles.fullInput}
-                  >
-                    {REGIONS.filter((r) => r !== 'All').map((r) => (
-                      <option key={r} value={r}>
-                        {r}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={(val) => setFormData({ ...formData, region: val })}
+                    categories={regions}
+                    onAddNewCategory={addRegion}
+                    label="Region"
+                  />
                 </div>
 
                 <div style={{ flex: 1 }}>
@@ -401,20 +420,14 @@ export const DestinationsManager: React.FC = () => {
         </div>
 
         <div style={styles.filterActionsRight}>
-          <div style={styles.regionFilterRow}>
-            {REGIONS.map((region) => (
-              <button
-                key={region}
-                style={{
-                  ...styles.regionChip,
-                  ...(selectedRegion === region ? styles.regionChipActive : {}),
-                }}
-                onClick={() => setSelectedRegion(region)}
-              >
-                {region}
-              </button>
-            ))}
-          </div>
+          <CategoryFilterBar
+            categories={regions}
+            selectedCategory={selectedRegion}
+            onSelectCategory={setSelectedRegion}
+            onAddCategory={addRegion}
+            label="Region"
+            allLabel="All"
+          />
 
           {/* Grid / List View Toggle */}
           <div style={styles.viewToggleWrap}>
@@ -450,51 +463,46 @@ export const DestinationsManager: React.FC = () => {
       ) : filtered.length === 0 ? (
         <div style={styles.emptyState}>No destinations match your search or filter criteria.</div>
       ) : viewMode === 'grid' ? (
-        /* Editorial Luxury Destination Cards Grid */
-        <div className="editorial-grid">
+        /* Executive Showcase Directory (Linear / Stripe Grade Showcase Rows) */
+        <div className="showcase-list">
           {filtered.map((item) => (
-            <div key={item.id} className="editorial-card">
-              {/* Media Wrap with Clean Aspect, Gentle Top Vignette, and Elegant Badges */}
-              <div className="editorial-card-media">
-                <img src={item.image} alt={item.name} className="editorial-card-img" />
-                <div className="editorial-card-top-scrim" />
-
-                {/* Top-Left: Primary Distinction (UNESCO Heritage or Region) */}
-                <div className="editorial-badge-top-left">
+            <div key={item.id} className="showcase-row">
+              {/* Media Preview Thumbnail */}
+              <div className="showcase-thumb-wrap">
+                <img src={item.image} alt={item.name} className="showcase-thumb" />
+                <div className="showcase-thumb-badge">
                   {item.unescoStatus ? (
                     <span className="editorial-badge-unesco">
-                      <Award size={12} color="#DFB76C" />
-                      <span>UNESCO Heritage</span>
+                      <Award size={11} color="#DFB76C" />
+                      <span>UNESCO</span>
                     </span>
                   ) : (
-                    <span className="editorial-badge-region">
-                      {item.region}
-                    </span>
+                    <span className="editorial-badge-region">{item.region}</span>
                   )}
-                </div>
-
-                {/* Top-Right: Rating Badge */}
-                <div className="editorial-badge-top-right">
-                  <span className="editorial-badge-rating">
-                    <Star size={11} fill="#DFB76C" color="#DFB76C" />
-                    <span>{item.rating ? item.rating.toFixed(1) : '4.9'}</span>
-                  </span>
                 </div>
               </div>
 
-              {/* Editorial Card Body */}
-              <div className="editorial-card-body">
-                <div className="editorial-geography">
-                  <MapPin size={12} color="#C59B43" />
-                  <span>{item.region.toUpperCase()} • ETHIOPIA</span>
+              {/* Showcase Main Record */}
+              <div className="showcase-main">
+                <div>
+                  <div className="showcase-kicker">
+                    <MapPin size={11} color="#C59B43" />
+                    <span>{item.region.toUpperCase()} • ETHIOPIA</span>
+                  </div>
+
+                  <div className="showcase-header">
+                    <h3 className="showcase-title">{item.name}</h3>
+                    <div className="showcase-rating-pill">
+                      <Star size={11} fill="#DFB76C" color="#DFB76C" />
+                      <span>{item.rating ? item.rating.toFixed(1) : '4.9'}</span>
+                    </div>
+                  </div>
                 </div>
 
-                <h3 className="editorial-title">{item.name}</h3>
+                <p className="showcase-blurb">{item.blurb}</p>
 
-                <p className="editorial-blurb">{item.blurb}</p>
-
-                {/* Refined Metadata Micro-Chips Row */}
-                <div className="editorial-chips-row">
+                {/* Metadata Micro-Chips Row */}
+                <div className="showcase-meta-row">
                   {item.elevation && (
                     <span className="editorial-chip" title="Elevation">
                       <Mountain size={12} color="#C59B43" />
@@ -510,31 +518,35 @@ export const DestinationsManager: React.FC = () => {
                   )}
 
                   {item.latitude && item.longitude && (
-                    <span className="editorial-chip" title="Coordinates">
+                    <span className="editorial-chip" title="GPS Coordinates">
                       <Crosshair size={12} color="#8A9AA8" />
-                      <span>{item.latitude.toFixed(2)}°N, {item.longitude.toFixed(2)}°E</span>
+                      <span>
+                        {item.latitude.toFixed(3)}°N, {item.longitude.toFixed(3)}°E
+                      </span>
                     </span>
                   )}
                 </div>
               </div>
 
-              {/* Seamless Action Buttons */}
-              <div className="editorial-card-footer">
+              {/* Showcase Right Action Dock */}
+              <div className="showcase-actions">
                 <button
                   type="button"
-                  className="editorial-edit-btn"
+                  className="showcase-edit-btn"
                   onClick={() => handleOpenEdit(item)}
                 >
                   <Edit3 size={13} color="#DFB76C" />
-                  <span>Edit Destination</span>
+                  <span>Edit Record</span>
                 </button>
+
                 <button
                   type="button"
-                  className="editorial-delete-btn"
+                  className="showcase-delete-btn"
                   onClick={() => handleDelete(item.id, item.name)}
-                  title="Delete Destination"
+                  title="Delete Record"
                 >
-                  <Trash2 size={15} />
+                  <Trash2 size={13} />
+                  <span>Delete</span>
                 </button>
               </div>
             </div>

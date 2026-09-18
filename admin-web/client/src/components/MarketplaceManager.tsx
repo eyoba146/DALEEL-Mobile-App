@@ -14,6 +14,9 @@ import {
   List,
   Sparkles,
 } from 'lucide-react';
+import { useDynamicCategories } from '../utils/categories';
+import { CategoryFilterBar } from './CategoryFilterBar';
+import { DynamicCategorySelect } from './DynamicCategorySelect';
 
 interface ProductItem {
   id: string;
@@ -55,13 +58,32 @@ interface OrderInquiryItem {
   };
 }
 
+const DEFAULT_PRODUCT_CATEGORIES = [
+  'Textiles & Habesha Kemis',
+  'Coffee & Buna Ceremonial',
+  'Jewelry & Silver Filigree',
+  'Leathercraft & Art',
+  'Spices & Specialty Foods',
+  'Handmade Pottery',
+  'Traditional Instruments',
+];
+
 export const MarketplaceManager: React.FC = () => {
   const [activeSubTab, setActiveSubTab] = useState<'products' | 'orders'>('products');
   const [products, setProducts] = useState<ProductItem[]>([]);
   const [orders, setOrders] = useState<OrderInquiryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('All');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+
+  // Dynamic Categories Engine
+  const { categories, addCategory } = useDynamicCategories<ProductItem>(
+    'marketplace',
+    DEFAULT_PRODUCT_CATEGORIES,
+    products,
+    (p) => p.category
+  );
 
   // Dedicated In-Page Editor State (NO POPUPS)
   const [isEditorActive, setIsEditorActive] = useState(false);
@@ -207,12 +229,17 @@ export const MarketplaceManager: React.FC = () => {
     }
   };
 
-  const filteredProducts = products.filter(
-    (p) =>
-      p.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      p.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      p.sellerName.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredProducts = products.filter((item) => {
+    const term = searchTerm.toLowerCase().trim();
+    const matchesSearch =
+      !term ||
+      item.title.toLowerCase().includes(term) ||
+      item.category.toLowerCase().includes(term) ||
+      item.sellerName.toLowerCase().includes(term) ||
+      (item.materials && item.materials.toLowerCase().includes(term));
+    const matchesCategory = selectedCategory === 'All' || item.category === selectedCategory;
+    return matchesSearch && matchesCategory;
+  });
 
   // Dedicated In-Page Full Workspace Editor (NO POPUP)
   if (isEditorActive) {
@@ -275,17 +302,13 @@ export const MarketplaceManager: React.FC = () => {
               <div style={styles.inputRow}>
                 <div style={{ flex: 1 }}>
                   <label style={styles.label}>Category *</label>
-                  <select
+                  <DynamicCategorySelect
                     value={formData.category}
-                    onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                    style={styles.fullInput}
-                  >
-                    <option value="Textiles & Habesha Kemis">Textiles & Habesha Kemis</option>
-                    <option value="Coffee & Buna Ceremonial">Coffee & Buna Ceremonial</option>
-                    <option value="Jewelry & Silver Filigree">Jewelry & Silver Filigree</option>
-                    <option value="Leathercraft & Art">Leathercraft & Art</option>
-                    <option value="Spices & Specialty Foods">Spices & Specialty Foods</option>
-                  </select>
+                    onChange={(cat) => setFormData({ ...formData, category: cat })}
+                    categories={categories}
+                    onAddNewCategory={addCategory}
+                    label="Category"
+                  />
                 </div>
 
                 <div style={{ flex: 1 }}>
@@ -491,30 +514,41 @@ export const MarketplaceManager: React.FC = () => {
               />
             </div>
 
-            {/* Grid / List View Toggle */}
-            <div style={styles.viewToggleWrap}>
-              <button
-                type="button"
-                style={{
-                  ...styles.viewToggleBtn,
-                  ...(viewMode === 'grid' ? styles.viewToggleBtnActive : {}),
-                }}
-                onClick={() => setViewMode('grid')}
-                title="Showcase Grid View"
-              >
-                <LayoutGrid size={15} color={viewMode === 'grid' ? '#07152B' : '#5A687A'} />
-              </button>
-              <button
-                type="button"
-                style={{
-                  ...styles.viewToggleBtn,
-                  ...(viewMode === 'list' ? styles.viewToggleBtnActive : {}),
-                }}
-                onClick={() => setViewMode('list')}
-                title="Compact List View"
-              >
-                <List size={15} color={viewMode === 'list' ? '#07152B' : '#5A687A'} />
-              </button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+              <CategoryFilterBar
+                categories={categories}
+                selectedCategory={selectedCategory}
+                onSelectCategory={setSelectedCategory}
+                onAddCategory={addCategory}
+                label="Category"
+                allLabel="All"
+              />
+
+              {/* Grid / List View Toggle */}
+              <div style={styles.viewToggleWrap}>
+                <button
+                  type="button"
+                  style={{
+                    ...styles.viewToggleBtn,
+                    ...(viewMode === 'grid' ? styles.viewToggleBtnActive : {}),
+                  }}
+                  onClick={() => setViewMode('grid')}
+                  title="Showcase Directory"
+                >
+                  <LayoutGrid size={15} color={viewMode === 'grid' ? '#07152B' : '#5A687A'} />
+                </button>
+                <button
+                  type="button"
+                  style={{
+                    ...styles.viewToggleBtn,
+                    ...(viewMode === 'list' ? styles.viewToggleBtnActive : {}),
+                  }}
+                  onClick={() => setViewMode('list')}
+                  title="Compact List View"
+                >
+                  <List size={15} color={viewMode === 'list' ? '#07152B' : '#5A687A'} />
+                </button>
+              </div>
             </div>
           </div>
 
@@ -523,91 +557,79 @@ export const MarketplaceManager: React.FC = () => {
           ) : filteredProducts.length === 0 ? (
             <div style={styles.emptyState}>No products found.</div>
           ) : viewMode === 'grid' ? (
-            /* Luxury Cards Grid */
-            <div className="luxury-grid">
+            /* Executive Showcase Directory */
+            <div className="showcase-list">
               {filteredProducts.map((prod) => (
-                <div key={prod.id} className="luxury-card">
-                  {/* Media Banner with 16:10 Aspect Ratio, Scrim, and Badges */}
-                  <div className="luxury-card-media">
-                    <img src={prod.image} alt={prod.title} className="luxury-card-img" />
-                    <div className="luxury-card-scrim" />
-
-                    <div className="luxury-badge-top-left">
-                      <span className="glass-pill">{prod.category}</span>
-                    </div>
-
-                    <div className="luxury-badge-top-right">
-                      <span className="gold-glow-badge">
-                        {prod.price?.toLocaleString()} {prod.currency || 'ETB'}
-                      </span>
-                    </div>
-
-                    <div className="luxury-badge-bottom-left">
-                      <span className="glass-pill" style={{ textTransform: 'none', fontSize: '11px' }}>
-                        <MapPin size={11} color="#DFB76C" />
-                        <span>{prod.sellerLocation || prod.origin || 'Ethiopia'}</span>
-                      </span>
-                    </div>
-
-                    <div className="luxury-badge-bottom-right">
-                      {prod.inStock ? (
-                        <span className="glass-pill-light" style={{ color: '#16803C' }}>
-                          ● IN STOCK
-                        </span>
-                      ) : (
-                        <span className="glass-pill-light" style={{ color: '#D63031' }}>
-                          SOLD OUT
-                        </span>
-                      )}
+                <div key={prod.id} className="showcase-row">
+                  {/* Media Thumbnail */}
+                  <div className="showcase-thumb-wrap">
+                    <img src={prod.image} alt={prod.title} className="showcase-thumb" />
+                    <div className="showcase-thumb-badge">
+                      <span className="editorial-badge-region">{prod.category}</span>
                     </div>
                   </div>
 
-                  {/* Card Body */}
-                  <div className="luxury-card-body">
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <Sparkles size={12} color="#C59B43" />
-                      <span style={{ fontSize: '12px', fontWeight: 600, color: '#C59B43', letterSpacing: '0.03em' }}>
-                        {prod.sellerName}
-                      </span>
+                  {/* Showcase Main Content */}
+                  <div className="showcase-main">
+                    <div>
+                      <div className="showcase-kicker">
+                        <Sparkles size={11} color="#C59B43" />
+                        <span>
+                          {prod.sellerName.toUpperCase()} •{' '}
+                          {prod.sellerLocation || prod.origin || 'ETHIOPIA'}
+                        </span>
+                      </div>
+                      <div className="showcase-header">
+                        <h3 className="showcase-title">{prod.title}</h3>
+                        <span
+                          className="badge badge-gold"
+                          style={{ fontWeight: 800, fontSize: '13px' }}
+                        >
+                          {prod.price?.toLocaleString()} {prod.currency || 'ETB'}
+                        </span>
+                      </div>
                     </div>
 
-                    <h3 className="luxury-card-title">{prod.title}</h3>
+                    <p className="showcase-blurb">{prod.blurb || prod.description}</p>
 
-                    <p className="luxury-card-blurb">
-                      {prod.blurb || prod.description || prod.materials || 'Handcrafted authentic artisan heritage piece.'}
-                    </p>
-
-                    <div className="luxury-card-meta">
+                    <div className="showcase-meta-row">
                       {prod.materials && (
-                        <span style={{ fontSize: '11.5px', color: '#5A687A' }}>
-                          {prod.materials}
+                        <span className="editorial-chip" title="Materials">
+                          <span>Craft: {prod.materials}</span>
                         </span>
                       )}
-                      {prod.origin && (
-                        <span style={{ fontSize: '11.5px', color: '#8A9AA8', fontStyle: 'italic', marginLeft: 'auto' }}>
-                          Origin: {prod.origin}
-                        </span>
-                      )}
+
+                      <span
+                        className="editorial-chip"
+                        style={{
+                          color: prod.inStock ? '#16803C' : '#D63031',
+                          fontWeight: 700,
+                        }}
+                      >
+                        ● {prod.inStock ? 'In Stock' : 'Out of Stock'}
+                      </span>
                     </div>
                   </div>
 
-                  {/* Card Action Footer */}
-                  <div className="luxury-card-footer">
+                  {/* Showcase Action Dock */}
+                  <div className="showcase-actions">
                     <button
                       type="button"
-                      className="luxury-edit-btn"
+                      className="showcase-edit-btn"
                       onClick={() => handleOpenEdit(prod)}
                     >
-                      <Edit3 size={14} color="#DFB76C" />
+                      <Edit3 size={13} color="#DFB76C" />
                       <span>Edit Product</span>
                     </button>
+
                     <button
                       type="button"
-                      className="luxury-icon-btn"
+                      className="showcase-delete-btn"
                       onClick={() => handleDelete(prod.id, prod.title)}
-                      title="Delete Product"
+                      title="Remove Product"
                     >
-                      <Trash2 size={16} />
+                      <Trash2 size={13} />
+                      <span>Remove</span>
                     </button>
                   </div>
                 </div>

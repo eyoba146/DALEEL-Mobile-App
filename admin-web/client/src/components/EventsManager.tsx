@@ -18,6 +18,9 @@ import {
   LayoutGrid,
   List,
 } from 'lucide-react';
+import { useDynamicCategories } from '../utils/categories';
+import { CategoryFilterBar } from './CategoryFilterBar';
+import { DynamicCategorySelect } from './DynamicCategorySelect';
 
 interface EventItemData {
   id: string;
@@ -50,13 +53,32 @@ interface EventRsvpItem {
   event: { id: string; title: string; date: string; venue?: string | null };
 }
 
+const DEFAULT_EVENT_CATEGORIES = [
+  'Summits & Business',
+  'Cultural Celebrations',
+  'Diaspora Meetups',
+  'Arts, Music & Film',
+  'Workshops & Masterclasses',
+  'Investment & Trade',
+  'Charity & Gala',
+];
+
 export const EventsManager: React.FC = () => {
   const [activeSubTab, setActiveSubTab] = useState<'events' | 'rsvps'>('events');
   const [events, setEvents] = useState<EventItemData[]>([]);
   const [rsvps, setRsvps] = useState<EventRsvpItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('All');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+
+  // Dynamic Categories Engine
+  const { categories, addCategory } = useDynamicCategories<EventItemData>(
+    'events',
+    DEFAULT_EVENT_CATEGORIES,
+    events,
+    (e) => e.category
+  );
 
   // Dedicated In-Page Editor State (NO POPUPS)
   const [isEditorActive, setIsEditorActive] = useState(false);
@@ -199,12 +221,17 @@ export const EventsManager: React.FC = () => {
     }
   };
 
-  const filteredEvents = events.filter(
-    (ev) =>
-      ev.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      ev.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      ev.city.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredEvents = events.filter((item) => {
+    const term = searchTerm.toLowerCase().trim();
+    const matchesSearch =
+      !term ||
+      item.title.toLowerCase().includes(term) ||
+      item.category.toLowerCase().includes(term) ||
+      item.city.toLowerCase().includes(term) ||
+      (item.venue && item.venue.toLowerCase().includes(term));
+    const matchesCategory = selectedCategory === 'All' || item.category === selectedCategory;
+    return matchesSearch && matchesCategory;
+  });
 
   // Dedicated In-Page Full Workspace Editor (NO POPUP)
   if (isEditorActive) {
@@ -267,17 +294,13 @@ export const EventsManager: React.FC = () => {
               <div style={styles.inputRow}>
                 <div style={{ flex: 1 }}>
                   <label style={styles.label}>Category *</label>
-                  <select
+                  <DynamicCategorySelect
                     value={formData.category}
-                    onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                    style={styles.fullInput}
-                  >
-                    <option value="Summits">Summits & Business</option>
-                    <option value="Cultural Celebrations">Cultural Celebrations & Festivals</option>
-                    <option value="Diaspora Meetups">Diaspora Meetups & Mixers</option>
-                    <option value="Arts & Music">Arts, Music & Heritage</option>
-                    <option value="Workshops">Workshops & Masterclasses</option>
-                  </select>
+                    onChange={(cat) => setFormData({ ...formData, category: cat })}
+                    categories={categories}
+                    onAddNewCategory={addCategory}
+                    label="Category"
+                  />
                 </div>
 
                 <div style={{ flex: 1 }}>
@@ -470,30 +493,41 @@ export const EventsManager: React.FC = () => {
               />
             </div>
 
-            {/* Grid / List View Toggle */}
-            <div style={styles.viewToggleWrap}>
-              <button
-                type="button"
-                style={{
-                  ...styles.viewToggleBtn,
-                  ...(viewMode === 'grid' ? styles.viewToggleBtnActive : {}),
-                }}
-                onClick={() => setViewMode('grid')}
-                title="Showcase Grid View"
-              >
-                <LayoutGrid size={15} color={viewMode === 'grid' ? '#07152B' : '#5A687A'} />
-              </button>
-              <button
-                type="button"
-                style={{
-                  ...styles.viewToggleBtn,
-                  ...(viewMode === 'list' ? styles.viewToggleBtnActive : {}),
-                }}
-                onClick={() => setViewMode('list')}
-                title="Compact List View"
-              >
-                <List size={15} color={viewMode === 'list' ? '#07152B' : '#5A687A'} />
-              </button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+              <CategoryFilterBar
+                categories={categories}
+                selectedCategory={selectedCategory}
+                onSelectCategory={setSelectedCategory}
+                onAddCategory={addCategory}
+                label="Category"
+                allLabel="All"
+              />
+
+              {/* Grid / List View Toggle */}
+              <div style={styles.viewToggleWrap}>
+                <button
+                  type="button"
+                  style={{
+                    ...styles.viewToggleBtn,
+                    ...(viewMode === 'grid' ? styles.viewToggleBtnActive : {}),
+                  }}
+                  onClick={() => setViewMode('grid')}
+                  title="Showcase Directory"
+                >
+                  <LayoutGrid size={15} color={viewMode === 'grid' ? '#07152B' : '#5A687A'} />
+                </button>
+                <button
+                  type="button"
+                  style={{
+                    ...styles.viewToggleBtn,
+                    ...(viewMode === 'list' ? styles.viewToggleBtnActive : {}),
+                  }}
+                  onClick={() => setViewMode('list')}
+                  title="Compact List View"
+                >
+                  <List size={15} color={viewMode === 'list' ? '#07152B' : '#5A687A'} />
+                </button>
+              </div>
             </div>
           </div>
 
@@ -502,98 +536,88 @@ export const EventsManager: React.FC = () => {
           ) : filteredEvents.length === 0 ? (
             <div style={styles.emptyState}>No events scheduled yet.</div>
           ) : viewMode === 'grid' ? (
-            /* Luxury Cards Grid */
-            <div className="luxury-grid">
+            /* Executive Showcase Directory */
+            <div className="showcase-list">
               {filteredEvents.map((ev) => (
-                <div key={ev.id} className="luxury-card">
-                  {/* Media Banner with 16:10 Aspect Ratio, Scrim, and Badges */}
-                  <div className="luxury-card-media">
-                    <img src={ev.image} alt={ev.title} className="luxury-card-img" />
-                    <div className="luxury-card-scrim" />
-
-                    <div className="luxury-badge-top-left">
-                      <span className="glass-pill">{ev.category}</span>
-                    </div>
-
-                    <div className="luxury-badge-top-right">
-                      <span className="glass-pill-light" style={{ color: '#07152B', fontWeight: 800 }}>
-                        {ev.price || 'Free RSVP'}
-                      </span>
-                    </div>
-
-                    <div className="luxury-badge-bottom-left">
-                      <span className="glass-pill" style={{ textTransform: 'none', fontSize: '11px' }}>
-                        <Calendar size={11} color="#DFB76C" />
-                        <span>{new Date(ev.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</span>
-                      </span>
-                    </div>
-
-                    <div className="luxury-badge-bottom-right">
-                      <span className="glass-pill" style={{ textTransform: 'none', fontSize: '10.5px' }}>
-                        <Users size={11} color="#DFB76C" />
-                        <span>{ev._count?.rsvps ?? 0} RSVPs</span>
-                      </span>
+                <div key={ev.id} className="showcase-row">
+                  {/* Media Thumbnail */}
+                  <div className="showcase-thumb-wrap">
+                    <img src={ev.image} alt={ev.title} className="showcase-thumb" />
+                    <div className="showcase-thumb-badge">
+                      <span className="editorial-badge-region">{ev.category}</span>
                     </div>
                   </div>
 
-                  {/* Card Body */}
-                  <div className="luxury-card-body">
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <MapPin size={12} color="#C59B43" />
-                      <span style={{ fontSize: '12px', fontWeight: 600, color: '#C59B43', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                        {ev.venue || ev.city}
-                      </span>
+                  {/* Showcase Main Content */}
+                  <div className="showcase-main">
+                    <div>
+                      <div className="showcase-kicker">
+                        <MapPin size={11} color="#C59B43" />
+                        <span>
+                          {ev.city.toUpperCase()} • {ev.venue || 'VENUE TBA'}
+                        </span>
+                      </div>
+                      <div className="showcase-header">
+                        <h3 className="showcase-title">{ev.title}</h3>
+                        <span
+                          className="badge badge-gold"
+                          style={{ fontWeight: 800, fontSize: '11.5px' }}
+                        >
+                          {ev.price || 'Free RSVP'}
+                        </span>
+                      </div>
                     </div>
 
-                    <h3 className="luxury-card-title">{ev.title}</h3>
+                    <p className="showcase-blurb">{ev.description || ev.agenda}</p>
 
-                    {ev.description && (
-                      <p className="luxury-card-blurb">{ev.description}</p>
-                    )}
+                    <div className="showcase-meta-row">
+                      <span className="editorial-chip" title="Date">
+                        <Calendar size={12} color="#C59B43" />
+                        <span>{ev.date}</span>
+                      </span>
 
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '12px', color: '#5A687A', marginTop: '2px' }}>
                       {ev.time && (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <span className="editorial-chip" title="Schedule">
                           <Clock size={12} color="#8A9AA8" />
                           <span>{ev.time}</span>
-                        </div>
+                        </span>
                       )}
-                      {ev.organizer && (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                          <span>Hosted by <strong style={{ color: '#07152B' }}>{ev.organizer}</strong></span>
-                        </div>
-                      )}
-                    </div>
 
-                    <div className="luxury-card-meta">
-                      {ev.latitude && ev.longitude ? (
-                        <div className="luxury-coord-chip">
-                          <Crosshair size={12} color="#C59B43" />
-                          <span>{ev.latitude.toFixed(4)}°N, {ev.longitude.toFixed(4)}°E</span>
-                        </div>
-                      ) : (
-                        <span style={{ fontSize: '11px', color: '#8A9AA8' }}>Venue coordinates unpinned</span>
+                      <span className="editorial-chip" title="Confirmed Attendees">
+                        <Users size={12} color="#8A9AA8" />
+                        <span>{ev._count?.rsvps || 0} RSVPs</span>
+                      </span>
+
+                      {ev.latitude && ev.longitude && (
+                        <span className="editorial-chip" title="Coordinates">
+                          <Crosshair size={12} color="#8A9AA8" />
+                          <span>
+                            {ev.latitude.toFixed(3)}°N, {ev.longitude.toFixed(3)}°E
+                          </span>
+                        </span>
                       )}
                     </div>
                   </div>
 
-                  {/* Card Action Footer */}
-                  <div className="luxury-card-footer">
+                  {/* Showcase Action Dock */}
+                  <div className="showcase-actions">
                     <button
                       type="button"
-                      className="luxury-edit-btn"
+                      className="showcase-edit-btn"
                       onClick={() => handleOpenEdit(ev)}
                     >
-                      <Edit3 size={14} color="#DFB76C" />
+                      <Edit3 size={13} color="#DFB76C" />
                       <span>Edit Event</span>
                     </button>
+
                     <button
                       type="button"
-                      className="luxury-icon-btn"
+                      className="showcase-delete-btn"
                       onClick={() => handleDelete(ev.id, ev.title)}
-                      title="Delete Event"
+                      title="Remove Event"
                     >
-                      <Trash2 size={16} />
+                      <Trash2 size={13} />
+                      <span>Remove</span>
                     </button>
                   </div>
                 </div>

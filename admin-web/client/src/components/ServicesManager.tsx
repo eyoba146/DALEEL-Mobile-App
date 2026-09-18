@@ -18,6 +18,9 @@ import {
   LayoutGrid,
   List,
 } from 'lucide-react';
+import { useDynamicCategories } from '../utils/categories';
+import { CategoryFilterBar } from './CategoryFilterBar';
+import { DynamicCategorySelect } from './DynamicCategorySelect';
 
 interface ServiceItem {
   id: string;
@@ -48,13 +51,33 @@ interface ServiceInquiryItem {
   service: { id: string; name: string; category: string };
 }
 
+const DEFAULT_SERVICE_CATEGORIES = [
+  'Legal & Relocation',
+  'Banking & Diaspora Accounts',
+  'Healthcare & Concierge',
+  'Real Estate & Architecture',
+  'Car Rental & Transport',
+  'Logistics & Customs',
+  'Tourism & Tour Operators',
+  'Hospitality & Dining',
+];
+
 export const ServicesManager: React.FC = () => {
   const [activeSubTab, setActiveSubTab] = useState<'directory' | 'inquiries'>('directory');
   const [services, setServices] = useState<ServiceItem[]>([]);
   const [inquiries, setInquiries] = useState<ServiceInquiryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('All');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+
+  // Dynamic Categories Engine
+  const { categories, addCategory } = useDynamicCategories<ServiceItem>(
+    'services',
+    DEFAULT_SERVICE_CATEGORIES,
+    services,
+    (s) => s.category
+  );
 
   // Dedicated In-Page Editor State (NO POPUPS)
   const [isEditorActive, setIsEditorActive] = useState(false);
@@ -194,11 +217,17 @@ export const ServicesManager: React.FC = () => {
     }
   };
 
-  const filteredServices = services.filter((s) =>
-    s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    s.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (s.location && s.location.toLowerCase().includes(searchTerm.toLowerCase()))
-  );
+  const filteredServices = services.filter((item) => {
+    const term = searchTerm.toLowerCase().trim();
+    const matchesSearch =
+      !term ||
+      item.name.toLowerCase().includes(term) ||
+      item.category.toLowerCase().includes(term) ||
+      item.location.toLowerCase().includes(term) ||
+      item.blurb.toLowerCase().includes(term);
+    const matchesCategory = selectedCategory === 'All' || item.category === selectedCategory;
+    return matchesSearch && matchesCategory;
+  });
 
   // Dedicated In-Page Full Workspace Editor (NO POPUP)
   if (isEditorActive) {
@@ -260,18 +289,13 @@ export const ServicesManager: React.FC = () => {
 
               <div>
                 <label style={styles.label}>Category *</label>
-                <select
+                <DynamicCategorySelect
                   value={formData.category}
-                  onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                  style={styles.fullInput}
-                >
-                  <option value="Legal & Relocation">Legal & Relocation</option>
-                  <option value="Banking & Diaspora Accounts">Banking & Diaspora Accounts</option>
-                  <option value="Healthcare & Concierge">Healthcare & Concierge</option>
-                  <option value="Real Estate & Architecture">Real Estate & Architecture</option>
-                  <option value="Car Rental & Transport">Car Rental & Transport</option>
-                  <option value="Logistics & Customs">Logistics & Customs</option>
-                </select>
+                  onChange={(cat) => setFormData({ ...formData, category: cat })}
+                  categories={categories}
+                  onAddNewCategory={addCategory}
+                  label="Category"
+                />
               </div>
 
               <div style={styles.inputRow}>
@@ -443,30 +467,41 @@ export const ServicesManager: React.FC = () => {
               />
             </div>
 
-            {/* Grid / List View Toggle */}
-            <div style={styles.viewToggleWrap}>
-              <button
-                type="button"
-                style={{
-                  ...styles.viewToggleBtn,
-                  ...(viewMode === 'grid' ? styles.viewToggleBtnActive : {}),
-                }}
-                onClick={() => setViewMode('grid')}
-                title="Showcase Grid View"
-              >
-                <LayoutGrid size={15} color={viewMode === 'grid' ? '#07152B' : '#5A687A'} />
-              </button>
-              <button
-                type="button"
-                style={{
-                  ...styles.viewToggleBtn,
-                  ...(viewMode === 'list' ? styles.viewToggleBtnActive : {}),
-                }}
-                onClick={() => setViewMode('list')}
-                title="Compact List View"
-              >
-                <List size={15} color={viewMode === 'list' ? '#07152B' : '#5A687A'} />
-              </button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+              <CategoryFilterBar
+                categories={categories}
+                selectedCategory={selectedCategory}
+                onSelectCategory={setSelectedCategory}
+                onAddCategory={addCategory}
+                label="Category"
+                allLabel="All"
+              />
+
+              {/* Grid / List View Toggle */}
+              <div style={styles.viewToggleWrap}>
+                <button
+                  type="button"
+                  style={{
+                    ...styles.viewToggleBtn,
+                    ...(viewMode === 'grid' ? styles.viewToggleBtnActive : {}),
+                  }}
+                  onClick={() => setViewMode('grid')}
+                  title="Showcase Directory"
+                >
+                  <LayoutGrid size={15} color={viewMode === 'grid' ? '#07152B' : '#5A687A'} />
+                </button>
+                <button
+                  type="button"
+                  style={{
+                    ...styles.viewToggleBtn,
+                    ...(viewMode === 'list' ? styles.viewToggleBtnActive : {}),
+                  }}
+                  onClick={() => setViewMode('list')}
+                  title="Compact List View"
+                >
+                  <List size={15} color={viewMode === 'list' ? '#07152B' : '#5A687A'} />
+                </button>
+              </div>
             </div>
           </div>
 
@@ -475,89 +510,84 @@ export const ServicesManager: React.FC = () => {
           ) : filteredServices.length === 0 ? (
             <div style={styles.emptyState}>No service partners found.</div>
           ) : viewMode === 'grid' ? (
-            /* Luxury Cards Grid */
-            <div className="luxury-grid">
+            /* Executive Showcase Directory */
+            <div className="showcase-list">
               {filteredServices.map((svc) => (
-                <div key={svc.id} className="luxury-card">
-                  {/* Media Banner with 16:10 Aspect Ratio, Scrim, and Badges */}
-                  <div className="luxury-card-media">
-                    <img src={svc.image} alt={svc.name} className="luxury-card-img" />
-                    <div className="luxury-card-scrim" />
-
-                    <div className="luxury-badge-top-left">
-                      <span className="glass-pill">{svc.category}</span>
-                    </div>
-
-                    {svc.verified && (
-                      <div className="luxury-badge-top-right">
-                        <span className="glass-pill-light" style={{ color: '#16803C' }}>
-                          <CheckCircle size={12} color="#16803C" />
-                          <span>VERIFIED</span>
-                        </span>
-                      </div>
-                    )}
-
-                    <div className="luxury-badge-bottom-left">
-                      <span className="glass-pill" style={{ textTransform: 'none', fontSize: '11px' }}>
-                        <MapPin size={11} color="#DFB76C" />
-                        <span>{svc.address || svc.location}</span>
-                      </span>
+                <div key={svc.id} className="showcase-row">
+                  {/* Media Thumbnail */}
+                  <div className="showcase-thumb-wrap">
+                    <img src={svc.image} alt={svc.name} className="showcase-thumb" />
+                    <div className="showcase-thumb-badge">
+                      <span className="editorial-badge-region">{svc.category}</span>
                     </div>
                   </div>
 
-                  {/* Card Body */}
-                  <div className="luxury-card-body">
-                    <h3 className="luxury-card-title">{svc.name}</h3>
+                  {/* Showcase Main Content */}
+                  <div className="showcase-main">
+                    <div>
+                      <div className="showcase-kicker">
+                        <MapPin size={11} color="#C59B43" />
+                        <span>{svc.location.toUpperCase()} • VERIFIED PARTNER</span>
+                      </div>
+                      <div className="showcase-header">
+                        <h3 className="showcase-title">{svc.name}</h3>
+                        {svc.verified && (
+                          <span
+                            className="badge badge-success"
+                            style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                          >
+                            <CheckCircle size={11} />
+                            <span>VERIFIED</span>
+                          </span>
+                        )}
+                      </div>
+                    </div>
 
-                    <p className="luxury-card-blurb">{svc.blurb}</p>
+                    <p className="showcase-blurb">{svc.blurb}</p>
 
-                    {/* Direct Contact Channels */}
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', margin: '4px 0', fontSize: '12px', color: '#5A687A' }}>
+                    <div className="showcase-meta-row">
                       {svc.phone && (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <span className="editorial-chip" title="Direct Phone">
                           <Phone size={12} color="#C59B43" />
                           <span>{svc.phone}</span>
-                        </div>
+                        </span>
                       )}
                       {svc.email && (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <Mail size={12} color="#C59B43" />
+                        <span className="editorial-chip" title="Official Email">
+                          <Mail size={12} color="#8A9AA8" />
                           <span>{svc.email}</span>
-                        </div>
+                        </span>
                       )}
-                    </div>
-
-                    <div className="luxury-card-meta">
-                      {svc.latitude && svc.longitude ? (
-                        <div className="luxury-coord-chip">
-                          <Crosshair size={12} color="#C59B43" />
+                      {svc.latitude && svc.longitude && (
+                        <span className="editorial-chip" title="Coordinates">
+                          <Crosshair size={12} color="#8A9AA8" />
                           <span>
-                            {svc.latitude.toFixed(4)}°N, {svc.longitude.toFixed(4)}°E
+                            {svc.latitude.toFixed(3)}°N, {svc.longitude.toFixed(3)}°E
                           </span>
-                        </div>
-                      ) : (
-                        <span style={{ fontSize: '11px', color: '#8A9AA8' }}>Office unpinned</span>
+                        </span>
                       )}
                     </div>
                   </div>
 
-                  {/* Card Action Footer */}
-                  <div className="luxury-card-footer">
+                  {/* Showcase Action Dock */}
+                  <div className="showcase-actions">
                     <button
                       type="button"
-                      className="luxury-edit-btn"
+                      className="showcase-edit-btn"
                       onClick={() => handleOpenEdit(svc)}
                     >
-                      <Edit3 size={14} color="#DFB76C" />
+                      <Edit3 size={13} color="#DFB76C" />
                       <span>Edit Partner</span>
                     </button>
+
                     <button
                       type="button"
-                      className="luxury-icon-btn"
+                      className="showcase-delete-btn"
                       onClick={() => handleDelete(svc.id, svc.name)}
                       title="Remove Partner"
                     >
-                      <Trash2 size={16} />
+                      <Trash2 size={13} />
+                      <span>Remove</span>
                     </button>
                   </div>
                 </div>

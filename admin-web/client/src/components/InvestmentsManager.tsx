@@ -1,6 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { adminApi } from '../api';
 import { ImageUploader } from './ImageUploader';
+import { useDynamicCategories } from '../utils/categories';
+import { CategoryFilterBar } from './CategoryFilterBar';
+import { DynamicCategorySelect } from './DynamicCategorySelect';
 import {
   Plus,
   Search,
@@ -11,9 +14,9 @@ import {
   Check,
   TrendingUp,
   MapPin,
-  Clock,
   LayoutGrid,
   List,
+  DollarSign,
 } from 'lucide-react';
 
 interface InvestmentItem {
@@ -47,13 +50,33 @@ interface InvestmentInquiryItem {
   };
 }
 
+const DEFAULT_INVESTMENT_SECTORS = [
+  'Agro-Processing & Specialty Export',
+  'Commercial Real Estate & Hospitality',
+  'Renewable Energy & Solar Parks',
+  'Fintech & Digital Infrastructure',
+  'Pharmaceuticals & Health Tech',
+  'Mining & Minerals',
+  'Manufacturing & Textiles',
+  'Logistics & Cold Chain',
+];
+
 export const InvestmentsManager: React.FC = () => {
   const [activeSubTab, setActiveSubTab] = useState<'deals' | 'inquiries'>('deals');
   const [investments, setInvestments] = useState<InvestmentItem[]>([]);
   const [inquiries, setInquiries] = useState<InvestmentInquiryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedSector, setSelectedSector] = useState('All');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+
+  // Dynamic Categories Engine
+  const { categories: sectors, addCategory: addSector } = useDynamicCategories<InvestmentItem>(
+    'investments',
+    DEFAULT_INVESTMENT_SECTORS,
+    investments,
+    (inv) => inv.sector
+  );
 
   // Dedicated In-Page Editor State (NO POPUPS)
   const [isEditorActive, setIsEditorActive] = useState(false);
@@ -187,12 +210,16 @@ export const InvestmentsManager: React.FC = () => {
     }
   };
 
-  const filteredInvestments = investments.filter(
-    (item) =>
+  const filteredInvestments = investments.filter((item) => {
+    const matchesSearch =
       item.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
       item.sector.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.location.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+      item.location.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (item.blurb && item.blurb.toLowerCase().includes(searchTerm.toLowerCase()));
+    const matchesSector =
+      selectedSector === 'All' || item.sector.toLowerCase() === selectedSector.toLowerCase();
+    return matchesSearch && matchesSector;
+  });
 
   // Dedicated In-Page Full Workspace Editor (NO POPUP)
   if (isEditorActive) {
@@ -254,19 +281,13 @@ export const InvestmentsManager: React.FC = () => {
 
               <div style={styles.inputRow}>
                 <div style={{ flex: 1 }}>
-                  <label style={styles.label}>Sector *</label>
-                  <select
+                  <DynamicCategorySelect
+                    label="Sector"
                     value={formData.sector}
-                    onChange={(e) => setFormData({ ...formData, sector: e.target.value })}
-                    style={styles.fullInput}
-                  >
-                    <option value="Agro-Processing & Specialty Export">Agro-Processing & Specialty Export</option>
-                    <option value="Commercial Real Estate & Hospitality">Commercial Real Estate & Hospitality</option>
-                    <option value="Renewable Energy & Solar Parks">Renewable Energy & Solar Parks</option>
-                    <option value="Fintech & Digital Infrastructure">Fintech & Digital Infrastructure</option>
-                    <option value="Pharmaceuticals & Health Tech">Pharmaceuticals & Health Tech</option>
-                    <option value="Mining & Minerals">Mining & Minerals</option>
-                  </select>
+                    onChange={(val) => setFormData({ ...formData, sector: val })}
+                    categories={sectors}
+                    onAddNewCategory={addSector}
+                  />
                 </div>
 
                 <div style={{ flex: 1 }}>
@@ -448,30 +469,41 @@ export const InvestmentsManager: React.FC = () => {
               />
             </div>
 
-            {/* Grid / List View Toggle */}
-            <div style={styles.viewToggleWrap}>
-              <button
-                type="button"
-                style={{
-                  ...styles.viewToggleBtn,
-                  ...(viewMode === 'grid' ? styles.viewToggleBtnActive : {}),
-                }}
-                onClick={() => setViewMode('grid')}
-                title="Showcase Grid View"
-              >
-                <LayoutGrid size={15} color={viewMode === 'grid' ? '#07152B' : '#5A687A'} />
-              </button>
-              <button
-                type="button"
-                style={{
-                  ...styles.viewToggleBtn,
-                  ...(viewMode === 'list' ? styles.viewToggleBtnActive : {}),
-                }}
-                onClick={() => setViewMode('list')}
-                title="Compact List View"
-              >
-                <List size={15} color={viewMode === 'list' ? '#07152B' : '#5A687A'} />
-              </button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+              <CategoryFilterBar
+                categories={sectors}
+                selectedCategory={selectedSector}
+                onSelectCategory={setSelectedSector}
+                onAddCategory={addSector}
+                label="Sector"
+                allLabel="All"
+              />
+
+              {/* Grid / List View Toggle */}
+              <div style={styles.viewToggleWrap}>
+                <button
+                  type="button"
+                  style={{
+                    ...styles.viewToggleBtn,
+                    ...(viewMode === 'grid' ? styles.viewToggleBtnActive : {}),
+                  }}
+                  onClick={() => setViewMode('grid')}
+                  title="Showcase Directory"
+                >
+                  <LayoutGrid size={15} color={viewMode === 'grid' ? '#07152B' : '#5A687A'} />
+                </button>
+                <button
+                  type="button"
+                  style={{
+                    ...styles.viewToggleBtn,
+                    ...(viewMode === 'list' ? styles.viewToggleBtnActive : {}),
+                  }}
+                  onClick={() => setViewMode('list')}
+                  title="Compact List View"
+                >
+                  <List size={15} color={viewMode === 'list' ? '#07152B' : '#5A687A'} />
+                </button>
+              </div>
             </div>
           </div>
 
@@ -480,70 +512,57 @@ export const InvestmentsManager: React.FC = () => {
           ) : filteredInvestments.length === 0 ? (
             <div style={styles.emptyState}>No investment opportunities found.</div>
           ) : viewMode === 'grid' ? (
-            /* Luxury Cards Grid */
-            <div className="luxury-grid">
+            /* Executive Showcase Directory */
+            <div className="showcase-list">
               {filteredInvestments.map((inv) => (
-                <div key={inv.id} className="luxury-card">
-                  {/* Media Banner with 16:10 Aspect Ratio, Scrim, and Badges */}
-                  <div className="luxury-card-media">
-                    <img src={inv.image} alt={inv.title} className="luxury-card-img" />
-                    <div className="luxury-card-scrim" />
-
-                    <div className="luxury-badge-top-left">
-                      <span className="glass-pill">{inv.sector}</span>
-                    </div>
-
-                    <div className="luxury-badge-top-right">
-                      <span className="gold-glow-badge">
-                        <TrendingUp size={12} color="#07152B" />
-                        <span>{inv.expectedReturn || 'Target IRR'}</span>
-                      </span>
-                    </div>
-
-                    <div className="luxury-badge-bottom-left">
-                      <span className="glass-pill" style={{ textTransform: 'none', fontSize: '11px' }}>
-                        <MapPin size={11} color="#DFB76C" />
-                        <span>{inv.location}</span>
-                      </span>
-                    </div>
-
-                    <div className="luxury-badge-bottom-right">
-                      <span className="glass-pill-light" style={{ color: '#07152B', fontWeight: 800 }}>
-                        Min: ${inv.minInvestment?.toLocaleString()} USD
-                      </span>
+                <div key={inv.id} className="showcase-row">
+                  {/* Media Thumbnail */}
+                  <div className="showcase-thumb-wrap">
+                    <img src={inv.image} alt={inv.title} className="showcase-thumb" />
+                    <div className="showcase-thumb-badge">
+                      <span className="editorial-badge-region">{inv.sector}</span>
                     </div>
                   </div>
 
-                  {/* Card Body */}
-                  <div className="luxury-card-body">
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <Clock size={12} color="#C59B43" />
-                      <span style={{ fontSize: '12px', fontWeight: 600, color: '#C59B43', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                        Horizon: {inv.timeline || '3 - 5 Years'}
-                      </span>
+                  {/* Showcase Main Content */}
+                  <div className="showcase-main">
+                    <div>
+                      <div className="showcase-kicker">
+                        <TrendingUp size={11} color="#C59B43" />
+                        <span>
+                          {inv.expectedReturn || 'TARGET IRR'} •{' '}
+                          {inv.timeline ? `HORIZON: ${inv.timeline.toUpperCase()}` : '3 - 5 YEARS'}
+                        </span>
+                      </div>
+
+                      <h3 className="showcase-title">{inv.title}</h3>
+
+                      <p className="showcase-blurb">{inv.blurb}</p>
                     </div>
 
-                    <h3 className="luxury-card-title">{inv.title}</h3>
-
-                    <p className="luxury-card-blurb">{inv.blurb}</p>
-
-                    <div className="luxury-card-meta">
-                      <span style={{ fontSize: '11.5px', color: '#5A687A' }}>
-                        Min Ticket: <strong style={{ color: '#07152B' }}>${inv.minInvestment?.toLocaleString()} USD</strong>
+                    {/* Metadata Pills */}
+                    <div className="showcase-meta-row">
+                      <span className="showcase-meta-pill">
+                        <MapPin size={12} color="#C59B43" />
+                        <span>{inv.location}</span>
+                      </span>
+                      <span className="showcase-meta-pill">
+                        <DollarSign size={12} color="#C59B43" />
+                        <span>Min: ${inv.minInvestment?.toLocaleString()} USD</span>
                       </span>
                       {inv.contactEmail && (
-                        <span style={{ fontSize: '11.5px', color: '#8A9AA8' }}>
-                          {inv.contactEmail}
+                        <span className="showcase-meta-pill">
+                          <span>{inv.contactEmail}</span>
                         </span>
                       )}
                     </div>
                   </div>
 
-                  {/* Card Action Footer */}
-                  <div className="luxury-card-footer">
+                  {/* Actions Dock */}
+                  <div className="showcase-actions">
                     <button
                       type="button"
-                      className="luxury-edit-btn"
+                      className="showcase-edit-btn"
                       onClick={() => handleOpenEdit(inv)}
                     >
                       <Edit3 size={14} color="#DFB76C" />
@@ -551,7 +570,7 @@ export const InvestmentsManager: React.FC = () => {
                     </button>
                     <button
                       type="button"
-                      className="luxury-icon-btn"
+                      className="showcase-delete-btn"
                       onClick={() => handleDelete(inv.id, inv.title)}
                       title="Delete Deal"
                     >
