@@ -1527,6 +1527,252 @@ adminRouter.patch(
   }
 );
 
+// --- Event Live Check-In & Gate Desk API ---
+
+adminRouter.post(
+  '/events/check-in',
+  requireRole([AdminRole.SUPER_ADMIN, AdminRole.EVENT_MANAGER]) as any,
+  async (req: AdminRequest, res: Response) => {
+    try {
+      const { code, eventId } = req.body;
+      if (!code || typeof code !== 'string') {
+        return res.status(400).json({ error: 'Pass reference code or ticket identifier is required' });
+      }
+
+      const cleanCode = code.trim();
+      let passSub = cleanCode;
+      if (cleanCode.toUpperCase().startsWith('DAL-EVT-')) {
+        passSub = cleanCode.substring('DAL-EVT-'.length);
+      }
+
+      const candidates = await prisma.eventRsvp.findMany({
+        where: {
+          ...(eventId ? { eventId } : {}),
+          OR: [
+            { id: cleanCode },
+            { id: { startsWith: passSub.toLowerCase() } },
+            { id: { startsWith: passSub.toUpperCase() } },
+            { email: { equals: cleanCode, mode: 'insensitive' } },
+            { fullName: { contains: cleanCode, mode: 'insensitive' } },
+          ],
+        },
+        include: {
+          event: { select: { id: true, title: true, date: true, venue: true, city: true } },
+          user: { select: { id: true, name: true, email: true } },
+        },
+        orderBy: { createdAt: 'desc' },
+      });
+
+      if (candidates.length === 0) {
+        if (eventId) {
+          const otherEventPass = await prisma.eventRsvp.findFirst({
+            where: {
+              OR: [
+                { id: cleanCode },
+                { id: { startsWith: passSub.toLowerCase() } },
+                { id: { startsWith: passSub.toUpperCase() } },
+              ],
+            },
+            include: { event: { select: { title: true } } },
+          });
+          if (otherEventPass) {
+            return res.status(400).json({
+              success: false,
+              reason: 'WRONG_EVENT',
+              message: `This pass is valid for "${otherEventPass.event.title}", not the currently selected event!`,
+            });
+          }
+        }
+        return res.status(404).json({
+          success: false,
+          reason: 'NOT_FOUND',
+          message: `No reservation pass found matching "${cleanCode}".`,
+        });
+      }
+
+      const rsvp = candidates[0];
+      const currentStatus = rsvp.status.toLowerCase();
+
+      if (currentStatus === 'checked_in') {
+        return res.status(409).json({
+          success: false,
+          reason: 'ALREADY_CHECKED_IN',
+          message: 'Already Checked In! Guest was previously admitted.',
+          rsvp: {
+            ...rsvp,
+            passCode: `DAL-EVT-${rsvp.id.slice(0, 8).toUpperCase()}`,
+          },
+        });
+      }
+
+      if (currentStatus === 'cancelled' || currentStatus === 'rejected') {
+        return res.status(400).json({
+          success: false,
+          reason: 'CANCELLED',
+          message: `Admission Denied. This pass was ${rsvp.status.toUpperCase()}.`,
+          rsvp: {
+            ...rsvp,
+            passCode: `DAL-EVT-${rsvp.id.slice(0, 8).toUpperCase()}`,
+          },
+        });
+      }
+
+      const updated = await prisma.eventRsvp.update({
+        where: { id: rsvp.id },
+        data: { status: 'checked_in' },
+        include: {
+          event: { select: { id: true, title: true, date: true, venue: true, city: true } },
+          user: { select: { id: true, name: true, email: true } },
+        },
+      });
+
+      if (updated.userId) {
+        prisma.notification.create({
+          data: {
+            userId: updated.userId,
+            title: 'Welcome to ' + updated.event.title + '!',
+            message: 'Your admission pass has been scanned and verified at the venue gate.',
+            type: 'event',
+            actionUrl: `/activity`,
+          },
+        }).catch(() => {});
+      }
+
+      return res.json({
+        success: true,
+        reason: 'CHECKED_IN',
+        message: 'Pass Verified Successfully! Guest Admitted.',
+        rsvp: {
+          ...updated,
+          passCode: `DAL-EVT-${updated.id.slice(0, 8).toUpperCase()}`,
+        },
+      });
+    } catch (error) {
+      console.error('Error during event pass check-in:', error);
+      res.status(500).json({ error: 'Failed to process event pass check-in' });
+    }
+  }
+);
+
+adminRouter.get(
+  '/events/:id/attendance',
+  requireRole([AdminRole.SUPER_ADMIN, AdminRole.EVENT_MANAGER]) as any,
+  async (req: AdminRequest, res: Response) => {
+    try {
+      const eventId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+      const event = await prisma.eventItem.findUnique({
+        where: { id: eventId },
+        select: { id: true, title: true, date: true, venue: true, capacity: true },
+      });
+
+      if (!event) {
+        return res.status(404).json({ error: 'Event not found' });
+      }
+
+      const allRsvps = await prisma.eventRsvp.findMany({
+        where: { eventId },
+        include: {
+          user: { select: { id: true, name: true, email: true } },
+        },
+        orderBy: { createdAt: 'desc' },
+      });
+
+      let totalTickets = 0;
+      let checkedInTickets = 0;
+      let checkedInCount = 0;
+      let confirmedCount = 0;
+      let pendingCount = 0;
+      let cancelledCount = 0;
+
+      const formattedAttendees = allRsvps.map((r) => {
+        const passCode = `DAL-EVT-${r.id.slice(0, 8).toUpperCase()}`;
+        const s = r.status.toLowerCase();
+        const tickets = r.ticketsCount || 1;
+
+        if (s !== 'cancelled' && s !== 'rejected') {
+          totalTickets += tickets;
+        }
+
+        if (s === 'checked_in') {
+          checkedInCount++;
+          checkedInTickets += tickets;
+        } else if (s === 'confirmed') {
+          confirmedCount++;
+        } else if (s === 'pending') {
+          pendingCount++;
+        } else if (s === 'cancelled' || s === 'rejected') {
+          cancelledCount++;
+        }
+
+        return {
+          id: r.id,
+          passCode,
+          fullName: r.fullName || r.user?.name || 'Guest',
+          email: r.email,
+          phone: r.phone,
+          ticketsCount: tickets,
+          notes: r.notes,
+          status: r.status,
+          createdAt: r.createdAt,
+        };
+      });
+
+      const remainingTickets = Math.max(0, totalTickets - checkedInTickets);
+      const attendanceRate = totalTickets > 0 ? Math.round((checkedInTickets / totalTickets) * 100) : 0;
+
+      res.json({
+        event,
+        metrics: {
+          totalRsvps: allRsvps.length,
+          totalTickets,
+          checkedInCount,
+          checkedInTickets,
+          remainingTickets,
+          confirmedCount,
+          pendingCount,
+          cancelledCount,
+          attendanceRate,
+          capacity: event.capacity || null,
+        },
+        attendees: formattedAttendees,
+      });
+    } catch (error) {
+      console.error('Error fetching event attendance stats:', error);
+      res.status(500).json({ error: 'Failed to fetch event attendance stats' });
+    }
+  }
+);
+
+adminRouter.post(
+  '/events/undo-check-in/:id',
+  requireRole([AdminRole.SUPER_ADMIN, AdminRole.EVENT_MANAGER]) as any,
+  async (req: AdminRequest, res: Response) => {
+    try {
+      const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+      const updated = await prisma.eventRsvp.update({
+        where: { id },
+        data: { status: 'confirmed' },
+        include: {
+          event: { select: { id: true, title: true } },
+        },
+      });
+
+      res.json({
+        success: true,
+        message: 'Check-in reverted to confirmed',
+        rsvp: {
+          ...updated,
+          passCode: `DAL-EVT-${updated.id.slice(0, 8).toUpperCase()}`,
+        },
+      });
+    } catch (error) {
+      console.error('Error reverting check-in:', error);
+      res.status(500).json({ error: 'Failed to revert check-in' });
+    }
+  }
+);
+
+
 // --- Artisan Marketplace (SUPER_ADMIN, MARKETPLACE_MANAGER) ---
 
 adminRouter.get(

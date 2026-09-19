@@ -210,6 +210,42 @@ export const adminApi = {
   getEventRsvps: () => request<any[]>('/admin/events-rsvps'),
   updateEventRsvpStatus: (id: string, status: string) =>
     request<any>(`/admin/events-rsvps/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status }) }),
+  checkInEventPass: (code: string, eventId?: string) =>
+    request<{ success: boolean; reason: string; message: string; rsvp: any }>('/admin/events/check-in', {
+      method: 'POST',
+      body: JSON.stringify({ code, eventId }),
+    }),
+  getEventAttendance: (eventId: string) =>
+    request<{
+      event: { id: string; title: string; date: string; venue?: string; capacity?: number };
+      metrics: {
+        totalRsvps: number;
+        totalTickets: number;
+        checkedInCount: number;
+        checkedInTickets: number;
+        remainingTickets: number;
+        confirmedCount: number;
+        pendingCount: number;
+        cancelledCount: number;
+        attendanceRate: number;
+        capacity: number | null;
+      };
+      attendees: Array<{
+        id: string;
+        passCode: string;
+        fullName: string;
+        email: string;
+        phone?: string;
+        ticketsCount: number;
+        notes?: string;
+        status: string;
+        createdAt: string;
+      }>;
+    }>(`/admin/events/${eventId}/attendance`),
+  undoEventCheckIn: (rsvpId: string) =>
+    request<{ success: boolean; message: string; rsvp: any }>(`/admin/events/undo-check-in/${rsvpId}`, {
+      method: 'POST',
+    }),
 
   // Artisan Marketplace
   getProducts: () => request<any[]>('/admin/products'),

@@ -17,7 +17,9 @@ import {
   Clock,
   LayoutGrid,
   List,
+  QrCode,
 } from 'lucide-react';
+import { EventCheckInDesk } from './EventCheckInDesk';
 import { useDynamicCategories } from '../utils/categories';
 import { CategoryFilterBar } from './CategoryFilterBar';
 import { DynamicCategorySelect } from './DynamicCategorySelect';
@@ -66,7 +68,8 @@ const DEFAULT_EVENT_CATEGORIES = [
 
 export const EventsManager: React.FC = () => {
   const { success, error: toastError } = useToast();
-  const [activeSubTab, setActiveSubTab] = useState<'events' | 'rsvps'>('events');
+  const [activeSubTab, setActiveSubTab] = useState<'events' | 'rsvps' | 'checkin'>('events');
+  const [checkInEventId, setCheckInEventId] = useState<string | null>(null);
   const [events, setEvents] = useState<EventItemData[]>([]);
   const [rsvps, setRsvps] = useState<EventRsvpItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -497,6 +500,21 @@ export const EventsManager: React.FC = () => {
           <span>Attendee RSVPs</span>
           <span style={styles.tabBadge}>{rsvps.length}</span>
         </button>
+
+        <button
+          style={{
+            ...styles.tabBtn,
+            ...(activeSubTab === 'checkin' ? styles.tabBtnActive : {}),
+          }}
+          onClick={() => {
+            setCheckInEventId(null);
+            setActiveSubTab('checkin');
+          }}
+        >
+          <QrCode size={15} color={activeSubTab === 'checkin' ? '#8C6A21' : '#5A687A'} style={{ marginRight: 6 }} />
+          <span>Live Check-In Desk</span>
+          <span style={{ ...styles.tabBadge, backgroundColor: '#DFB76C', color: '#07152B', fontWeight: 800 }}>GATE</span>
+        </button>
       </div>
 
       {/* Events Tab View */}
@@ -625,6 +643,20 @@ export const EventsManager: React.FC = () => {
                     <button
                       type="button"
                       className="showcase-edit-btn"
+                      style={{ borderColor: '#DFB76C', color: '#07152B', backgroundColor: '#FBF8F1' }}
+                      onClick={() => {
+                        setCheckInEventId(ev.id);
+                        setActiveSubTab('checkin');
+                      }}
+                      title="Launch Gate QR Check-In Desk"
+                    >
+                      <QrCode size={13} color="#8C6A21" />
+                      <span>Check-In Desk</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      className="showcase-edit-btn"
                       onClick={() => handleOpenEdit(ev)}
                     >
                       <Edit3 size={13} color="#DFB76C" />
@@ -677,6 +709,19 @@ export const EventsManager: React.FC = () => {
                   </div>
 
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <button
+                      type="button"
+                      className="btn btn-navy"
+                      style={{ padding: '8px 12px', fontSize: '12px', gap: '5px', backgroundColor: '#FBF8F1', borderColor: '#DFB76C', color: '#07152B' }}
+                      onClick={() => {
+                        setCheckInEventId(ev.id);
+                        setActiveSubTab('checkin');
+                      }}
+                      title="Launch Gate Check-In Desk"
+                    >
+                      <QrCode size={13} color="#8C6A21" />
+                      <span>Gate Desk</span>
+                    </button>
                     <button
                       type="button"
                       className="btn btn-navy"
@@ -901,6 +946,17 @@ export const EventsManager: React.FC = () => {
             </table>
           </div>
         </div>
+      )}
+
+      {/* Live Check-In Desk Tab View */}
+      {activeSubTab === 'checkin' && (
+        <EventCheckInDesk
+          initialEventId={checkInEventId}
+          onBack={() => {
+            setActiveSubTab('events');
+            setCheckInEventId(null);
+          }}
+        />
       )}
     </div>
   );
