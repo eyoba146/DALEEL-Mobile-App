@@ -19,6 +19,10 @@ import {
   RefreshCw,
   ShieldCheck,
   Award,
+  AlertTriangle,
+  UserX,
+  UserCheck,
+  ShieldAlert,
 } from 'lucide-react';
 
 export const UsersManager: React.FC = () => {
@@ -60,18 +64,39 @@ export const UsersManager: React.FC = () => {
     return () => clearTimeout(timeout);
   }, [searchTerm, selectedPersona, selectedVerification]);
 
-  const handleToggleVerification = async (user: RegisteredUser) => {
+  // Account Status Governance (Activate / Deactivate)
+  const handleToggleAccountActive = async (user: RegisteredUser) => {
     setUpdatingId(user.id);
-    const newStatus = !user.isVerified;
+    const newStatus = user.isActive === false ? true : false;
     try {
-      const updated = await adminApi.updateRegisteredUser(user.id, { isVerified: newStatus });
-      setUsers((prev) => prev.map((u) => (u.id === user.id ? { ...u, isVerified: newStatus } : u)));
+      const updated = await adminApi.updateRegisteredUser(user.id, { isActive: newStatus });
+      setUsers((prev) => prev.map((u) => (u.id === user.id ? { ...u, isActive: newStatus } : u)));
       if (inspectingUser?.id === user.id) {
-        setInspectingUser((prev) => (prev ? { ...prev, isVerified: newStatus } : null));
+        setInspectingUser((prev) => (prev ? { ...prev, isActive: newStatus } : null));
       }
-      success(`Member account "${updated.name}" is now marked as ${newStatus ? 'Verified' : 'Pending Verification'}.`);
+      success(`Member account "${updated.name}" is now ${newStatus ? 'Activated' : 'Deactivated / Suspended'}.`);
     } catch (err: any) {
-      toastError(err.message || 'Failed to update member status.');
+      toastError(err.message || 'Failed to update account status.');
+    } finally {
+      setUpdatingId(null);
+    }
+  };
+
+  // Revoke Email Verification (Admin cannot artificially verify; can only revoke if flagged)
+  const handleRevokeVerification = async (user: RegisteredUser) => {
+    if (!window.confirm(`Revoke verified email status for ${user.name}? The member will be required to re-verify their email address via OTP code.`)) {
+      return;
+    }
+    setUpdatingId(user.id);
+    try {
+      const updated = await adminApi.updateRegisteredUser(user.id, { revokeVerification: true });
+      setUsers((prev) => prev.map((u) => (u.id === user.id ? { ...u, isVerified: false } : u)));
+      if (inspectingUser?.id === user.id) {
+        setInspectingUser((prev) => (prev ? { ...prev, isVerified: false } : null));
+      }
+      success(`Email verification revoked for "${updated.name}".`);
+    } catch (err: any) {
+      toastError(err.message || 'Failed to revoke verification.');
     } finally {
       setUpdatingId(null);
     }
@@ -81,6 +106,7 @@ export const UsersManager: React.FC = () => {
   const diasporaCount = users.filter((u) => u.userType === 'diaspora').length;
   const residentCount = users.filter((u) => u.userType === 'foreign_resident').length;
   const verifiedCount = users.filter((u) => u.isVerified).length;
+  const activeCount = users.filter((u) => u.isActive !== false).length;
 
   const getLanguageName = (code: string) => {
     switch (code) {
@@ -97,7 +123,7 @@ export const UsersManager: React.FC = () => {
 
   return (
     <div style={styles.container}>
-      {/* Header Banner */}
+      {/* Light Luxury Header Banner */}
       <div style={styles.headerBanner}>
         <div>
           <div style={styles.badgeRow}>
@@ -111,16 +137,16 @@ export const UsersManager: React.FC = () => {
         </div>
 
         <button style={styles.refreshBtn} onClick={loadUsers} title="Refresh directory">
-          <RefreshCw size={15} color="#DFB76C" />
+          <RefreshCw size={15} color="#8C6A21" />
           <span>Refresh Roster</span>
         </button>
       </div>
 
-      {/* Metrics Bar */}
+      {/* Light Luxury Metrics Bar */}
       <div style={styles.metricsGrid}>
         <div style={styles.metricCard}>
           <div style={styles.metricIconBox}>
-            <Users size={18} color="#DFB76C" />
+            <Users size={18} color="#8C6A21" />
           </div>
           <div>
             <div style={styles.metricValue}>{totalCount}</div>
@@ -130,7 +156,7 @@ export const UsersManager: React.FC = () => {
 
         <div style={styles.metricCard}>
           <div style={styles.metricIconBox}>
-            <Globe size={18} color="#60A5FA" />
+            <Globe size={18} color="#3B82F6" />
           </div>
           <div>
             <div style={styles.metricValue}>{diasporaCount}</div>
@@ -140,7 +166,7 @@ export const UsersManager: React.FC = () => {
 
         <div style={styles.metricCard}>
           <div style={styles.metricIconBox}>
-            <Award size={18} color="#34D399" />
+            <Award size={18} color="#10B981" />
           </div>
           <div>
             <div style={styles.metricValue}>{residentCount}</div>
@@ -150,11 +176,21 @@ export const UsersManager: React.FC = () => {
 
         <div style={styles.metricCard}>
           <div style={styles.metricIconBox}>
-            <CheckCircle size={18} color="#10B981" />
+            <CheckCircle size={18} color="#059669" />
           </div>
           <div>
             <div style={styles.metricValue}>{verifiedCount}</div>
             <div style={styles.metricLabel}>Verified Accounts</div>
+          </div>
+        </div>
+
+        <div style={styles.metricCard}>
+          <div style={styles.metricIconBox}>
+            <UserCheck size={18} color="#8C6A21" />
+          </div>
+          <div>
+            <div style={styles.metricValue}>{activeCount}</div>
+            <div style={styles.metricLabel}>Active Accounts</div>
           </div>
         </div>
       </div>
@@ -162,16 +198,16 @@ export const UsersManager: React.FC = () => {
       {/* Filter & Search Toolbar */}
       <div style={styles.toolbar}>
         <div style={styles.searchBox}>
-          <Search size={16} color="#64748B" />
+          <Search size={16} color="#8A9AA8" />
           <input
             style={styles.searchInput}
-            placeholder="Search by name, email, country or phone..."
+            placeholder="Search by member name, email, country, or phone..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
           {searchTerm && (
             <button style={styles.clearBtn} onClick={() => setSearchTerm('')}>
-              <X size={14} color="#94A3B8" />
+              <X size={14} color="#8A9AA8" />
             </button>
           )}
         </div>
@@ -245,14 +281,14 @@ export const UsersManager: React.FC = () => {
         <div style={{ ...styles.tableWrapper, ...(inspectingUser ? styles.tableWrapperShrunk : {}) }}>
           {loading ? (
             <div style={styles.loadingBox}>
-              <RefreshCw size={22} color="#DFB76C" style={{ animation: 'spin 1.2s linear infinite' }} />
+              <RefreshCw size={22} color="#8C6A21" style={{ animation: 'spin 1.2s linear infinite' }} />
               <span style={styles.loadingText}>Retrieving registered member roster...</span>
             </div>
           ) : users.length === 0 ? (
             <div style={styles.emptyBox}>
-              <Users size={36} color="#64748B" />
+              <Users size={36} color="#8A9AA8" />
               <div style={styles.emptyTitle}>No registered members match your criteria</div>
-              <div style={styles.emptySub}>Try adjusting your search query or persona filters.</div>
+              <div style={styles.emptySub}>Try adjusting your search query or filter selections.</div>
             </div>
           ) : (
             <div style={styles.tableCard}>
@@ -261,9 +297,10 @@ export const UsersManager: React.FC = () => {
                   <tr style={styles.thRow}>
                     <th style={styles.th}>Member</th>
                     <th style={styles.th}>Persona</th>
+                    <th style={styles.th}>Account Status</th>
+                    <th style={styles.th}>Email Verification</th>
                     <th style={styles.th}>Country & Language</th>
-                    <th style={styles.th}>Verification</th>
-                    <th style={styles.th}>Activity</th>
+                    <th style={styles.th}>Platform Activity</th>
                     <th style={styles.th}>Joined</th>
                     <th style={{ ...styles.th, textAlign: 'right' }}>Actions</th>
                   </tr>
@@ -272,6 +309,7 @@ export const UsersManager: React.FC = () => {
                   {users.map((user) => {
                     const isSelected = inspectingUser?.id === user.id;
                     const isDiaspora = user.userType === 'diaspora';
+                    const isActive = user.isActive !== false;
                     return (
                       <tr
                         key={user.id}
@@ -306,51 +344,66 @@ export const UsersManager: React.FC = () => {
                               ...(isDiaspora ? styles.personaDiaspora : styles.personaResident),
                             }}
                           >
-                            {isDiaspora ? '🇪🇹 Diaspora Member' : '🌍 Foreign Resident'}
+                            {isDiaspora ? '🇪🇹 Diaspora' : '🌍 Resident'}
                           </span>
+                        </td>
+
+                        {/* Account Status Badge */}
+                        <td style={styles.td}>
+                          {isActive ? (
+                            <span style={styles.statusActiveBadge}>
+                              <CheckCircle size={11} color="#065F46" />
+                              <span>Active</span>
+                            </span>
+                          ) : (
+                            <span style={styles.statusSuspendedBadge}>
+                              <UserX size={11} color="#991B1B" />
+                              <span>Deactivated</span>
+                            </span>
+                          )}
+                        </td>
+
+                        {/* Email Verification Status */}
+                        <td style={styles.td}>
+                          {user.isVerified ? (
+                            <span style={styles.badgeVerified}>
+                              <CheckCircle size={11} color="#065F46" />
+                              <span>Verified OTP</span>
+                            </span>
+                          ) : (
+                            <span style={styles.badgePending}>
+                              <Clock size={11} color="#92400E" />
+                              <span>Pending User Code</span>
+                            </span>
+                          )}
                         </td>
 
                         {/* Country & Language */}
                         <td style={styles.td}>
                           <div style={styles.countryRow}>
-                            <Globe size={13} color="#DFB76C" />
+                            <Globe size={12} color="#8C6A21" />
                             <span style={styles.countryText}>{user.country || 'Not specified'}</span>
                           </div>
                           <div style={styles.langText}>{getLanguageName(user.language)}</div>
-                        </td>
-
-                        {/* Verification Status */}
-                        <td style={styles.td}>
-                          {user.isVerified ? (
-                            <span style={styles.badgeVerified}>
-                              <CheckCircle size={12} color="#10B981" />
-                              <span>Verified</span>
-                            </span>
-                          ) : (
-                            <span style={styles.badgePending}>
-                              <Clock size={12} color="#F59E0B" />
-                              <span>Pending</span>
-                            </span>
-                          )}
                         </td>
 
                         {/* Activity Counts */}
                         <td style={styles.td}>
                           <div style={styles.activityCounts}>
                             <span title="Service Inquiries" style={styles.activityPill}>
-                              <Briefcase size={11} color="#DFB76C" />
+                              <Briefcase size={11} color="#8C6A21" />
                               <span>{user._count?.serviceInquiries ?? 0}</span>
                             </span>
                             <span title="Event RSVPs" style={styles.activityPill}>
-                              <Calendar size={11} color="#60A5FA" />
+                              <Calendar size={11} color="#2563EB" />
                               <span>{user._count?.eventRsvps ?? 0}</span>
                             </span>
                             <span title="Orders" style={styles.activityPill}>
-                              <ShoppingBag size={11} color="#34D399" />
+                              <ShoppingBag size={11} color="#059669" />
                               <span>{user._count?.productOrderInquiries ?? 0}</span>
                             </span>
                             <span title="Saved Favorites" style={styles.activityPill}>
-                              <Heart size={11} color="#F43F5E" />
+                              <Heart size={11} color="#DC2626" />
                               <span>{user._count?.favorites ?? 0}</span>
                             </span>
                           </div>
@@ -376,7 +429,7 @@ export const UsersManager: React.FC = () => {
                             }}
                             onClick={() => setInspectingUser(isSelected ? null : user)}
                           >
-                            {isSelected ? 'Close View' : 'Inspect'}
+                            {isSelected ? 'Close' : 'Inspect'}
                           </button>
                         </td>
                       </tr>
@@ -393,11 +446,11 @@ export const UsersManager: React.FC = () => {
           <aside style={styles.inspectorPanel}>
             <div style={styles.inspectorHeader}>
               <div style={styles.inspectorTitleRow}>
-                <ShieldCheck size={16} color="#DFB76C" />
-                <span style={styles.inspectorTitle}>Member Profile Details</span>
+                <ShieldCheck size={16} color="#8C6A21" />
+                <span style={styles.inspectorTitle}>Member Profile & Governance</span>
               </div>
-              <button style={styles.inspectorCloseBtn} onClick={() => setInspectingUser(null)}>
-                <X size={16} color="#94A3B8" />
+              <button style={styles.inspectorCloseBtn} onClick={() => setInspectingUser(null)} title="Close Inspector">
+                <X size={16} color="#5A687A" />
               </button>
             </div>
 
@@ -426,80 +479,162 @@ export const UsersManager: React.FC = () => {
                     {inspectingUser.userType === 'diaspora' ? '🇪🇹 Diaspora Member' : '🌍 Foreign Resident'}
                   </span>
 
+                  {inspectingUser.isActive !== false ? (
+                    <span style={styles.statusActiveBadge}>
+                      <CheckCircle size={11} color="#065F46" />
+                      <span>Account Active</span>
+                    </span>
+                  ) : (
+                    <span style={styles.statusSuspendedBadge}>
+                      <UserX size={11} color="#991B1B" />
+                      <span>Account Deactivated</span>
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Account Security & Governance Controls */}
+              <div style={styles.inspectorSection}>
+                <div style={styles.sectionHeading}>Account Access Control</div>
+                <div style={styles.governanceBox}>
+                  <div style={styles.governanceRow}>
+                    <div>
+                      <div style={styles.govTitle}>
+                        {inspectingUser.isActive !== false ? 'Account Status: Active' : 'Account Status: Deactivated'}
+                      </div>
+                      <div style={styles.govDesc}>
+                        {inspectingUser.isActive !== false
+                          ? 'This member has full authorization to access the mobile application.'
+                          : 'This account is currently suspended. The user cannot log in or submit inquiries.'}
+                      </div>
+                    </div>
+                    <button
+                      style={{
+                        ...styles.govBtn,
+                        ...(inspectingUser.isActive !== false ? styles.govBtnDeactivate : styles.govBtnActivate),
+                      }}
+                      disabled={updatingId === inspectingUser.id}
+                      onClick={() => handleToggleAccountActive(inspectingUser)}
+                    >
+                      {inspectingUser.isActive !== false ? (
+                        <>
+                          <UserX size={13} />
+                          <span>Deactivate</span>
+                        </>
+                      ) : (
+                        <>
+                          <UserCheck size={13} />
+                          <span>Activate</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Email Verification Governance */}
+              <div style={styles.inspectorSection}>
+                <div style={styles.sectionHeading}>Email Verification Status</div>
+                <div style={styles.governanceBox}>
                   {inspectingUser.isVerified ? (
-                    <span style={styles.badgeVerified}>
-                      <CheckCircle size={12} color="#10B981" />
-                      <span>Verified Email</span>
-                    </span>
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                        <span style={styles.badgeVerified}>
+                          <CheckCircle size={12} color="#065F46" />
+                          <span>Verified via Mobile OTP Code</span>
+                        </span>
+                        <button
+                          style={styles.revokeBtn}
+                          disabled={updatingId === inspectingUser.id}
+                          onClick={() => handleRevokeVerification(inspectingUser)}
+                          title="Revoke verification if suspicious or email changed"
+                        >
+                          <ShieldAlert size={13} />
+                          <span>Revoke Verification</span>
+                        </button>
+                      </div>
+                      <p style={styles.govDesc}>
+                        Email address has been confirmed by the user. If this email becomes invalid or suspicious, you can revoke verification to require re-confirmation.
+                      </p>
+                    </div>
                   ) : (
-                    <span style={styles.badgePending}>
-                      <Clock size={12} color="#F59E0B" />
-                      <span>Pending Verification</span>
-                    </span>
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
+                        <span style={styles.badgePending}>
+                          <Clock size={12} color="#92400E" />
+                          <span>Pending User Security Code</span>
+                        </span>
+                      </div>
+                      <div style={styles.securityNotice}>
+                        <AlertTriangle size={14} color="#8C6A21" style={{ flexShrink: 0, marginTop: '2px' }} />
+                        <span style={styles.securityNoticeText}>
+                          For security and compliance, administrators cannot bypass email verification. The member must verify their email directly using the 6-digit code sent to their inbox.
+                        </span>
+                      </div>
+                    </div>
                   )}
                 </div>
               </div>
 
-              {/* Status Action Button */}
-              <div style={styles.inspectorActionSection}>
-                <button
-                  style={{
-                    ...styles.statusToggleBtn,
-                    ...(inspectingUser.isVerified ? styles.statusToggleRevoke : styles.statusToggleVerify),
-                  }}
-                  disabled={updatingId === inspectingUser.id}
-                  onClick={() => handleToggleVerification(inspectingUser)}
-                >
-                  {inspectingUser.isVerified ? 'Revoke Verified Status' : 'Confirm Verified Status'}
-                </button>
-              </div>
-
-              {/* Contact Information */}
+              {/* Member Profile Particulars */}
               <div style={styles.inspectorSection}>
-                <div style={styles.sectionHeading}>Contact Details</div>
-                <div style={styles.detailRow}>
-                  <Mail size={14} color="#8C6A21" />
-                  <a href={`mailto:${inspectingUser.email}`} style={styles.detailLink}>
-                    {inspectingUser.email}
-                  </a>
-                </div>
-                <div style={styles.detailRow}>
-                  <Phone size={14} color="#8C6A21" />
-                  {inspectingUser.phone ? (
-                    <a href={`tel:${inspectingUser.phone}`} style={styles.detailLink}>
-                      {inspectingUser.phone}
-                    </a>
-                  ) : (
-                    <span style={styles.detailMuted}>No phone number registered</span>
-                  )}
-                </div>
-                <div style={styles.detailRow}>
-                  <Globe size={14} color="#8C6A21" />
-                  <span style={styles.detailValue}>
-                    {inspectingUser.country || 'Country of residence not set'}
-                  </span>
-                </div>
-                <div style={styles.detailRow}>
-                  <Calendar size={14} color="#8C6A21" />
-                  <span style={styles.detailValue}>
-                    Joined on{' '}
-                    {new Date(inspectingUser.createdAt).toLocaleDateString(undefined, {
-                      year: 'numeric',
-                      month: 'long',
-                      day: 'numeric',
-                    })}
-                  </span>
-                </div>
-              </div>
+                <div style={styles.sectionHeading}>Contact & Location Particulars</div>
+                <div style={styles.detailList}>
+                  <div style={styles.detailRow}>
+                    <span style={styles.detailLabel}>
+                      <Globe size={13} color="#8C6A21" />
+                      <span>Country of Origin/Residence:</span>
+                    </span>
+                    <span style={styles.detailValue}>{inspectingUser.country || 'Not provided'}</span>
+                  </div>
 
-              {/* Saved Delivery Address */}
-              <div style={styles.inspectorSection}>
-                <div style={styles.sectionHeading}>Saved Address & Location</div>
-                <div style={styles.detailRow}>
-                  <MapPin size={14} color="#8C6A21" />
-                  <span style={styles.detailValue}>
-                    {inspectingUser.savedAddress || 'No saved delivery address on record'}
-                  </span>
+                  <div style={styles.detailRow}>
+                    <span style={styles.detailLabel}>
+                      <Phone size={13} color="#8C6A21" />
+                      <span>Contact Phone:</span>
+                    </span>
+                    <span style={styles.detailValue}>
+                      {inspectingUser.phone ? (
+                        <a href={`tel:${inspectingUser.phone}`} style={styles.linkText}>
+                          {inspectingUser.phone}
+                        </a>
+                      ) : (
+                        'No phone provided'
+                      )}
+                    </span>
+                  </div>
+
+                  <div style={styles.detailRow}>
+                    <span style={styles.detailLabel}>
+                      <Mail size={13} color="#8C6A21" />
+                      <span>Preferred Language:</span>
+                    </span>
+                    <span style={styles.detailValue}>{getLanguageName(inspectingUser.language)}</span>
+                  </div>
+
+                  <div style={styles.detailRow}>
+                    <span style={styles.detailLabel}>
+                      <Calendar size={13} color="#8C6A21" />
+                      <span>Registration Date:</span>
+                    </span>
+                    <span style={styles.detailValue}>
+                      {new Date(inspectingUser.createdAt).toLocaleDateString(undefined, {
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric',
+                      })}
+                    </span>
+                  </div>
+
+                  <div style={styles.detailRow}>
+                    <span style={styles.detailLabel}>
+                      <MapPin size={13} color="#8C6A21" />
+                      <span>Delivery Address:</span>
+                    </span>
+                    <span style={styles.detailValue}>
+                      {inspectingUser.savedAddress || 'No saved address on record'}
+                    </span>
+                  </div>
                 </div>
               </div>
 
@@ -508,19 +643,19 @@ export const UsersManager: React.FC = () => {
                 <div style={styles.sectionHeading}>Platform Activity Breakdown</div>
                 <div style={styles.activityGrid}>
                   <div style={styles.activityBox}>
-                    <Briefcase size={16} color="#DFB76C" />
+                    <Briefcase size={16} color="#8C6A21" />
                     <div style={styles.activityBoxCount}>{inspectingUser._count?.serviceInquiries ?? 0}</div>
                     <div style={styles.activityBoxLabel}>Service Inquiries</div>
                   </div>
 
                   <div style={styles.activityBox}>
-                    <Calendar size={16} color="#60A5FA" />
+                    <Calendar size={16} color="#2563EB" />
                     <div style={styles.activityBoxCount}>{inspectingUser._count?.eventRsvps ?? 0}</div>
                     <div style={styles.activityBoxLabel}>Event RSVPs</div>
                   </div>
 
                   <div style={styles.activityBox}>
-                    <ShoppingBag size={16} color="#34D399" />
+                    <ShoppingBag size={16} color="#059669" />
                     <div style={styles.activityBoxCount}>
                       {inspectingUser._count?.productOrderInquiries ?? 0}
                     </div>
@@ -528,7 +663,7 @@ export const UsersManager: React.FC = () => {
                   </div>
 
                   <div style={styles.activityBox}>
-                    <TrendingUp size={16} color="#A78BFA" />
+                    <TrendingUp size={16} color="#7C3AED" />
                     <div style={styles.activityBoxCount}>
                       {inspectingUser._count?.investmentInquiries ?? 0}
                     </div>
@@ -547,20 +682,22 @@ export const UsersManager: React.FC = () => {
 const styles: { [key: string]: React.CSSProperties } = {
   container: {
     padding: '32px',
-    color: '#F8FAFC',
     maxWidth: '1600px',
     margin: '0 auto',
+    backgroundColor: '#F8FAFC',
+    minHeight: '100vh',
+    color: '#07152B',
   },
   headerBanner: {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
     marginBottom: '24px',
-    backgroundColor: '#0B1729',
+    backgroundColor: '#FFFFFF',
     padding: '24px 28px',
     borderRadius: '16px',
-    border: '1px solid rgba(223, 183, 108, 0.25)',
-    boxShadow: '0 8px 30px rgba(0, 0, 0, 0.35)',
+    border: '1px solid #E4E9F0',
+    boxShadow: '0 2px 10px rgba(7, 21, 43, 0.03)',
   },
   badgeRow: {
     display: 'flex',
@@ -572,18 +709,18 @@ const styles: { [key: string]: React.CSSProperties } = {
     fontSize: '11px',
     fontWeight: 700,
     letterSpacing: '0.08em',
-    color: '#DFB76C',
+    color: '#8C6A21',
     textTransform: 'uppercase',
   },
   title: {
     fontSize: '26px',
     fontWeight: 800,
-    color: '#FFFFFF',
+    color: '#07152B',
     margin: '0 0 6px 0',
   },
   subtitle: {
     fontSize: '14px',
-    color: '#94A3B8',
+    color: '#5A687A',
     margin: 0,
     maxWidth: '700px',
     lineHeight: 1.5,
@@ -593,128 +730,137 @@ const styles: { [key: string]: React.CSSProperties } = {
     alignItems: 'center',
     gap: '8px',
     padding: '10px 18px',
-    backgroundColor: 'rgba(223, 183, 108, 0.1)',
-    border: '1px solid rgba(223, 183, 108, 0.3)',
+    backgroundColor: '#FFFFFF',
+    border: '1px solid #E4E9F0',
     borderRadius: '10px',
-    color: '#DFB76C',
+    color: '#07152B',
     fontSize: '13px',
     fontWeight: 600,
     cursor: 'pointer',
-    transition: 'all 0.2s ease',
+    boxShadow: '0 1px 3px rgba(7, 21, 43, 0.03)',
+    transition: 'all 0.18s ease',
   },
   metricsGrid: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(4, 1fr)',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
     gap: '16px',
     marginBottom: '24px',
   },
   metricCard: {
-    backgroundColor: '#0B1729',
-    border: '1px solid #1E293B',
-    borderRadius: '14px',
+    backgroundColor: '#FFFFFF',
+    border: '1px solid #E4E9F0',
+    borderRadius: '12px',
     padding: '18px 20px',
     display: 'flex',
     alignItems: 'center',
     gap: '16px',
+    boxShadow: '0 2px 8px rgba(7, 21, 43, 0.02)',
   },
   metricIconBox: {
     width: '44px',
     height: '44px',
     borderRadius: '10px',
-    backgroundColor: 'rgba(255, 255, 255, 0.04)',
-    border: '1px solid rgba(255, 255, 255, 0.08)',
+    backgroundColor: '#F8FAFC',
+    border: '1px solid #E4E9F0',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
+    flexShrink: 0,
   },
   metricValue: {
-    fontSize: '22px',
+    fontSize: '24px',
     fontWeight: 800,
-    color: '#FFFFFF',
+    color: '#07152B',
+    lineHeight: 1.1,
   },
   metricLabel: {
     fontSize: '12px',
     fontWeight: 600,
-    color: '#64748B',
-    marginTop: '2px',
+    color: '#5A687A',
+    marginTop: '4px',
   },
   toolbar: {
     display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: '16px',
-    marginBottom: '20px',
     flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: '14px',
+    marginBottom: '20px',
+    backgroundColor: '#FFFFFF',
+    padding: '16px 20px',
+    borderRadius: '12px',
+    border: '1px solid #E4E9F0',
+    boxShadow: '0 2px 8px rgba(7, 21, 43, 0.02)',
   },
   searchBox: {
     display: 'flex',
     alignItems: 'center',
     gap: '10px',
-    backgroundColor: '#0B1729',
-    border: '1px solid #1E293B',
-    borderRadius: '10px',
-    padding: '10px 16px',
-    flex: '1 1 340px',
+    backgroundColor: '#F8FAFC',
+    border: '1px solid #E4E9F0',
+    borderRadius: '8px',
+    padding: '8px 14px',
+    flex: '1 1 300px',
+    minWidth: '260px',
   },
   searchInput: {
     background: 'none',
     border: 'none',
     outline: 'none',
-    color: '#FFFFFF',
-    fontSize: '13px',
+    color: '#07152B',
+    fontSize: '13.5px',
     width: '100%',
   },
   clearBtn: {
     background: 'none',
     border: 'none',
     cursor: 'pointer',
-    padding: '2px',
     display: 'flex',
     alignItems: 'center',
+    padding: 0,
   },
   filterPills: {
     display: 'flex',
     gap: '6px',
-    backgroundColor: '#0B1729',
+    backgroundColor: '#F8FAFC',
     padding: '4px',
-    borderRadius: '10px',
-    border: '1px solid #1E293B',
+    borderRadius: '8px',
+    border: '1px solid #E4E9F0',
   },
   filterPill: {
-    background: 'none',
-    border: 'none',
-    padding: '7px 14px',
-    borderRadius: '8px',
-    color: '#94A3B8',
-    fontSize: '12px',
+    padding: '6px 12px',
+    fontSize: '12.5px',
     fontWeight: 600,
+    borderRadius: '6px',
+    border: 'none',
+    backgroundColor: 'transparent',
+    color: '#5A687A',
     cursor: 'pointer',
-    transition: 'all 0.2s ease',
+    transition: 'all 0.15s ease',
   },
   filterPillActive: {
-    backgroundColor: 'rgba(223, 183, 108, 0.15)',
-    color: '#DFB76C',
+    backgroundColor: '#07152B',
+    color: '#FFFFFF',
     fontWeight: 700,
   },
   workspaceRow: {
     display: 'flex',
-    gap: '20px',
+    gap: '24px',
     alignItems: 'flex-start',
   },
   tableWrapper: {
-    flex: 1,
-    transition: 'all 0.3s ease',
-    minWidth: 0,
+    flex: '1 1 auto',
+    width: '100%',
+    transition: 'all 0.25s ease',
   },
   tableWrapperShrunk: {
-    flex: '1 1 65%',
+    maxWidth: 'calc(100% - 440px)',
   },
   tableCard: {
-    backgroundColor: '#0B1729',
-    border: '1px solid #1E293B',
+    backgroundColor: '#FFFFFF',
+    border: '1px solid #E4E9F0',
     borderRadius: '14px',
     overflow: 'hidden',
-    boxShadow: '0 4px 20px rgba(0, 0, 0, 0.25)',
+    boxShadow: '0 2px 10px rgba(7, 21, 43, 0.03)',
   },
   table: {
     width: '100%',
@@ -722,27 +868,28 @@ const styles: { [key: string]: React.CSSProperties } = {
     textAlign: 'left',
   },
   thRow: {
-    borderBottom: '1px solid #1E293B',
-    backgroundColor: 'rgba(15, 23, 42, 0.6)',
+    backgroundColor: '#F8FAFC',
+    borderBottom: '1px solid #E4E9F0',
   },
   th: {
     padding: '14px 18px',
-    fontSize: '11px',
+    fontSize: '11.5px',
     fontWeight: 700,
-    color: '#94A3B8',
-    letterSpacing: '0.05em',
     textTransform: 'uppercase',
+    letterSpacing: '0.06em',
+    color: '#5A687A',
   },
   tr: {
-    borderBottom: '1px solid rgba(30, 41, 59, 0.6)',
+    borderBottom: '1px solid #F1F5F9',
     transition: 'background-color 0.15s ease',
   },
   trSelected: {
-    backgroundColor: 'rgba(223, 183, 108, 0.08)',
+    backgroundColor: 'rgba(223, 183, 108, 0.06)',
   },
   td: {
     padding: '14px 18px',
     fontSize: '13px',
+    color: '#07152B',
     verticalAlign: 'middle',
   },
   memberCell: {
@@ -754,16 +901,15 @@ const styles: { [key: string]: React.CSSProperties } = {
     width: '38px',
     height: '38px',
     borderRadius: '50%',
-    backgroundColor: 'rgba(223, 183, 108, 0.15)',
-    border: '1px solid rgba(223, 183, 108, 0.3)',
+    backgroundColor: '#07152B',
     color: '#DFB76C',
-    fontWeight: 700,
-    fontSize: '15px',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    overflow: 'hidden',
+    fontSize: '14px',
+    fontWeight: 700,
     flexShrink: 0,
+    overflow: 'hidden',
   },
   avatarImg: {
     width: '100%',
@@ -772,165 +918,194 @@ const styles: { [key: string]: React.CSSProperties } = {
   },
   memberName: {
     fontWeight: 700,
-    color: '#FFFFFF',
-    fontSize: '14px',
+    color: '#07152B',
   },
   memberEmail: {
     fontSize: '12px',
-    color: '#94A3B8',
+    color: '#5A687A',
+    marginTop: '1px',
   },
   memberPhone: {
     fontSize: '11px',
-    color: '#64748B',
-    marginTop: '2px',
+    color: '#8A9AA8',
+    marginTop: '1px',
   },
   personaBadge: {
     display: 'inline-flex',
     alignItems: 'center',
-    gap: '6px',
-    padding: '4px 10px',
-    borderRadius: '8px',
+    gap: '5px',
+    padding: '3px 9px',
+    borderRadius: '12px',
     fontSize: '11px',
     fontWeight: 700,
   },
   personaDiaspora: {
-    backgroundColor: 'rgba(96, 165, 250, 0.12)',
-    color: '#93C5FD',
-    border: '1px solid rgba(96, 165, 250, 0.3)',
+    backgroundColor: '#EEF2FF',
+    color: '#4338CA',
+    border: '1px solid #C7D2FE',
   },
   personaResident: {
-    backgroundColor: 'rgba(52, 211, 153, 0.12)',
-    color: '#6EE7B7',
-    border: '1px solid rgba(52, 211, 153, 0.3)',
+    backgroundColor: '#ECFDF5',
+    color: '#065F46',
+    border: '1px solid #A7F3D0',
+  },
+  statusActiveBadge: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '4px',
+    padding: '3px 8px',
+    borderRadius: '12px',
+    fontSize: '11px',
+    fontWeight: 700,
+    backgroundColor: '#ECFDF5',
+    color: '#065F46',
+    border: '1px solid #A7F3D0',
+  },
+  statusSuspendedBadge: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '4px',
+    padding: '3px 8px',
+    borderRadius: '12px',
+    fontSize: '11px',
+    fontWeight: 700,
+    backgroundColor: '#FEF2F2',
+    color: '#991B1B',
+    border: '1px solid #FECACA',
+  },
+  badgeVerified: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '4px',
+    padding: '3px 8px',
+    borderRadius: '12px',
+    fontSize: '11px',
+    fontWeight: 700,
+    backgroundColor: '#ECFDF5',
+    color: '#065F46',
+    border: '1px solid #A7F3D0',
+  },
+  badgePending: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '4px',
+    padding: '3px 8px',
+    borderRadius: '12px',
+    fontSize: '11px',
+    fontWeight: 700,
+    backgroundColor: '#FFFBEB',
+    color: '#92400E',
+    border: '1px solid #FDE68A',
   },
   countryRow: {
     display: 'flex',
     alignItems: 'center',
     gap: '6px',
-    fontWeight: 600,
-    color: '#FFFFFF',
   },
   countryText: {
-    fontSize: '13px',
+    fontWeight: 600,
+    color: '#07152B',
   },
   langText: {
-    fontSize: '11px',
-    color: '#64748B',
+    fontSize: '11.5px',
+    color: '#5A687A',
     marginTop: '2px',
-  },
-  badgeVerified: {
-    display: 'inline-flex',
-    alignItems: 'center',
-    gap: '6px',
-    padding: '4px 10px',
-    borderRadius: '20px',
-    backgroundColor: 'rgba(16, 185, 129, 0.12)',
-    color: '#34D399',
-    fontSize: '11px',
-    fontWeight: 700,
-    border: '1px solid rgba(16, 185, 129, 0.25)',
-  },
-  badgePending: {
-    display: 'inline-flex',
-    alignItems: 'center',
-    gap: '6px',
-    padding: '4px 10px',
-    borderRadius: '20px',
-    backgroundColor: 'rgba(245, 158, 11, 0.12)',
-    color: '#FBBF24',
-    fontSize: '11px',
-    fontWeight: 700,
-    border: '1px solid rgba(245, 158, 11, 0.25)',
   },
   activityCounts: {
     display: 'flex',
-    gap: '6px',
+    alignItems: 'center',
+    gap: '8px',
   },
   activityPill: {
     display: 'inline-flex',
     alignItems: 'center',
     gap: '4px',
-    padding: '3px 8px',
+    padding: '3px 7px',
+    backgroundColor: '#F8FAFC',
+    border: '1px solid #E4E9F0',
     borderRadius: '6px',
-    backgroundColor: '#162744',
-    fontSize: '11px',
+    fontSize: '11.5px',
     fontWeight: 600,
-    color: '#E2E8F0',
+    color: '#07152B',
   },
   dateText: {
-    color: '#94A3B8',
     fontSize: '12px',
+    color: '#5A687A',
   },
   inspectBtn: {
     padding: '6px 14px',
+    backgroundColor: '#F8FAFC',
+    border: '1px solid #E4E9F0',
     borderRadius: '8px',
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    border: '1px solid #334155',
-    color: '#E2E8F0',
     fontSize: '12px',
     fontWeight: 600,
+    color: '#07152B',
     cursor: 'pointer',
-    transition: 'all 0.2s ease',
+    transition: 'all 0.15s ease',
   },
   inspectBtnActive: {
-    backgroundColor: '#DFB76C',
-    borderColor: '#DFB76C',
-    color: '#0B1729',
-    fontWeight: 700,
+    backgroundColor: '#07152B',
+    color: '#FFFFFF',
+    borderColor: '#07152B',
   },
   loadingBox: {
-    padding: '80px 20px',
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: '14px',
-    backgroundColor: '#0B1729',
+    gap: '12px',
+    padding: '60px',
+    backgroundColor: '#FFFFFF',
     borderRadius: '14px',
-    border: '1px solid #1E293B',
+    border: '1px solid #E4E9F0',
   },
   loadingText: {
-    fontSize: '14px',
-    color: '#94A3B8',
+    fontSize: '13.5px',
+    color: '#5A687A',
     fontWeight: 500,
   },
   emptyBox: {
-    padding: '80px 20px',
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: '10px',
-    backgroundColor: '#0B1729',
+    padding: '60px',
+    backgroundColor: '#FFFFFF',
     borderRadius: '14px',
-    border: '1px solid #1E293B',
+    border: '1px solid #E4E9F0',
+    textAlign: 'center',
   },
   emptyTitle: {
     fontSize: '16px',
     fontWeight: 700,
-    color: '#E2E8F0',
+    color: '#07152B',
+    marginTop: '12px',
   },
   emptySub: {
     fontSize: '13px',
-    color: '#64748B',
+    color: '#5A687A',
+    marginTop: '4px',
   },
+
+  // In-Page Inspector Panel Styles (Light Luxury)
   inspectorPanel: {
-    flex: '1 1 35%',
-    backgroundColor: '#0B1729',
-    border: '1px solid rgba(223, 183, 108, 0.3)',
-    borderRadius: '16px',
-    boxShadow: '0 8px 30px rgba(0, 0, 0, 0.4)',
-    overflow: 'hidden',
+    width: '420px',
+    backgroundColor: '#FFFFFF',
+    borderRadius: '14px',
+    border: '1px solid #E4E9F0',
+    boxShadow: '0 4px 20px rgba(7, 21, 43, 0.08)',
+    flexShrink: 0,
     position: 'sticky',
     top: '24px',
+    overflow: 'hidden',
   },
   inspectorHeader: {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
     padding: '16px 20px',
-    borderBottom: '1px solid #1E293B',
-    backgroundColor: 'rgba(15, 23, 42, 0.7)',
+    backgroundColor: '#F8FAFC',
+    borderBottom: '1px solid #E4E9F0',
   },
   inspectorTitleRow: {
     display: 'flex',
@@ -938,21 +1113,25 @@ const styles: { [key: string]: React.CSSProperties } = {
     gap: '8px',
   },
   inspectorTitle: {
-    fontSize: '14px',
+    fontSize: '13.5px',
     fontWeight: 700,
-    color: '#DFB76C',
+    color: '#07152B',
   },
   inspectorCloseBtn: {
     background: 'none',
     border: 'none',
     cursor: 'pointer',
-    padding: '4px',
     display: 'flex',
     alignItems: 'center',
+    padding: '4px',
+    borderRadius: '6px',
   },
   inspectorBody: {
     padding: '20px',
-    maxHeight: 'calc(100vh - 180px)',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '20px',
+    maxHeight: 'calc(100vh - 160px)',
     overflowY: 'auto',
   },
   inspectorHero: {
@@ -960,93 +1139,157 @@ const styles: { [key: string]: React.CSSProperties } = {
     flexDirection: 'column',
     alignItems: 'center',
     textAlign: 'center',
-    paddingBottom: '20px',
-    borderBottom: '1px solid #1E293B',
+    paddingBottom: '18px',
+    borderBottom: '1px solid #F1F5F9',
   },
   inspectorAvatar: {
-    width: '68px',
-    height: '68px',
+    width: '64px',
+    height: '64px',
     borderRadius: '50%',
-    backgroundColor: 'rgba(223, 183, 108, 0.15)',
-    border: '2px solid rgba(223, 183, 108, 0.4)',
+    backgroundColor: '#07152B',
     color: '#DFB76C',
-    fontWeight: 800,
-    fontSize: '24px',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: '12px',
+    fontSize: '22px',
+    fontWeight: 800,
+    marginBottom: '10px',
     overflow: 'hidden',
+    border: '2px solid #DFB76C',
   },
   inspectorName: {
     fontSize: '18px',
     fontWeight: 800,
-    color: '#FFFFFF',
-    marginBottom: '4px',
+    color: '#07152B',
   },
   inspectorEmail: {
     fontSize: '13px',
-    color: '#94A3B8',
-    marginBottom: '12px',
+    color: '#5A687A',
+    marginTop: '2px',
   },
   inspectorPillRow: {
     display: 'flex',
-    gap: '8px',
     flexWrap: 'wrap',
+    gap: '8px',
     justifyContent: 'center',
-  },
-  inspectorActionSection: {
-    padding: '16px 0',
-    borderBottom: '1px solid #1E293B',
-  },
-  statusToggleBtn: {
-    width: '100%',
-    padding: '10px 16px',
-    borderRadius: '10px',
-    fontSize: '13px',
-    fontWeight: 700,
-    cursor: 'pointer',
-    transition: 'all 0.2s ease',
-  },
-  statusToggleVerify: {
-    backgroundColor: 'rgba(16, 185, 129, 0.15)',
-    border: '1px solid rgba(16, 185, 129, 0.4)',
-    color: '#34D399',
-  },
-  statusToggleRevoke: {
-    backgroundColor: 'rgba(239, 68, 68, 0.12)',
-    border: '1px solid rgba(239, 68, 68, 0.35)',
-    color: '#F87171',
+    marginTop: '12px',
   },
   inspectorSection: {
-    padding: '16px 0',
-    borderBottom: '1px solid #1E293B',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '10px',
   },
   sectionHeading: {
+    fontSize: '11px',
+    fontWeight: 700,
+    textTransform: 'uppercase',
+    letterSpacing: '0.06em',
+    color: '#8C6A21',
+  },
+  governanceBox: {
+    backgroundColor: '#F8FAFC',
+    border: '1px solid #E4E9F0',
+    borderRadius: '10px',
+    padding: '14px',
+  },
+  governanceRow: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: '12px',
+  },
+  govTitle: {
+    fontSize: '13px',
+    fontWeight: 700,
+    color: '#07152B',
+  },
+  govDesc: {
+    fontSize: '12px',
+    color: '#5A687A',
+    lineHeight: 1.4,
+    marginTop: '3px',
+  },
+  govBtn: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '6px',
+    padding: '7px 12px',
+    borderRadius: '8px',
     fontSize: '12px',
     fontWeight: 700,
-    color: '#94A3B8',
-    textTransform: 'uppercase',
-    letterSpacing: '0.05em',
-    marginBottom: '12px',
+    cursor: 'pointer',
+    flexShrink: 0,
+    transition: 'all 0.15s ease',
+  },
+  govBtnDeactivate: {
+    backgroundColor: '#FEF2F2',
+    color: '#991B1B',
+    border: '1px solid #FECACA',
+  },
+  govBtnActivate: {
+    backgroundColor: '#ECFDF5',
+    color: '#065F46',
+    border: '1px solid #A7F3D0',
+  },
+  revokeBtn: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '5px',
+    padding: '4px 8px',
+    backgroundColor: '#FFFFFF',
+    border: '1px solid #FECACA',
+    color: '#991B1B',
+    borderRadius: '6px',
+    fontSize: '11px',
+    fontWeight: 600,
+    cursor: 'pointer',
+  },
+  securityNotice: {
+    display: 'flex',
+    alignItems: 'flex-start',
+    gap: '8px',
+    backgroundColor: '#FEF9EE',
+    border: '1px solid rgba(223, 183, 108, 0.3)',
+    borderRadius: '8px',
+    padding: '10px 12px',
+    marginTop: '6px',
+  },
+  securityNoticeText: {
+    fontSize: '11.5px',
+    color: '#8C6A21',
+    lineHeight: 1.4,
+  },
+  detailList: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '10px',
   },
   detailRow: {
     display: 'flex',
-    alignItems: 'center',
-    gap: '10px',
-    marginBottom: '10px',
-    fontSize: '13px',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    padding: '8px 12px',
+    backgroundColor: '#F8FAFC',
+    borderRadius: '8px',
+    border: '1px solid #E4E9F0',
+    fontSize: '12.5px',
   },
-  detailLink: {
-    color: '#60A5FA',
-    textDecoration: 'none',
+  detailLabel: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '6px',
+    color: '#5A687A',
+    fontWeight: 500,
   },
   detailValue: {
-    color: '#E2E8F0',
+    color: '#07152B',
+    fontWeight: 600,
+    textAlign: 'right',
+    maxWidth: '200px',
   },
-  detailMuted: {
-    color: '#64748B',
-    fontStyle: 'italic',
+  linkText: {
+    color: '#07152B',
+    textDecoration: 'underline',
   },
   activityGrid: {
     display: 'grid',
@@ -1054,21 +1297,26 @@ const styles: { [key: string]: React.CSSProperties } = {
     gap: '10px',
   },
   activityBox: {
-    backgroundColor: '#162744',
-    border: '1px solid rgba(255, 255, 255, 0.06)',
-    borderRadius: '10px',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
     padding: '12px',
+    backgroundColor: '#F8FAFC',
+    borderRadius: '8px',
+    border: '1px solid #E4E9F0',
     textAlign: 'center',
   },
   activityBoxCount: {
     fontSize: '18px',
     fontWeight: 800,
-    color: '#FFFFFF',
+    color: '#07152B',
     marginTop: '4px',
   },
   activityBoxLabel: {
     fontSize: '11px',
-    color: '#94A3B8',
+    color: '#5A687A',
     marginTop: '2px',
+    fontWeight: 500,
   },
 };

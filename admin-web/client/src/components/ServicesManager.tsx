@@ -72,6 +72,7 @@ export const ServicesManager: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [inquiryCategoryFilter, setInquiryCategoryFilter] = useState<'all' | 'completed' | 'cancelled'>('all');
 
   // Dynamic Categories Engine
   const { categories, addCategory } = useDynamicCategories<ServiceItem>(
@@ -241,6 +242,13 @@ export const ServicesManager: React.FC = () => {
       item.blurb.toLowerCase().includes(term);
     const matchesCategory = selectedCategory === 'All' || item.category === selectedCategory;
     return matchesSearch && matchesCategory;
+  });
+
+  const filteredInquiries = inquiries.filter((inq) => {
+    const s = inq.status.toLowerCase();
+    if (inquiryCategoryFilter === 'completed') return s === 'completed';
+    if (inquiryCategoryFilter === 'cancelled') return s === 'cancelled';
+    return true;
   });
 
   // Dedicated In-Page Full Workspace Editor (NO POPUP)
@@ -680,81 +688,195 @@ export const ServicesManager: React.FC = () => {
 
       {/* Inquiries Tab View */}
       {activeSubTab === 'inquiries' && (
-        <div className="table-wrap">
-          <table className="admin-table">
-            <thead>
-              <tr>
-                <th>Customer Name</th>
-                <th>Target Partner</th>
-                <th>Inquiry Message</th>
-                <th>Timeframe</th>
-                <th>Status</th>
-                <th style={{ textAlign: 'right' }}>Update Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
+        <div>
+          {/* Category Filter Pills for Inquiries */}
+          <div style={{ display: 'flex', gap: '10px', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap' }}>
+            <span style={{ fontSize: '11px', fontWeight: 700, color: '#8C6A21', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+              Inquiry Category:
+            </span>
+            <div style={{ display: 'flex', gap: '6px', backgroundColor: '#FFFFFF', padding: '4px', borderRadius: '8px', border: '1px solid #E4E9F0' }}>
+              <button
+                type="button"
+                style={{
+                  padding: '5px 12px',
+                  borderRadius: '6px',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  border: 'none',
+                  cursor: 'pointer',
+                  backgroundColor: inquiryCategoryFilter === 'all' ? '#07152B' : 'transparent',
+                  color: inquiryCategoryFilter === 'all' ? '#FFFFFF' : '#5A687A',
+                }}
+                onClick={() => setInquiryCategoryFilter('all')}
+              >
+                All ({inquiries.length})
+              </button>
+              <button
+                type="button"
+                style={{
+                  padding: '5px 12px',
+                  borderRadius: '6px',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  border: 'none',
+                  cursor: 'pointer',
+                  backgroundColor: inquiryCategoryFilter === 'completed' ? '#07152B' : 'transparent',
+                  color: inquiryCategoryFilter === 'completed' ? '#FFFFFF' : '#5A687A',
+                }}
+                onClick={() => setInquiryCategoryFilter('completed')}
+              >
+                Completed ({inquiries.filter((i) => i.status.toLowerCase() === 'completed').length})
+              </button>
+              <button
+                type="button"
+                style={{
+                  padding: '5px 12px',
+                  borderRadius: '6px',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  border: 'none',
+                  cursor: 'pointer',
+                  backgroundColor: inquiryCategoryFilter === 'cancelled' ? '#07152B' : 'transparent',
+                  color: inquiryCategoryFilter === 'cancelled' ? '#FFFFFF' : '#5A687A',
+                }}
+                onClick={() => setInquiryCategoryFilter('cancelled')}
+              >
+                Cancelled / Rejected ({inquiries.filter((i) => i.status.toLowerCase() === 'cancelled').length})
+              </button>
+            </div>
+          </div>
+
+          <div className="table-wrap">
+            <table className="admin-table">
+              <thead>
                 <tr>
-                  <td colSpan={6} style={{ textAlign: 'center', padding: '36px', color: '#5A687A' }}>
-                    Loading inquiries...
-                  </td>
+                  <th>Customer Name</th>
+                  <th>Target Partner</th>
+                  <th>Inquiry Message</th>
+                  <th>Timeframe</th>
+                  <th>Status</th>
+                  <th style={{ textAlign: 'right' }}>Update Status</th>
                 </tr>
-              ) : inquiries.length === 0 ? (
-                <tr>
-                  <td colSpan={6} style={{ textAlign: 'center', padding: '36px', color: '#5A687A' }}>
-                    No client inquiries submitted yet.
-                  </td>
-                </tr>
-              ) : (
-                inquiries.map((inq) => (
-                  <tr key={inq.id}>
-                    <td>
-                      <div style={{ fontWeight: 700, color: '#07152B' }}>{inq.fullName}</div>
-                      <div style={{ fontSize: '12px', color: '#5A687A', marginTop: '2px' }}>
-                        {inq.contactEmail} • {inq.contactPhone || 'No phone'}
-                      </div>
-                    </td>
-                    <td>
-                      <span className="badge badge-navy">{inq.service?.name}</span>
-                    </td>
-                    <td>
-                      <div style={{ fontSize: '13px', color: '#07152B', maxWidth: '340px' }}>
-                        {inq.message}
-                      </div>
-                    </td>
-                    <td>
-                      <span style={{ fontSize: '12px', color: '#5A687A' }}>{inq.timeframe || 'Immediate'}</span>
-                    </td>
-                    <td>
-                      <span
-                        className={`badge ${
-                          inq.status === 'completed'
-                            ? 'badge-success'
-                            : inq.status === 'contacted'
-                            ? 'badge-gold'
-                            : 'badge-warning'
-                        }`}
-                      >
-                        {inq.status.toUpperCase()}
-                      </span>
-                    </td>
-                    <td style={{ textAlign: 'right' }}>
-                      <select
-                        value={inq.status}
-                        onChange={(e) => handleUpdateInquiryStatus(inq.id, e.target.value)}
-                        style={{ padding: '6px 10px', fontSize: '12px', borderRadius: '6px' }}
-                      >
-                        <option value="pending">Pending</option>
-                        <option value="contacted">Contacted</option>
-                        <option value="completed">Completed</option>
-                        <option value="cancelled">Cancelled</option>
-                      </select>
+              </thead>
+              <tbody>
+                {loading ? (
+                  <tr>
+                    <td colSpan={6} style={{ textAlign: 'center', padding: '36px', color: '#5A687A' }}>
+                      Loading inquiries...
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+                ) : filteredInquiries.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} style={{ textAlign: 'center', padding: '36px', color: '#5A687A' }}>
+                      No client inquiries in this category.
+                    </td>
+                  </tr>
+                ) : (
+                  filteredInquiries.map((inq) => (
+                    <tr key={inq.id}>
+                      <td>
+                        <div style={{ fontWeight: 700, color: '#07152B' }}>{inq.fullName}</div>
+                        <div style={{ fontSize: '12px', color: '#5A687A', marginTop: '2px' }}>
+                          {inq.contactEmail} • {inq.contactPhone || 'No phone'}
+                        </div>
+                      </td>
+                      <td>
+                        <span className="badge badge-navy">{inq.service?.name}</span>
+                      </td>
+                      <td>
+                        <div style={{ fontSize: '13px', color: '#07152B', maxWidth: '340px' }}>
+                          {inq.message}
+                        </div>
+                      </td>
+                      <td>
+                        <span style={{ fontSize: '12px', color: '#5A687A' }}>{inq.timeframe || 'Immediate'}</span>
+                      </td>
+                      <td>
+                        <span
+                          className={`badge ${
+                            inq.status === 'completed'
+                              ? 'badge-success'
+                              : inq.status === 'contacted'
+                              ? 'badge-gold'
+                              : inq.status === 'cancelled'
+                              ? 'badge-error'
+                              : 'badge-warning'
+                          }`}
+                        >
+                          {inq.status.toUpperCase()}
+                        </span>
+                      </td>
+                      <td style={{ textAlign: 'right' }}>
+                        {/* Modernized Segmented Pill Group (NO SELECT DROPDOWN) */}
+                        <div
+                          style={{
+                            display: 'inline-flex',
+                            gap: '4px',
+                            backgroundColor: '#F8FAFC',
+                            padding: '3px',
+                            borderRadius: '8px',
+                            border: '1px solid #E4E9F0',
+                          }}
+                        >
+                          <button
+                            type="button"
+                            title="Mark Contacted"
+                            style={{
+                              padding: '4px 9px',
+                              borderRadius: '6px',
+                              fontSize: '11.5px',
+                              fontWeight: 650,
+                              border: 'none',
+                              cursor: 'pointer',
+                              backgroundColor: inq.status === 'contacted' ? '#EFF6FF' : 'transparent',
+                              color: inq.status === 'contacted' ? '#1D4ED8' : '#5A687A',
+                            }}
+                            onClick={() => handleUpdateInquiryStatus(inq.id, 'contacted')}
+                          >
+                            Contacted
+                          </button>
+                          <button
+                            type="button"
+                            title="Mark Completed"
+                            style={{
+                              padding: '4px 9px',
+                              borderRadius: '6px',
+                              fontSize: '11.5px',
+                              fontWeight: 650,
+                              border: 'none',
+                              cursor: 'pointer',
+                              backgroundColor: inq.status === 'completed' ? '#ECFDF5' : 'transparent',
+                              color: inq.status === 'completed' ? '#065F46' : '#5A687A',
+                            }}
+                            onClick={() => handleUpdateInquiryStatus(inq.id, 'completed')}
+                          >
+                            Completed
+                          </button>
+                          <button
+                            type="button"
+                            title="Cancel Inquiry"
+                            style={{
+                              padding: '4px 9px',
+                              borderRadius: '6px',
+                              fontSize: '11.5px',
+                              fontWeight: 650,
+                              border: 'none',
+                              cursor: 'pointer',
+                              backgroundColor: inq.status === 'cancelled' ? '#FEF2F2' : 'transparent',
+                              color: inq.status === 'cancelled' ? '#991B1B' : '#5A687A',
+                            }}
+                            onClick={() => handleUpdateInquiryStatus(inq.id, 'cancelled')}
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
     </div>

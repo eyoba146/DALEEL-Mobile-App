@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { adminApi } from '../api';
+import { adminApi, type UnifiedInquiryItem, type SidebarCounts } from '../api';
 import type { PlatformStats } from '../api';
 import { useAdminAuth } from '../context/AuthContext';
 import type { AppModule } from '../context/AuthContext';
@@ -13,7 +13,10 @@ import {
   ShieldCheck,
   ArrowRight,
   UserCheck,
-  Inbox,
+  Clock,
+  Sparkles,
+  ChevronRight,
+  ShieldAlert,
 } from 'lucide-react';
 
 interface DashboardViewProps {
@@ -23,20 +26,29 @@ interface DashboardViewProps {
 export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
   const { adminUser, canAccess } = useAdminAuth();
   const [stats, setStats] = useState<PlatformStats | null>(null);
+  const [counts, setCounts] = useState<SidebarCounts | null>(null);
+  const [recentInquiries, setRecentInquiries] = useState<UnifiedInquiryItem[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    adminApi
-      .getStats()
-      .then(setStats)
-      .catch((err) => console.error('Failed to load stats:', err))
-      .finally(() => setLoading(false));
+    Promise.all([
+      adminApi.getStats().catch(() => null),
+      adminApi.getSidebarCounts().catch(() => null),
+      adminApi.getUnifiedInquiries({ queue: 'active' }).catch(() => null),
+    ]).then(([statsData, countsData, inqData]) => {
+      if (statsData) setStats(statsData);
+      if (countsData) setCounts(countsData);
+      if (inqData && inqData.inquiries) {
+        setRecentInquiries(inqData.inquiries.slice(0, 3));
+      }
+      setLoading(false);
+    });
   }, []);
 
   const getRoleTitle = (role?: string) => {
     switch (role) {
       case 'SUPER_ADMIN':
-        return 'Full Administrator';
+        return 'Executive Administrator';
       case 'DESTINATION_MANAGER':
         return 'Tourism & Heritage Lead';
       case 'SERVICE_MANAGER':
@@ -52,20 +64,33 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
     }
   };
 
-  const metricCards = [
+  const currentDate = new Date().toLocaleDateString('en-US', {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  });
+
+  const totalPendingTriage = counts?.totalPending ?? 0;
+
+  const catalogCards = [
     {
       id: 'destinations' as AppModule,
       label: 'Heritage Destinations',
       value: stats?.destinationsCount ?? 0,
       icon: Compass,
-      desc: 'UNESCO cultural sites, regional guides & coordinates',
+      desc: 'UNESCO cultural landmarks & regional travel destinations',
+      color: '#B45309',
+      bg: '#FFFBEB',
     },
     {
       id: 'services' as AppModule,
       label: 'Verified Partners',
       value: stats?.servicesCount ?? 0,
       icon: Briefcase,
-      desc: 'Certified legal, health, banking & relocation partners',
+      desc: 'Certified legal, health, banking & concierge partners',
+      color: '#8C6A21',
+      bg: '#FEF9EE',
     },
     {
       id: 'events' as AppModule,
@@ -73,27 +98,35 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
       value: stats?.eventsCount ?? 0,
       icon: Calendar,
       desc: 'Diaspora summits, cultural celebrations & festivals',
+      color: '#1D4ED8',
+      bg: '#EFF6FF',
     },
     {
       id: 'marketplace' as AppModule,
-      label: 'Artisan Goods',
+      label: 'Artisan Marketplace',
       value: stats?.productsCount ?? 0,
       icon: ShoppingBag,
-      desc: 'Authentic crafts, apparel, coffee & jewelry',
+      desc: 'Authentic crafts, apparel, specialty coffee & jewelry',
+      color: '#059669',
+      bg: '#ECFDF5',
     },
     {
       id: 'investments' as AppModule,
-      label: 'Investment Deals',
+      label: 'Investment Ventures',
       value: stats?.investmentsCount ?? 0,
       icon: TrendingUp,
-      desc: 'High-yield agro, real estate & energy projects',
+      desc: 'High-yield agro, commercial real estate & tech ventures',
+      color: '#6D28D9',
+      bg: '#F5F3FF',
     },
     {
       id: 'team' as AppModule,
-      label: 'Active Coordinators',
+      label: 'Staff Coordinators',
       value: stats?.adminTeamCount ?? 0,
       icon: Users,
-      desc: 'Authorized management staff and coordinators',
+      desc: 'Authorized operational management staff and leads',
+      color: '#0F766E',
+      bg: '#F0FDFA',
     },
     ...(canAccess('users')
       ? [
@@ -102,7 +135,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
             label: 'Registered Members',
             value: stats?.registeredUsersCount ?? 0,
             icon: UserCheck,
-            desc: 'Registered diaspora travelers and resident members',
+            desc: 'Diaspora travelers and verified resident members',
+            color: '#4338CA',
+            bg: '#EEF2FF',
           },
         ]
       : []),
@@ -110,133 +145,146 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
 
   return (
     <div style={styles.container}>
-      {/* Welcome Banner */}
-      <div style={styles.welcomeBanner}>
-        <div style={styles.welcomeLeft}>
-          <div style={styles.badgeRow}>
-            <ShieldCheck size={15} color="#8C6A21" />
-            <span style={styles.welcomeRole}>AUTHORIZED SESSION: {getRoleTitle(adminUser?.adminRole)}</span>
+      {/* Executive Header Banner */}
+      <div style={styles.headerBanner}>
+        <div style={styles.headerLeft}>
+          <div style={styles.telemetryBar}>
+            <span style={styles.livePulseDot} />
+            <span style={styles.telemetryText}>SYSTEM ONLINE • OPERATIONAL</span>
+            <span style={styles.telemetryDivider}>|</span>
+            <span style={styles.dateText}>{currentDate}</span>
           </div>
-          <h1 style={styles.welcomeTitle}>Welcome back, {adminUser?.name}</h1>
-          <p style={styles.welcomeDesc}>
-            Manage and oversee Ethiopian heritage destinations, verified service partners, cultural gatherings, and artisan marketplace inquiries.
+
+          <h1 style={styles.welcomeTitle}>
+            Welcome back, {adminUser?.name || 'Administrator'}
+          </h1>
+          <p style={styles.welcomeSubtitle}>
+            Command and operational oversight for the DALEEL Diaspora & Foreign Resident platform.
           </p>
+
+          <div style={styles.roleTag}>
+            <ShieldCheck size={14} color="#8C6A21" />
+            <span>SESSION: {getRoleTitle(adminUser?.adminRole).toUpperCase()}</span>
+          </div>
         </div>
-      </div>
 
-      {/* Primary Metrics Section */}
-      <div style={styles.sectionTitleRow}>
-        <h3 style={styles.sectionHeading}>Platform Catalog & Services</h3>
-        <span style={styles.sectionSub}>Active listings across all regional categories</span>
-      </div>
-
-      <div style={styles.grid}>
-        {metricCards.map((card) => {
-          const Icon = card.icon;
-          const accessible = canAccess(card.id);
-          return (
-            <div
-              key={card.label}
-              style={{
-                ...styles.card,
-                ...(accessible ? styles.cardAccessible : styles.cardRestricted),
-              }}
-              onClick={() => {
-                if (accessible) onNavigate(card.id);
-              }}
-            >
-              <div style={styles.cardHeader}>
-                <span style={styles.cardLabel}>{card.label}</span>
-                <div style={styles.cardIconWrap}>
-                  <Icon size={18} color="#8C6A21" />
-                </div>
+        <div style={styles.headerRight}>
+          {totalPendingTriage > 0 ? (
+            <div style={styles.triageActionCard} onClick={() => onNavigate('inquiries')}>
+              <div style={styles.triageActionHeader}>
+                <ShieldAlert size={18} color="#92400E" />
+                <span style={styles.triageActionCount}>{totalPendingTriage} Action Items</span>
               </div>
-              <div style={styles.cardValue}>{loading ? '...' : card.value}</div>
-              <div style={styles.cardFooter}>
-                <span style={styles.cardDesc}>{card.desc}</span>
-                {accessible && (
-                  <span style={styles.cardActionLink}>
-                    <span>Open</span>
-                    <ArrowRight size={13} color="#8C6A21" />
-                  </span>
-                )}
+              <p style={styles.triageActionSub}>
+                Customer inquiries or RSVPs requiring review and confirmation.
+              </p>
+              <div style={styles.triageActionBtn}>
+                <span>Open Master Triage Desk</span>
+                <ChevronRight size={14} />
               </div>
             </div>
-          );
-        })}
+          ) : (
+            <div style={styles.triageClearCard} onClick={() => onNavigate('inquiries')}>
+              <div style={styles.triageClearHeader}>
+                <Sparkles size={18} color="#059669" />
+                <span style={styles.triageClearTitle}>Queue Clear</span>
+              </div>
+              <p style={styles.triageClearSub}>All customer requests have been processed and confirmed.</p>
+              <div style={styles.triageClearLink}>
+                <span>View Historical Inquiries</span>
+                <ChevronRight size={13} />
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* Inquiries & Requests Section */}
-      <div style={styles.sectionTitleRow}>
-        <div>
-          <h3 style={styles.sectionHeading}>Customer Requests & Inquiries</h3>
-          <span style={styles.sectionSub}>Live requests submitted from the mobile app</span>
-        </div>
-        <button
-          style={styles.openTriageBtn}
-          onClick={() => onNavigate('inquiries')}
-        >
-          <Inbox size={15} color="#DFB76C" />
-          <span>Open Triage Desk</span>
-          <ArrowRight size={13} color="#DFB76C" />
-        </button>
-      </div>
+      {/* Priority Live Triage Feed */}
+      {recentInquiries.length > 0 && (
+        <div style={styles.sectionContainer}>
+          <div style={styles.sectionHeaderRow}>
+            <div>
+              <h3 style={styles.sectionTitle}>Priority Customer Submissions</h3>
+              <p style={styles.sectionDesc}>Incoming requests requiring staff triage or confirmation</p>
+            </div>
+            <button style={styles.viewAllBtn} onClick={() => onNavigate('inquiries')}>
+              <span>View All ({totalPendingTriage})</span>
+              <ArrowRight size={13} />
+            </button>
+          </div>
 
-      <div style={styles.inquiriesGrid}>
-        <div
-          style={{ ...styles.inquiryCard, cursor: 'pointer' }}
-          onClick={() => onNavigate('inquiries')}
-          title="Open in Triage Desk"
-        >
-          <div style={styles.inquiryIcon}>
-            <Briefcase size={17} color="#8C6A21" />
-          </div>
-          <div>
-            <div style={styles.inquiryNumber}>{loading ? '...' : stats?.serviceInquiriesCount ?? 0}</div>
-            <div style={styles.inquiryLabel}>Client Service Inquiries</div>
-          </div>
-        </div>
-
-        <div
-          style={{ ...styles.inquiryCard, cursor: 'pointer' }}
-          onClick={() => onNavigate('inquiries')}
-          title="Open in Triage Desk"
-        >
-          <div style={styles.inquiryIcon}>
-            <ShoppingBag size={17} color="#8C6A21" />
-          </div>
-          <div>
-            <div style={styles.inquiryNumber}>{loading ? '...' : stats?.productOrdersCount ?? 0}</div>
-            <div style={styles.inquiryLabel}>Marketplace Order Inquiries</div>
+          <div style={styles.triageGrid}>
+            {recentInquiries.map((inq) => (
+              <div key={inq.id} style={styles.inqCard} onClick={() => onNavigate('inquiries')}>
+                <div style={styles.inqCardTop}>
+                  <span style={styles.inqModuleBadge}>{inq.moduleLabel}</span>
+                  <span style={styles.inqTime}>
+                    <Clock size={11} />
+                    <span>{new Date(inq.createdAt).toLocaleDateString()}</span>
+                  </span>
+                </div>
+                <div style={styles.inqTitle}>{inq.title}</div>
+                <div style={styles.inqCustomer}>
+                  <strong>{inq.customerName}</strong> ({inq.customerEmail})
+                </div>
+                <div style={styles.inqActionRow}>
+                  <span style={styles.inqActionText}>Triage in Master Desk &rarr;</span>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
+      )}
 
-        <div
-          style={{ ...styles.inquiryCard, cursor: 'pointer' }}
-          onClick={() => onNavigate('inquiries')}
-          title="Open in Triage Desk"
-        >
-          <div style={styles.inquiryIcon}>
-            <Calendar size={17} color="#8C6A21" />
-          </div>
+      {/* Primary Catalog & Operations Grid */}
+      <div style={styles.sectionContainer}>
+        <div style={styles.sectionHeaderRow}>
           <div>
-            <div style={styles.inquiryNumber}>{loading ? '...' : stats?.eventRsvpsCount ?? 0}</div>
-            <div style={styles.inquiryLabel}>Event Attendee RSVPs</div>
+            <h3 style={styles.sectionTitle}>Platform Catalog & Operational Sectors</h3>
+            <p style={styles.sectionDesc}>
+              Direct management access to certified directory listings, heritage sites, and events
+            </p>
           </div>
         </div>
 
-        <div
-          style={{ ...styles.inquiryCard, cursor: 'pointer' }}
-          onClick={() => onNavigate('inquiries')}
-          title="Open in Triage Desk"
-        >
-          <div style={styles.inquiryIcon}>
-            <TrendingUp size={17} color="#8C6A21" />
-          </div>
-          <div>
-            <div style={styles.inquiryNumber}>{loading ? '...' : stats?.investmentInquiriesCount ?? 0}</div>
-            <div style={styles.inquiryLabel}>Prospectus Inquiries</div>
-          </div>
+        <div style={styles.grid}>
+          {catalogCards.map((card) => {
+            const Icon = card.icon;
+            const accessible = canAccess(card.id);
+            return (
+              <div
+                key={card.label}
+                style={{
+                  ...styles.card,
+                  ...(accessible ? styles.cardAccessible : styles.cardRestricted),
+                }}
+                onClick={() => {
+                  if (accessible) onNavigate(card.id);
+                }}
+              >
+                <div style={styles.cardTop}>
+                  <span style={styles.cardLabel}>{card.label}</span>
+                  <div style={{ ...styles.cardIconBox, backgroundColor: card.bg }}>
+                    <Icon size={18} color={card.color} />
+                  </div>
+                </div>
+
+                <div style={styles.cardValue}>{loading ? '...' : card.value}</div>
+                <p style={styles.cardDesc}>{card.desc}</p>
+
+                <div style={styles.cardFooter}>
+                  {accessible ? (
+                    <span style={styles.cardLinkActive}>
+                      <span>Open Workspace</span>
+                      <ArrowRight size={13} />
+                    </span>
+                  ) : (
+                    <span style={styles.cardLinkRestricted}>Role Restricted</span>
+                  )}
+                </div>
+              </div>
+            );
+          })}
         </div>
       </div>
     </div>
@@ -246,73 +294,247 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
 const styles: { [key: string]: React.CSSProperties } = {
   container: {
     padding: '32px',
-    maxWidth: '1300px',
+    maxWidth: '1600px',
     margin: '0 auto',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '28px',
+    backgroundColor: '#F8FAFC',
+    minHeight: '100vh',
+    color: '#07152B',
   },
-  welcomeBanner: {
+  headerBanner: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: '24px',
+    marginBottom: '28px',
     backgroundColor: '#FFFFFF',
-    border: '1px solid #E4E9F0',
-    borderLeft: '5px solid #DFB76C',
+    padding: '28px 32px',
     borderRadius: '16px',
-    padding: '24px 28px',
-    boxShadow: '0 2px 10px rgba(7, 21, 43, 0.04)',
+    border: '1px solid #E4E9F0',
+    boxShadow: '0 2px 12px rgba(7, 21, 43, 0.03)',
+    flexWrap: 'wrap',
   },
-  welcomeLeft: {
+  headerLeft: {
+    flex: '1 1 500px',
+  },
+  telemetryBar: {
     display: 'flex',
-    flexDirection: 'column',
+    alignItems: 'center',
     gap: '8px',
+    marginBottom: '10px',
   },
-  badgeRow: {
+  livePulseDot: {
+    width: '8px',
+    height: '8px',
+    borderRadius: '50%',
+    backgroundColor: '#10B981',
+    boxShadow: '0 0 0 3px rgba(16, 185, 129, 0.2)',
+  },
+  telemetryText: {
+    fontSize: '11px',
+    fontWeight: 750,
+    letterSpacing: '0.08em',
+    color: '#059669',
+  },
+  telemetryDivider: {
+    color: '#CBD5E1',
+    fontSize: '11px',
+  },
+  dateText: {
+    fontSize: '11.5px',
+    color: '#5A687A',
+    fontWeight: 500,
+  },
+  welcomeTitle: {
+    fontSize: '28px',
+    fontWeight: 800,
+    color: '#07152B',
+    margin: '0 0 6px 0',
+    letterSpacing: '-0.02em',
+  },
+  welcomeSubtitle: {
+    fontSize: '14px',
+    color: '#5A687A',
+    margin: '0 0 14px 0',
+    maxWidth: '650px',
+    lineHeight: 1.5,
+  },
+  roleTag: {
     display: 'inline-flex',
     alignItems: 'center',
     gap: '6px',
-    backgroundColor: '#F8F4EC',
-    border: '1px solid #E0C582',
-    padding: '4px 12px',
-    borderRadius: '9999px',
-    alignSelf: 'flex-start',
-  },
-  welcomeRole: {
+    padding: '4px 10px',
+    backgroundColor: '#FEF9EE',
+    border: '1px solid rgba(223, 183, 108, 0.4)',
+    borderRadius: '8px',
     fontSize: '11px',
     fontWeight: 700,
     color: '#8C6A21',
-    letterSpacing: '0.04em',
   },
-  welcomeTitle: {
-    fontFamily: "'DM Serif Display', Georgia, serif",
-    fontSize: '26px',
-    color: '#07152B',
-    fontWeight: 400,
-    margin: '4px 0',
+  headerRight: {
+    flex: '0 0 320px',
   },
-  welcomeDesc: {
-    fontSize: '13.5px',
-    color: '#475569',
-    maxWidth: '780px',
-    lineHeight: 1.6,
+  triageActionCard: {
+    backgroundColor: '#FFFBEB',
+    border: '1px solid #FDE68A',
+    borderRadius: '12px',
+    padding: '16px',
+    cursor: 'pointer',
+    transition: 'all 0.2s ease',
+    boxShadow: '0 2px 8px rgba(146, 64, 14, 0.05)',
   },
-  sectionTitleRow: {
+  triageActionHeader: {
     display: 'flex',
-    alignItems: 'baseline',
-    gap: '12px',
-    marginTop: '4px',
+    alignItems: 'center',
+    gap: '8px',
+    marginBottom: '6px',
   },
-  sectionHeading: {
-    fontSize: '18px',
+  triageActionCount: {
+    fontSize: '15px',
+    fontWeight: 800,
+    color: '#92400E',
+  },
+  triageActionSub: {
+    fontSize: '12px',
+    color: '#78350F',
+    margin: '0 0 10px 0',
+    lineHeight: 1.4,
+  },
+  triageActionBtn: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    fontSize: '12px',
     fontWeight: 700,
+    color: '#92400E',
+    borderTop: '1px solid #FDE68A',
+    paddingTop: '8px',
+  },
+  triageClearCard: {
+    backgroundColor: '#ECFDF5',
+    border: '1px solid #A7F3D0',
+    borderRadius: '12px',
+    padding: '16px',
+    cursor: 'pointer',
+  },
+  triageClearHeader: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    marginBottom: '4px',
+  },
+  triageClearTitle: {
+    fontSize: '14px',
+    fontWeight: 800,
+    color: '#065F46',
+  },
+  triageClearSub: {
+    fontSize: '12px',
+    color: '#047857',
+    margin: '0 0 8px 0',
+  },
+  triageClearLink: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    fontSize: '11.5px',
+    fontWeight: 700,
+    color: '#065F46',
+  },
+  sectionContainer: {
+    marginBottom: '32px',
+  },
+  sectionHeaderRow: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'flex-end',
+    marginBottom: '16px',
+  },
+  sectionTitle: {
+    fontSize: '18px',
+    fontWeight: 800,
     color: '#07152B',
+    margin: '0 0 4px 0',
+  },
+  sectionDesc: {
+    fontSize: '13px',
+    color: '#5A687A',
     margin: 0,
   },
-  sectionSub: {
+  viewAllBtn: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '6px',
+    backgroundColor: '#FFFFFF',
+    border: '1px solid #E4E9F0',
+    borderRadius: '8px',
+    padding: '6px 12px',
+    fontSize: '12px',
+    fontWeight: 600,
+    color: '#07152B',
+    cursor: 'pointer',
+    transition: 'all 0.15s ease',
+  },
+  triageGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+    gap: '16px',
+  },
+  inqCard: {
+    backgroundColor: '#FFFFFF',
+    border: '1px solid #E4E9F0',
+    borderRadius: '12px',
+    padding: '18px 20px',
+    cursor: 'pointer',
+    transition: 'all 0.2s ease',
+    boxShadow: '0 2px 8px rgba(7, 21, 43, 0.02)',
+  },
+  inqCardTop: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: '10px',
+  },
+  inqModuleBadge: {
+    fontSize: '11px',
+    fontWeight: 700,
+    textTransform: 'uppercase',
+    padding: '3px 8px',
+    borderRadius: '12px',
+    backgroundColor: '#FEF9EE',
+    color: '#8C6A21',
+    border: '1px solid rgba(223, 183, 108, 0.3)',
+  },
+  inqTime: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '4px',
+    fontSize: '11px',
+    color: '#8A9AA8',
+  },
+  inqTitle: {
+    fontSize: '15px',
+    fontWeight: 750,
+    color: '#07152B',
+    marginBottom: '4px',
+  },
+  inqCustomer: {
     fontSize: '12.5px',
     color: '#5A687A',
+    marginBottom: '12px',
+  },
+  inqActionRow: {
+    borderTop: '1px solid #F1F5F9',
+    paddingTop: '8px',
+    textAlign: 'right',
+  },
+  inqActionText: {
+    fontSize: '11.5px',
+    fontWeight: 700,
+    color: '#8C6A21',
   },
   grid: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(3, 1fr)',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
     gap: '18px',
   },
   card: {
@@ -322,114 +544,65 @@ const styles: { [key: string]: React.CSSProperties } = {
     padding: '22px',
     display: 'flex',
     flexDirection: 'column',
-    gap: '12px',
-    boxShadow: '0 2px 10px rgba(7, 21, 43, 0.04)',
+    boxShadow: '0 2px 10px rgba(7, 21, 43, 0.03)',
     transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
   },
   cardAccessible: {
     cursor: 'pointer',
-    borderLeft: '4px solid #DFB76C',
   },
   cardRestricted: {
-    opacity: 0.65,
-    filter: 'grayscale(30%)',
+    opacity: 0.6,
     cursor: 'not-allowed',
   },
-  cardHeader: {
+  cardTop: {
     display: 'flex',
-    alignItems: 'center',
     justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: '12px',
   },
   cardLabel: {
     fontSize: '13.5px',
     fontWeight: 700,
-    color: '#07152B',
+    color: '#5A687A',
   },
-  cardIconWrap: {
-    width: '36px',
-    height: '36px',
+  cardIconBox: {
+    width: '38px',
+    height: '38px',
     borderRadius: '10px',
-    backgroundColor: '#F8F4EC',
-    border: '1px solid #E0C582',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
   },
   cardValue: {
     fontSize: '32px',
-    fontWeight: 800,
+    fontWeight: 850,
     color: '#07152B',
+    lineHeight: 1,
     letterSpacing: '-0.02em',
-    fontVariantNumeric: 'tabular-nums',
-  },
-  cardFooter: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingTop: '10px',
-    borderTop: '1px solid #EAEFF6',
+    marginBottom: '8px',
   },
   cardDesc: {
+    fontSize: '12.5px',
+    color: '#5A687A',
+    lineHeight: 1.4,
+    margin: '0 0 16px 0',
+    flex: 1,
+  },
+  cardFooter: {
+    borderTop: '1px solid #F1F5F9',
+    paddingTop: '12px',
+  },
+  cardLinkActive: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '6px',
+    fontSize: '12px',
+    fontWeight: 700,
+    color: '#8C6A21',
+  },
+  cardLinkRestricted: {
     fontSize: '11.5px',
-    color: '#5A687A',
-  },
-  cardActionLink: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '4px',
-    fontSize: '12px',
-    fontWeight: 700,
-    color: '#8C6A21',
-  },
-  inquiriesGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(4, 1fr)',
-    gap: '16px',
-  },
-  inquiryCard: {
-    backgroundColor: '#FFFFFF',
-    border: '1px solid #E4E9F0',
-    borderRadius: '14px',
-    padding: '18px',
-    display: 'flex',
-    alignItems: 'center',
-    gap: '14px',
-    boxShadow: '0 2px 10px rgba(7, 21, 43, 0.04)',
-  },
-  inquiryIcon: {
-    width: '40px',
-    height: '40px',
-    borderRadius: '10px',
-    backgroundColor: '#F8F4EC',
-    border: '1px solid #E0C582',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexShrink: 0,
-  },
-  inquiryNumber: {
-    fontSize: '22px',
-    fontWeight: 800,
-    color: '#07152B',
-  },
-  inquiryLabel: {
-    fontSize: '12px',
-    color: '#5A687A',
-    marginTop: '2px',
-    fontWeight: 500,
-  },
-  openTriageBtn: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '8px',
-    padding: '8px 16px',
-    borderRadius: '10px',
-    backgroundColor: 'rgba(223, 183, 108, 0.12)',
-    border: '1px solid rgba(223, 183, 108, 0.4)',
-    color: '#8C6A21',
-    fontSize: '13px',
-    fontWeight: 700,
-    cursor: 'pointer',
-    transition: 'all 0.2s ease',
+    fontWeight: 600,
+    color: '#94A3B8',
   },
 };

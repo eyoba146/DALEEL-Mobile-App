@@ -20,7 +20,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { investments as sampleInvestments } from '../../assets/data/sample';
-import { contentApi, InvestmentInquiryPayload, InvestmentOpportunity } from '../../lib/api';
+import { contentApi, InvestmentInquiry, InvestmentInquiryPayload, InvestmentOpportunity } from '../../lib/api';
 import { useAuth } from '../../lib/auth-context';
 import { useFavorites } from '../../lib/favorites-context';
 import { colors, fonts, radius, spacing } from '../../theme/tokens';
@@ -49,6 +49,10 @@ export default function InvestmentDetailScreen() {
 
   const [opportunity, setOpportunity] = useState<InvestmentOpportunity | null>(null);
   const [loading, setLoading] = useState(true);
+
+  // Active Inquiry & In-Place Editing
+  const [existingInquiry, setExistingInquiry] = useState<InvestmentInquiry | null>(null);
+  const [loadingInquiry, setLoadingInquiry] = useState(false);
 
   // Inquiry Modal State
   const [inquiryModalVisible, setInquiryModalVisible] = useState(false);
@@ -89,14 +93,43 @@ export default function InvestmentDetailScreen() {
     };
   }, [id]);
 
+  // Load existing user inquiry if available
+  const loadMyInquiry = React.useCallback(async () => {
+    if (!id) return;
+    try {
+      setLoadingInquiry(true);
+      const inq = await contentApi.getMyInvestmentInquiry(id, token, user?.email);
+      if (inq) {
+        setExistingInquiry(inq);
+        setFullName(inq.fullName || user?.name || '');
+        setContactEmail(inq.contactEmail || user?.email || '');
+        if (inq.contactPhone) setContactPhone(inq.contactPhone);
+        if (inq.contactWhatsapp) setContactWhatsapp(inq.contactWhatsapp);
+        if (inq.investmentBudget) setSelectedBudget(inq.investmentBudget);
+        if (inq.timeframe) setSelectedTimeframe(inq.timeframe);
+        if (inq.message) setMessage(inq.message);
+      } else {
+        setExistingInquiry(null);
+      }
+    } catch {
+      // offline fallback
+    } finally {
+      setLoadingInquiry(false);
+    }
+  }, [id, token, user?.email, user?.name, user?.phone]);
+
   useEffect(() => {
-    if (user) {
+    loadMyInquiry();
+  }, [loadMyInquiry]);
+
+  useEffect(() => {
+    if (user && !existingInquiry) {
       if (!fullName) setFullName(user.name);
       if (!contactEmail) setContactEmail(user.email);
       if (!contactPhone && user.phone) setContactPhone(user.phone);
       if (!contactWhatsapp && user.phone) setContactWhatsapp(user.phone);
     }
-  }, [user]);
+  }, [user, existingInquiry]);
 
   const fav = opportunity ? isFavorite('investment', opportunity.id) : false;
 
@@ -148,12 +181,17 @@ export default function InvestmentDetailScreen() {
         message: message.trim(),
       };
 
-      await contentApi.createInvestmentInquiry(opportunity.id, payload, token);
+      if (existingInquiry) {
+        const res = await contentApi.updateInvestmentInquiry(existingInquiry.id, payload, token);
+        if (res?.inquiry) setExistingInquiry(res.inquiry);
+      } else {
+        const res = await contentApi.createInvestmentInquiry(opportunity.id, payload, token);
+        if (res?.inquiry) setExistingInquiry(res.inquiry);
+      }
       setInquirySuccess(true);
     } catch (err: any) {
-      console.warn('Inquiry submission fallback:', err);
-      // Even if network blips, show success for verified experience
-      setInquirySuccess(true);
+      console.warn('Inquiry submission error:', err);
+      setInquiryError(err?.message || 'Could not submit investment inquiry. Please check your connection.');
     } finally {
       setSubmittingInquiry(false);
     }
@@ -268,6 +306,59 @@ export default function InvestmentDetailScreen() {
 
         {/* Content Body */}
         <View style={styles.contentBody}>
+          {/* Active Investor Inquiry Banner */}
+          {existingInquiry && (
+            <TouchableOpacity
+              style={styles.activeInquiryBanner}
+              onPress={() => setInquiryModalVisible(true)}
+              activeOpacity={0.88}
+            >
+              <View style={styles.activeInquiryIconCircle}>
+                <Ionicons name="briefcase" size={20} color={colors.gold} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <View style={styles.activeInquiryHeaderRow}>
+                  <Text style={styles.activeInquiryTitle}>Your Investment Inquiry</Text>
+                  <View
+                    style={[
+                      styles.statusPill,
+                      existingInquiry.status === 'confirmed'
+                        ? styles.statusPillConfirmed
+                        : existingInquiry.status === 'cancelled'
+                        ? styles.statusPillCancelled
+                        : styles.statusPillPending,
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.statusPillText,
+                        existingInquiry.status === 'confirmed'
+                          ? styles.statusPillTextConfirmed
+                          : existingInquiry.status === 'cancelled'
+                          ? styles.statusPillTextCancelled
+                          : styles.statusPillTextPending,
+                      ]}
+                    >
+                      {existingInquiry.status === 'confirmed'
+                        ? 'CONFIRMED'
+                        : existingInquiry.status === 'cancelled'
+                        ? 'CANCELLED'
+                        : 'IN REVIEW'}
+                    </Text>
+                  </View>
+                </View>
+                <Text style={styles.activeInquirySub} numberOfLines={2}>
+                  {existingInquiry.investmentBudget ? `Budget: ${existingInquiry.investmentBudget} • ` : ''}
+                  {existingInquiry.message}
+                </Text>
+                <View style={styles.activeInquiryActionRow}>
+                  <Text style={styles.activeInquiryActionLink}>Tap to review or modify inquiry details</Text>
+                  <Ionicons name="pencil" size={13} color={colors.goldRich} />
+                </View>
+              </View>
+            </TouchableOpacity>
+          )}
+
           {/* Title & Location Header */}
           <Text style={styles.projectTitle}>{opportunity.title}</Text>
 
@@ -404,12 +495,19 @@ export default function InvestmentDetailScreen() {
         </View>
 
         <TouchableOpacity
-          style={styles.requestProspectusBtn}
+          style={[styles.requestProspectusBtn, existingInquiry && styles.requestProspectusBtnEdit]}
           onPress={() => setInquiryModalVisible(true)}
           activeOpacity={0.88}
         >
-          <Text style={styles.requestProspectusBtnText}>Request Full Prospectus</Text>
-          <Ionicons name="document-text-outline" size={16} color={colors.navy} />
+          <Ionicons
+            name={existingInquiry ? 'create-outline' : 'document-text-outline'}
+            size={16}
+            color={colors.navy}
+            style={{ marginRight: 6 }}
+          />
+          <Text style={styles.requestProspectusBtnText}>
+            {existingInquiry ? 'Edit Investment Inquiry' : 'Request Full Prospectus'}
+          </Text>
         </TouchableOpacity>
       </View>
 
@@ -428,8 +526,14 @@ export default function InvestmentDetailScreen() {
             {/* Modal Header */}
             <View style={styles.modalHeader}>
               <View>
-                <Text style={styles.modalTitle}>Request Prospectus</Text>
-                <Text style={styles.modalSub}>{opportunity.title}</Text>
+                <Text style={styles.modalTitle}>
+                  {existingInquiry ? 'Edit Investor Inquiry' : 'Request Prospectus'}
+                </Text>
+                <Text style={styles.modalSub}>
+                  {existingInquiry
+                    ? `Status: ${existingInquiry.status.toUpperCase()} • Update your allocation details`
+                    : opportunity.title}
+                </Text>
               </View>
 
               <TouchableOpacity style={styles.modalCloseBtn} onPress={resetModal}>
@@ -442,13 +546,13 @@ export default function InvestmentDetailScreen() {
                 <View style={styles.successIconCircle}>
                   <Ionicons name="checkmark-circle" size={54} color={colors.goldRich} />
                 </View>
-                <Text style={styles.successTitle}>Prospectus Dispatched</Text>
+                <Text style={styles.successTitle}>
+                  {existingInquiry ? 'Inquiry Updated!' : 'Prospectus Dispatched'}
+                </Text>
                 <Text style={styles.successDesc}>
-                  Your investor brief and allocation packet have been queued for transmission to{' '}
-                  <Text style={{ fontFamily: fonts.bodyBold, color: colors.navy }}>
-                    {contactEmail}
-                  </Text>
-                  . A senior diaspora investment advisor will follow up with you within 24 hours.
+                  {existingInquiry
+                    ? 'Your investment preferences and allocation details have been updated. An advisor will review your modified brief.'
+                    : `Your investor brief and allocation packet have been queued for transmission to ${contactEmail}. A senior diaspora investment advisor will follow up with you within 24 hours.`}
                 </Text>
 
                 <TouchableOpacity style={styles.successDoneBtn} onPress={resetModal}>
@@ -569,8 +673,14 @@ export default function InvestmentDetailScreen() {
                     <ActivityIndicator color={colors.navy} size="small" />
                   ) : (
                     <>
-                      <Text style={styles.submitInquiryBtnText}>Transmit Official Inquiry</Text>
-                      <Ionicons name="lock-closed" size={15} color={colors.navy} />
+                      <Text style={styles.submitInquiryBtnText}>
+                        {existingInquiry ? 'Save & Update Inquiry' : 'Transmit Official Inquiry'}
+                      </Text>
+                      <Ionicons
+                        name={existingInquiry ? 'checkmark-circle' : 'lock-closed'}
+                        size={15}
+                        color={colors.navy}
+                      />
                     </>
                   )}
                 </TouchableOpacity>
@@ -1159,5 +1269,92 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#B91C1C',
     flex: 1,
+  },
+  activeInquiryBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1.5,
+    borderColor: '#DFB76C',
+    borderRadius: radius.lg,
+    padding: 14,
+    marginBottom: spacing.md,
+    shadowColor: colors.gold,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.12,
+    shadowRadius: 6,
+    elevation: 2,
+    gap: 12,
+  },
+  activeInquiryIconCircle: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: '#F8F4EC',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#DFB76C',
+  },
+  activeInquiryHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 4,
+  },
+  activeInquiryTitle: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 14,
+    color: colors.navy,
+  },
+  activeInquirySub: {
+    fontFamily: fonts.body,
+    fontSize: 12,
+    color: colors.charcoalSub,
+    lineHeight: 16,
+    marginBottom: 6,
+  },
+  activeInquiryActionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+  },
+  activeInquiryActionLink: {
+    fontFamily: fonts.bodyMedium,
+    fontSize: 11.5,
+    color: colors.goldRich,
+  },
+  statusPill: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  statusPillPending: {
+    backgroundColor: '#FEF3C7',
+  },
+  statusPillConfirmed: {
+    backgroundColor: '#DCFCE7',
+  },
+  statusPillCancelled: {
+    backgroundColor: '#F1F5F9',
+  },
+  statusPillText: {
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+  },
+  statusPillTextPending: {
+    color: '#92400E',
+  },
+  statusPillTextConfirmed: {
+    color: '#166534',
+  },
+  statusPillTextCancelled: {
+    color: '#64748B',
+  },
+  requestProspectusBtnEdit: {
+    backgroundColor: '#DFB76C',
+    borderWidth: 1,
+    borderColor: '#B8860B',
   },
 });

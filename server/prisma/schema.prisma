@@ -39,6 +39,7 @@ model User {
   isAdmin      Boolean    @default(false)
   adminRole    AdminRole?
   isVerified   Boolean    @default(false)
+  isActive     Boolean    @default(true)
   avatarUrl    String?
   phone        String?
   savedAddress String?

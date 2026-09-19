@@ -17,7 +17,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../../lib/auth-context';
-import { NotificationPreferences, notificationsApi, resolveMediaUrl, SupportedLanguage } from '../../lib/api';
+import { NotificationPreferences, notificationsApi, resolveMediaUrl, SupportedLanguage, userActivityApi } from '../../lib/api';
 import { useLanguage } from '../../lib/language-context';
 import { getCurrentUserLocation } from '../../lib/location';
 import ScreenHeader from '../../components/ScreenHeader';
@@ -98,6 +98,28 @@ export default function ProfileScreen() {
     announcements: true,
   });
   const [isLoadingPrefs, setIsLoadingPrefs] = useState(false);
+
+  // Live Activity & Passes Count
+  const [activityCount, setActivityCount] = useState<number | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+    async function loadActivityCount() {
+      if (!token && !user?.email) return;
+      try {
+        const res = await userActivityApi.getMyActivity(token, user?.email);
+        if (isMounted && res?.counts) {
+          setActivityCount(res.counts.total);
+        }
+      } catch {
+        // ignore
+      }
+    }
+    loadActivityCount();
+    return () => {
+      isMounted = false;
+    };
+  }, [token, user?.email]);
 
   useEffect(() => {
     let isMounted = true;
@@ -572,6 +594,35 @@ export default function ProfileScreen() {
             </View>
           </View>
         </View>
+
+        {/* Executive My Passes & Activity Hub Card */}
+        <TouchableOpacity
+          style={styles.activityHubHeroCard}
+          onPress={() => router.push('/activity')}
+          activeOpacity={0.85}
+        >
+          <View style={styles.activityHubLeft}>
+            <View style={styles.activityHubIconHalo}>
+              <Ionicons name="ticket" size={22} color={colors.gold} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <View style={styles.activityHubTitleRow}>
+                <Text style={styles.activityHubTitle}>My Passes & Activity Hub</Text>
+                {activityCount !== null && activityCount > 0 && (
+                  <View style={styles.activityCountBadge}>
+                    <Text style={styles.activityCountBadgeText}>{activityCount}</Text>
+                  </View>
+                )}
+              </View>
+              <Text style={styles.activityHubSub}>
+                Admission tickets, service inquiries & orders
+              </Text>
+            </View>
+          </View>
+          <View style={styles.activityHubArrowCircle}>
+            <Ionicons name="chevron-forward" size={18} color={colors.navy} />
+          </View>
+        </TouchableOpacity>
 
         {/* Individual Info Field Cards (Each Individually Editable Inline) */}
         {/* 1. First Name Card */}
@@ -2561,5 +2612,70 @@ const styles = StyleSheet.create({
     fontFamily: fonts.bodyBold,
     fontSize: 12,
     color: colors.goldRich,
+  },
+  activityHubHeroCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#FFFFFF',
+    borderRadius: radius.xl,
+    padding: spacing.md,
+    marginBottom: spacing.md,
+    borderWidth: 1.5,
+    borderColor: '#DFB76C',
+    ...shadow.card,
+  },
+  activityHubLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    gap: 12,
+  },
+  activityHubIconHalo: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: colors.navy,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  activityHubTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  activityHubTitle: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 15,
+    color: colors.navy,
+  },
+  activityCountBadge: {
+    backgroundColor: colors.gold,
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 999,
+  },
+  activityCountBadgeText: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 11,
+    color: colors.navy,
+  },
+  activityHubSub: {
+    fontFamily: fonts.body,
+    fontSize: 12,
+    color: colors.charcoalLight,
+    marginTop: 2,
+    lineHeight: 16,
+  },
+  activityHubArrowCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 8,
   },
 });

@@ -456,6 +456,46 @@ adminRouter.delete(
   }
 );
 
+// --- Real-time Floating Sidebar Notification Counts ---
+
+adminRouter.get(
+  '/sidebar-counts',
+  async (req: AdminRequest, res: Response) => {
+    try {
+      const role = req.adminUser?.adminRole;
+      const canAccessServices = role === AdminRole.SUPER_ADMIN || role === AdminRole.SERVICE_MANAGER || role === AdminRole.DESTINATION_MANAGER;
+      const canAccessEvents = role === AdminRole.SUPER_ADMIN || role === AdminRole.EVENT_MANAGER;
+      const canAccessMarketplace = role === AdminRole.SUPER_ADMIN || role === AdminRole.MARKETPLACE_MANAGER;
+      const canAccessInvestments = role === AdminRole.SUPER_ADMIN || role === AdminRole.INVESTMENT_OFFICER;
+      const isSuperAdmin = role === AdminRole.SUPER_ADMIN;
+
+      const activeStatuses = ['pending', 'in_review', 'waitlist'];
+
+      const [servicesCount, eventsCount, marketplaceCount, investmentsCount, unverifiedUsersCount] = await Promise.all([
+        canAccessServices ? prisma.serviceInquiry.count({ where: { status: { in: activeStatuses, mode: 'insensitive' } } }) : 0,
+        canAccessEvents ? prisma.eventRsvp.count({ where: { status: { in: activeStatuses, mode: 'insensitive' } } }) : 0,
+        canAccessMarketplace ? prisma.productOrderInquiry.count({ where: { status: { in: activeStatuses, mode: 'insensitive' } } }) : 0,
+        canAccessInvestments ? prisma.investmentInquiry.count({ where: { status: { in: activeStatuses, mode: 'insensitive' } } }) : 0,
+        isSuperAdmin ? prisma.user.count({ where: { isAdmin: false, isVerified: false } }) : 0,
+      ]);
+
+      const totalPending = servicesCount + eventsCount + marketplaceCount + investmentsCount;
+
+      res.json({
+        totalPending,
+        services: servicesCount,
+        events: eventsCount,
+        marketplace: marketplaceCount,
+        investments: investmentsCount,
+        unverifiedUsers: unverifiedUsersCount,
+      });
+    } catch (error) {
+      console.error('Error fetching sidebar counts:', error);
+      res.status(500).json({ error: 'Failed to fetch notification counts' });
+    }
+  }
+);
+
 // --- Registered Mobile Members Directory (Super Admin Only) ---
 
 adminRouter.get(
@@ -503,6 +543,7 @@ adminRouter.get(
             country: true,
             language: true,
             isVerified: true,
+            isActive: true,
             phone: true,
             savedAddress: true,
             avatarUrl: true,
@@ -544,10 +585,17 @@ adminRouter.patch(
   async (req: AdminRequest, res: Response) => {
     try {
       const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
-      const { isVerified, phone, country, userType } = req.body;
+      const { isActive, revokeVerification, isVerified, phone, country, userType } = req.body;
+
+      if (isVerified === true) {
+        return res.status(400).json({
+          error: 'Email verification can only be performed by the registered user via the 6-digit security code sent to their inbox. Administrators can deactivate accounts or revoke email verification, but cannot forge verification.',
+        });
+      }
 
       const updateData: any = {};
-      if (typeof isVerified === 'boolean') updateData.isVerified = isVerified;
+      if (typeof isActive === 'boolean') updateData.isActive = isActive;
+      if (revokeVerification === true || isVerified === false) updateData.isVerified = false;
       if (phone !== undefined) updateData.phone = phone ? String(phone).trim() : null;
       if (country !== undefined) updateData.country = String(country).trim();
       if (userType !== undefined) updateData.userType = String(userType);
@@ -563,6 +611,7 @@ adminRouter.patch(
           country: true,
           language: true,
           isVerified: true,
+          isActive: true,
           phone: true,
           avatarUrl: true,
           createdAt: true,
@@ -728,26 +777,53 @@ adminRouter.get(
       }
 
       const [servicesInqs, eventsInqs, marketplaceInqs, investmentsInqs] = await Promise.all(promises);
-      let unified = [...servicesInqs, ...eventsInqs, ...marketplaceInqs, ...investmentsInqs];
+      const allUnified = [...servicesInqs, ...eventsInqs, ...marketplaceInqs, ...investmentsInqs];
+
+      const activeStatuses = ['pending', 'in_review', 'waitlist'];
+      const confirmedStatuses = ['confirmed', 'completed', 'checked_in'];
+      const cancelledStatuses = ['cancelled', 'rejected', 'declined'];
+
+      // Queue counts across loaded department items
+      const activeCount = allUnified.filter(item => activeStatuses.includes(item.status.toLowerCase())).length;
+      const confirmedCount = allUnified.filter(item => confirmedStatuses.includes(item.status.toLowerCase())).length;
+      const cancelledCount = allUnified.filter(item => cancelledStatuses.includes(item.status.toLowerCase())).length;
+      const allCount = allUnified.length;
+
+      let filtered = [...allUnified];
+      const queue = (req.query.queue as string) || 'active';
+
+      if (queue === 'active') {
+        filtered = filtered.filter(item => activeStatuses.includes(item.status.toLowerCase()));
+      } else if (queue === 'confirmed') {
+        filtered = filtered.filter(item => confirmedStatuses.includes(item.status.toLowerCase()));
+      } else if (queue === 'cancelled') {
+        filtered = filtered.filter(item => cancelledStatuses.includes(item.status.toLowerCase()));
+      }
 
       if (status && status !== 'all') {
-        unified = unified.filter(item => item.status.toLowerCase() === String(status).toLowerCase());
+        filtered = filtered.filter(item => item.status.toLowerCase() === String(status).toLowerCase());
       }
 
       if (search && String(search).trim()) {
         const q = String(search).trim().toLowerCase();
-        unified = unified.filter(item =>
+        filtered = filtered.filter(item =>
           item.customerName.toLowerCase().includes(q) ||
           item.customerEmail.toLowerCase().includes(q) ||
           item.title.toLowerCase().includes(q)
         );
       }
 
-      unified.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      filtered.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
       res.json({
-        inquiries: unified,
-        total: unified.length,
+        inquiries: filtered,
+        total: filtered.length,
+        counts: {
+          active: activeCount,
+          confirmed: confirmedCount,
+          cancelled: cancelledCount,
+          all: allCount,
+        },
         userRole: role,
         accessibleModules: {
           services: canAccessServices,
@@ -772,10 +848,6 @@ adminRouter.patch(
       const { status } = req.body;
       const role = req.adminUser?.adminRole;
 
-      if (!status) {
-        return res.status(400).json({ error: 'Status is required' });
-      }
-
       if (moduleName === 'SERVICES') {
         if (role !== AdminRole.SUPER_ADMIN && role !== AdminRole.SERVICE_MANAGER && role !== AdminRole.DESTINATION_MANAGER) {
           return res.status(403).json({ error: 'Permission denied: Services Lead access required' });
@@ -795,15 +867,20 @@ adminRouter.patch(
               message: `Your inquiry for "${updated.service.name}" has been updated to ${updated.status.toLowerCase()}.`,
               actionUrl: `/service/${updated.serviceId}`,
             },
-          }).catch(() => {});
+          }).catch((err) => console.error('[NOTIF] Failed to create in-app notification:', err));
         }
 
+        console.log(`[STATUS EMAIL] Dispatching service inquiry update (${updated.status}) to: ${updated.contactEmail}`);
         sendServiceInquiryStatusEmail(
           { email: updated.contactEmail, name: updated.fullName },
           updated.service.name,
           updated.status,
-          updated.service.category
-        ).catch(() => {});
+          updated.timeframe || undefined
+        ).then(() => {
+          console.log(`[STATUS EMAIL SUCCESS] Delivered service status to ${updated.contactEmail}`);
+        }).catch((err) => {
+          console.error(`[STATUS EMAIL FAILED] Error dispatching to ${updated.contactEmail}:`, err);
+        });
 
         return res.json({ success: true, item: updated });
       }
@@ -827,16 +904,21 @@ adminRouter.patch(
               message: `Your RSVP for "${updated.event.title}" is now ${updated.status.toLowerCase()}.`,
               actionUrl: `/event/${updated.eventId}`,
             },
-          }).catch(() => {});
+          }).catch((err) => console.error('[NOTIF] Failed to create in-app notification:', err));
         }
 
+        console.log(`[STATUS EMAIL] Dispatching event RSVP update (${updated.status}) to: ${updated.email}`);
         sendEventRsvpStatusEmail(
           { email: updated.email, name: updated.fullName },
           updated.event.title,
           updated.status,
           updated.ticketsCount,
           new Date(updated.event.date).toLocaleDateString()
-        ).catch(() => {});
+        ).then(() => {
+          console.log(`[STATUS EMAIL SUCCESS] Delivered event RSVP status to ${updated.email}`);
+        }).catch((err) => {
+          console.error(`[STATUS EMAIL FAILED] Error dispatching to ${updated.email}:`, err);
+        });
 
         return res.json({ success: true, item: updated });
       }
@@ -860,16 +942,21 @@ adminRouter.patch(
               message: `Your inquiry for "${updated.product.title}" is now ${updated.status.toLowerCase()}.`,
               actionUrl: `/marketplace`,
             },
-          }).catch(() => {});
+          }).catch((err) => console.error('[NOTIF] Failed to create in-app notification:', err));
         }
 
+        console.log(`[STATUS EMAIL] Dispatching order inquiry update (${updated.status}) to: ${updated.email}`);
         sendOrderStatusEmail(
           { email: updated.email, name: updated.fullName },
           updated.product.title,
           updated.status,
           updated.quantity,
           `${(updated.product.price * updated.quantity).toFixed(2)} ${updated.product.currency}`
-        ).catch(() => {});
+        ).then(() => {
+          console.log(`[STATUS EMAIL SUCCESS] Delivered order status to ${updated.email}`);
+        }).catch((err) => {
+          console.error(`[STATUS EMAIL FAILED] Error dispatching to ${updated.email}:`, err);
+        });
 
         return res.json({ success: true, item: updated });
       }
@@ -893,15 +980,20 @@ adminRouter.patch(
               message: `Your prospectus request for "${updated.opportunity.title}" is now ${updated.status.toLowerCase()}.`,
               actionUrl: `/investment/${updated.opportunityId}`,
             },
-          }).catch(() => {});
+          }).catch((err) => console.error('[NOTIF] Failed to create in-app notification:', err));
         }
 
+        console.log(`[STATUS EMAIL] Dispatching investment inquiry update (${updated.status}) to: ${updated.contactEmail}`);
         sendInvestmentInquiryStatusEmail(
           { email: updated.contactEmail, name: updated.fullName },
           updated.opportunity.title,
           updated.status,
           updated.investmentBudget || undefined
-        ).catch(() => {});
+        ).then(() => {
+          console.log(`[STATUS EMAIL SUCCESS] Delivered investment status to ${updated.contactEmail}`);
+        }).catch((err) => {
+          console.error(`[STATUS EMAIL FAILED] Error dispatching to ${updated.contactEmail}:`, err);
+        });
 
         return res.json({ success: true, item: updated });
       }

@@ -18,7 +18,7 @@ import {
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { events as sampleEvents } from '../../assets/data/sample';
-import { contentApi, EventItem, EventRsvpPayload } from '../../lib/api';
+import { contentApi, EventItem, EventRsvp, EventRsvpPayload } from '../../lib/api';
 import { useAuth } from '../../lib/auth-context';
 import { useFavorites } from '../../lib/favorites-context';
 import { LocationCard } from '../../components/LocationCard';
@@ -49,6 +49,10 @@ export default function EventDetailScreen() {
 
   const [event, setEvent] = useState<EventItem | null>(null);
   const [loading, setLoading] = useState(true);
+
+  // Active RSVP State & In-Place Editing
+  const [existingRsvp, setExistingRsvp] = useState<EventRsvp | null>(null);
+  const [loadingRsvp, setLoadingRsvp] = useState(false);
 
   // RSVP Modal State
   const [rsvpModalVisible, setRsvpModalVisible] = useState(false);
@@ -88,6 +92,34 @@ export default function EventDetailScreen() {
     loadEventDetail();
   }, [loadEventDetail]);
 
+  // Load existing user reservation if available
+  const loadMyRsvp = useCallback(async () => {
+    if (!id) return;
+    try {
+      setLoadingRsvp(true);
+      const rsvp = await contentApi.getMyEventRsvp(id, token, user?.email);
+      if (rsvp) {
+        setExistingRsvp(rsvp);
+        setFullName(rsvp.fullName || user?.name || '');
+        setEmail(rsvp.email || user?.email || '');
+        if (rsvp.phone) setPhone(rsvp.phone);
+        if (rsvp.ticketsCount) setTicketCount(rsvp.ticketsCount);
+        if (rsvp.notes) setNotes(rsvp.notes);
+        setRegisteredRsvpId(rsvp.id);
+      } else {
+        setExistingRsvp(null);
+      }
+    } catch {
+      // offline / fallback
+    } finally {
+      setLoadingRsvp(false);
+    }
+  }, [id, token, user?.email, user?.name, user?.phone]);
+
+  useEffect(() => {
+    loadMyRsvp();
+  }, [loadMyRsvp]);
+
   const handleShare = async () => {
     if (!event) return;
     try {
@@ -101,11 +133,19 @@ export default function EventDetailScreen() {
   };
 
   const handleOpenRsvpModal = () => {
-    setFullName(user?.name || '');
-    setEmail(user?.email || '');
-    setPhone(user?.phone || '');
-    setTicketCount(1);
-    setNotes('');
+    if (existingRsvp) {
+      setFullName(existingRsvp.fullName || user?.name || '');
+      setEmail(existingRsvp.email || user?.email || '');
+      setPhone(existingRsvp.phone || user?.phone || '');
+      setTicketCount(existingRsvp.ticketsCount || 1);
+      setNotes(existingRsvp.notes || '');
+    } else {
+      setFullName(user?.name || '');
+      setEmail(user?.email || '');
+      setPhone(user?.phone || '');
+      setTicketCount(1);
+      setNotes('');
+    }
     setRsvpError(null);
     setRsvpSuccess(false);
     setRsvpModalVisible(true);
@@ -130,13 +170,24 @@ export default function EventDetailScreen() {
         notes: notes.trim() || undefined,
       };
 
-      const res = await contentApi.createEventRsvp(event.id, payload, token);
-      setRegisteredRsvpId(res.rsvp?.id || `pass-${Date.now()}`);
+      if (existingRsvp) {
+        const res = await contentApi.updateEventRsvp(existingRsvp.id, payload, token);
+        if (res?.rsvp) {
+          setExistingRsvp(res.rsvp);
+          setRegisteredRsvpId(res.rsvp.id);
+        }
+      } else {
+        const res = await contentApi.createEventRsvp(event.id, payload, token);
+        if (res?.rsvp) {
+          setExistingRsvp(res.rsvp);
+          setRegisteredRsvpId(res.rsvp.id);
+        }
+      }
       setRsvpSuccess(true);
       setTimeout(() => {
         setRsvpModalVisible(false);
         setRsvpSuccess(false);
-      }, 2600);
+      }, 2000);
     } catch (err: any) {
       setRsvpError(err?.message || 'Could not register RSVP at this moment. Please check your network and try again.');
     } finally {
@@ -241,6 +292,59 @@ export default function EventDetailScreen() {
 
         {/* Main Content Body */}
         <View style={styles.bodyContainer}>
+          {/* Active Reservation Pass Card */}
+          {existingRsvp && (
+            <TouchableOpacity
+              style={styles.activeRsvpBanner}
+              onPress={handleOpenRsvpModal}
+              activeOpacity={0.88}
+            >
+              <View style={styles.activeRsvpIconCircle}>
+                <Ionicons name="ticket" size={20} color={colors.gold} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <View style={styles.activeRsvpHeaderRow}>
+                  <Text style={styles.activeRsvpTitle}>Your Reservation Pass</Text>
+                  <View
+                    style={[
+                      styles.statusPill,
+                      existingRsvp.status === 'confirmed'
+                        ? styles.statusPillConfirmed
+                        : existingRsvp.status === 'cancelled'
+                        ? styles.statusPillCancelled
+                        : styles.statusPillPending,
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.statusPillText,
+                        existingRsvp.status === 'confirmed'
+                          ? styles.statusPillTextConfirmed
+                          : existingRsvp.status === 'cancelled'
+                          ? styles.statusPillTextCancelled
+                          : styles.statusPillTextPending,
+                      ]}
+                    >
+                      {existingRsvp.status === 'confirmed'
+                        ? 'CONFIRMED PASS'
+                        : existingRsvp.status === 'cancelled'
+                        ? 'RESERVATION CANCELLED'
+                        : 'PENDING VERIFICATION'}
+                    </Text>
+                  </View>
+                </View>
+                <Text style={styles.activeRsvpSub}>
+                  {existingRsvp.ticketsCount} pass(es) reserved for {existingRsvp.fullName}
+                  {existingRsvp.notes ? ` • Note: ${existingRsvp.notes}` : ''}
+                </Text>
+                <View style={styles.activeRsvpActionRow}>
+                  <Text style={styles.activeRsvpActionLink}>Tap to modify ticket count or attendee details</Text>
+                  <Ionicons name="pencil" size={13} color={colors.goldRich} />
+                </View>
+              </View>
+            </TouchableOpacity>
+          )}
+
           {/* Title and Organizer */}
           <Text style={styles.eventTitle}>{event.title}</Text>
 
@@ -369,12 +473,19 @@ export default function EventDetailScreen() {
         </View>
 
         <TouchableOpacity
-          style={styles.rsvpMainBtn}
+          style={[styles.rsvpMainBtn, existingRsvp && styles.rsvpMainBtnEdit]}
           onPress={handleOpenRsvpModal}
           activeOpacity={0.88}
         >
-          <Ionicons name="ticket" size={18} color={colors.navy} style={{ marginRight: 8 }} />
-          <Text style={styles.rsvpMainBtnText}>RSVP / Get Pass</Text>
+          <Ionicons
+            name={existingRsvp ? 'create-outline' : 'ticket'}
+            size={18}
+            color={colors.navy}
+            style={{ marginRight: 8 }}
+          />
+          <Text style={styles.rsvpMainBtnText}>
+            {existingRsvp ? 'Update Reservation' : 'RSVP / Get Pass'}
+          </Text>
         </TouchableOpacity>
       </View>
 
@@ -403,9 +514,13 @@ export default function EventDetailScreen() {
                 <View style={styles.successIconCircle}>
                   <Ionicons name="checkmark-circle" size={54} color={colors.success} />
                 </View>
-                <Text style={styles.successTitle}>RSVP Confirmed!</Text>
+                <Text style={styles.successTitle}>
+                  {existingRsvp ? 'Reservation Updated!' : 'RSVP Confirmed!'}
+                </Text>
                 <Text style={styles.successSubtitle}>
-                  Your reservation for {event.title} has been confirmed.
+                  {existingRsvp
+                    ? `Your reservation for ${event.title} has been updated.`
+                    : `Your reservation for ${event.title} has been confirmed.`}
                 </Text>
                 <View style={styles.passIdPill}>
                   <Ionicons name="barcode-outline" size={16} color={colors.navy} style={{ marginRight: 6 }} />
@@ -418,9 +533,13 @@ export default function EventDetailScreen() {
             ) : (
               <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
                 <View style={styles.modalHeader}>
-                  <Text style={styles.modalTitle}>Confirm Your Pass</Text>
+                  <Text style={styles.modalTitle}>
+                    {existingRsvp ? 'Update Your Pass' : 'Confirm Your Pass'}
+                  </Text>
                   <Text style={styles.modalSubtitle}>
-                    Reserve your admission for {event.title}
+                    {existingRsvp
+                      ? `Modify reservation details for ${event.title}`
+                      : `Reserve your admission for ${event.title}`}
                   </Text>
                 </View>
 
@@ -521,7 +640,9 @@ export default function EventDetailScreen() {
                   ) : (
                     <>
                       <Ionicons name="checkmark-circle" size={18} color={colors.navy} style={{ marginRight: 8 }} />
-                      <Text style={styles.modalSubmitBtnText}>Complete Registration</Text>
+                      <Text style={styles.modalSubmitBtnText}>
+                        {existingRsvp ? 'Save & Update Pass' : 'Complete Registration'}
+                      </Text>
                     </>
                   )}
                 </TouchableOpacity>
@@ -1081,5 +1202,92 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#B91C1C',
     flex: 1,
+  },
+  activeRsvpBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1.5,
+    borderColor: '#DFB76C',
+    borderRadius: radius.lg,
+    padding: 14,
+    marginBottom: spacing.md,
+    shadowColor: colors.gold,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.12,
+    shadowRadius: 6,
+    elevation: 2,
+    gap: 12,
+  },
+  activeRsvpIconCircle: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: '#F8F4EC',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#DFB76C',
+  },
+  activeRsvpHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 4,
+  },
+  activeRsvpTitle: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 14,
+    color: colors.navy,
+  },
+  activeRsvpSub: {
+    fontFamily: fonts.body,
+    fontSize: 12,
+    color: colors.charcoalSub,
+    lineHeight: 16,
+    marginBottom: 6,
+  },
+  activeRsvpActionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+  },
+  activeRsvpActionLink: {
+    fontFamily: fonts.bodyMedium,
+    fontSize: 11.5,
+    color: colors.goldRich,
+  },
+  statusPill: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  statusPillPending: {
+    backgroundColor: '#FEF3C7',
+  },
+  statusPillConfirmed: {
+    backgroundColor: '#DCFCE7',
+  },
+  statusPillCancelled: {
+    backgroundColor: '#F1F5F9',
+  },
+  statusPillText: {
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+  },
+  statusPillTextPending: {
+    color: '#92400E',
+  },
+  statusPillTextConfirmed: {
+    color: '#166534',
+  },
+  statusPillTextCancelled: {
+    color: '#64748B',
+  },
+  rsvpMainBtnEdit: {
+    backgroundColor: '#DFB76C',
+    borderWidth: 1,
+    borderColor: '#B8860B',
   },
 });

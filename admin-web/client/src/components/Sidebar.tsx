@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useAdminAuth } from '../context/AuthContext';
 import type { AppModule } from '../context/AuthContext';
+import { adminApi, type SidebarCounts } from '../api';
 import {
   LayoutDashboard,
   Compass,
@@ -73,6 +74,46 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onSelectTab,
 }) => {
   const { adminUser, logout, canAccess } = useAdminAuth();
+  const [counts, setCounts] = useState<SidebarCounts | null>(null);
+
+  useEffect(() => {
+    let mounted = true;
+    const fetchCounts = () => {
+      adminApi
+        .getSidebarCounts()
+        .then((data) => {
+          if (mounted) setCounts(data);
+        })
+        .catch((err) => console.warn('Sidebar count fetch error:', err));
+    };
+
+    fetchCounts();
+    const interval = setInterval(fetchCounts, 12000);
+    return () => {
+      mounted = false;
+      clearInterval(interval);
+    };
+  }, [currentTab]);
+
+  const getBadgeCount = (id: AppModule): number => {
+    if (!counts) return 0;
+    switch (id) {
+      case 'inquiries':
+        return counts.totalPending;
+      case 'services':
+        return counts.services;
+      case 'events':
+        return counts.events;
+      case 'marketplace':
+        return counts.marketplace;
+      case 'investments':
+        return counts.investments;
+      case 'users':
+        return counts.unverifiedUsers;
+      default:
+        return 0;
+    }
+  };
 
   const getRoleDisplayName = (role?: string) => {
     switch (role) {
@@ -153,6 +194,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 {visibleItems.map((item) => {
                   const Icon = item.icon;
                   const isActive = currentTab === item.id;
+                  const badgeCount = getBadgeCount(item.id);
                   return (
                     <button
                       key={item.id}
@@ -172,6 +214,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       >
                         {item.label}
                       </span>
+                      {badgeCount > 0 && (
+                        <span
+                          style={{
+                            ...styles.floatingBadge,
+                            ...(isActive ? styles.floatingBadgeActive : styles.floatingBadgeInactive),
+                          }}
+                        >
+                          {badgeCount}
+                        </span>
+                      )}
                     </button>
                   );
                 })}
@@ -399,6 +451,29 @@ const styles: { [key: string]: React.CSSProperties } = {
   navLabel: {
     fontSize: '13px',
     letterSpacing: '-0.01em',
+  },
+  floatingBadge: {
+    marginLeft: 'auto',
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: '20px',
+    height: '20px',
+    padding: '0 6px',
+    borderRadius: '999px',
+    fontSize: '11px',
+    fontWeight: 800,
+    letterSpacing: '-0.02em',
+    transition: 'all 0.15s ease',
+  },
+  floatingBadgeActive: {
+    backgroundColor: '#DFB76C',
+    color: '#07152B',
+  },
+  floatingBadgeInactive: {
+    backgroundColor: '#FEF9EE',
+    color: '#8C6A21',
+    border: '1px solid rgba(223, 183, 108, 0.4)',
   },
   telemetryCard: {
     marginTop: 'auto',

@@ -20,7 +20,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { services as sampleServices } from '../../assets/data/sample';
-import { contentApi, Service, ServiceInquiryPayload } from '../../lib/api';
+import { contentApi, Service, ServiceInquiry, ServiceInquiryPayload } from '../../lib/api';
 import { useAuth } from '../../lib/auth-context';
 import { useFavorites } from '../../lib/favorites-context';
 import { LocationCard } from '../../components/LocationCard';
@@ -37,6 +37,10 @@ export default function ServiceDetailScreen() {
 
   const [service, setService] = useState<Service | null>(null);
   const [loading, setLoading] = useState(true);
+
+  // Active Inquiry & Editing State
+  const [existingInquiry, setExistingInquiry] = useState<ServiceInquiry | null>(null);
+  const [loadingInquiry, setLoadingInquiry] = useState(false);
 
   // Inquiry Modal State
   const [inquiryModalVisible, setInquiryModalVisible] = useState(false);
@@ -76,15 +80,43 @@ export default function ServiceDetailScreen() {
     };
   }, [id]);
 
+  // Load existing inquiry for current user if available
+  const loadMyInquiry = React.useCallback(async () => {
+    if (!id) return;
+    try {
+      setLoadingInquiry(true);
+      const inq = await contentApi.getMyServiceInquiry(id, token, user?.email);
+      if (inq) {
+        setExistingInquiry(inq);
+        setFullName(inq.fullName || user?.name || '');
+        setContactEmail(inq.contactEmail || user?.email || '');
+        if (inq.contactPhone) setContactPhone(inq.contactPhone);
+        if (inq.contactWhatsapp) setContactWhatsapp(inq.contactWhatsapp);
+        if (inq.timeframe) setSelectedTimeframe(inq.timeframe);
+        if (inq.message) setMessage(inq.message);
+      } else {
+        setExistingInquiry(null);
+      }
+    } catch {
+      // Offline fallback
+    } finally {
+      setLoadingInquiry(false);
+    }
+  }, [id, token, user?.email, user?.name, user?.phone]);
+
+  useEffect(() => {
+    loadMyInquiry();
+  }, [loadMyInquiry]);
+
   // Sync user details if user context updates
   useEffect(() => {
-    if (user) {
+    if (user && !existingInquiry) {
       if (!fullName) setFullName(user.name);
       if (!contactEmail) setContactEmail(user.email);
       if (!contactPhone && user.phone) setContactPhone(user.phone);
       if (!contactWhatsapp && user.phone) setContactWhatsapp(user.phone);
     }
-  }, [user]);
+  }, [user, existingInquiry]);
 
   const fav = service ? isFavorite('service', service.id) : false;
 
@@ -135,12 +167,21 @@ export default function ServiceDetailScreen() {
         message: message.trim(),
       };
 
-      await contentApi.createInquiry(service.id, payload, token);
+      if (existingInquiry) {
+        const res = await contentApi.updateServiceInquiry(existingInquiry.id, payload, token);
+        if (res?.inquiry) {
+          setExistingInquiry(res.inquiry);
+        }
+      } else {
+        const res = await contentApi.createInquiry(service.id, payload, token);
+        if (res?.inquiry) {
+          setExistingInquiry(res.inquiry);
+        }
+      }
       setInquirySuccess(true);
       setTimeout(() => {
         setInquirySuccess(false);
         setInquiryModalVisible(false);
-        setMessage('');
         setInquiryError(null);
       }, 2000);
     } catch (err: any) {
@@ -248,6 +289,57 @@ export default function ServiceDetailScreen() {
 
         {/* Content Body Container */}
         <View style={styles.bodyContainer}>
+          {/* Active Inquiry Card (if user previously submitted) */}
+          {existingInquiry && (
+            <TouchableOpacity
+              style={styles.activeInquiryBanner}
+              onPress={() => setInquiryModalVisible(true)}
+              activeOpacity={0.88}
+            >
+              <View style={styles.activeInquiryIconCircle}>
+                <Ionicons name="document-text" size={20} color={colors.gold} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <View style={styles.activeInquiryHeaderRow}>
+                  <Text style={styles.activeInquiryTitle}>Your Formal Inquiry</Text>
+                  <View
+                    style={[
+                      styles.statusPill,
+                      existingInquiry.status === 'confirmed'
+                        ? styles.statusPillConfirmed
+                        : existingInquiry.status === 'cancelled'
+                        ? styles.statusPillCancelled
+                        : styles.statusPillPending,
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.statusPillText,
+                        existingInquiry.status === 'confirmed'
+                          ? styles.statusPillTextConfirmed
+                          : existingInquiry.status === 'cancelled'
+                          ? styles.statusPillTextCancelled
+                          : styles.statusPillTextPending,
+                      ]}
+                    >
+                      {existingInquiry.status === 'pending'
+                        ? 'IN REVIEW'
+                        : existingInquiry.status.toUpperCase()}
+                    </Text>
+                  </View>
+                </View>
+                <Text style={styles.activeInquirySub} numberOfLines={2}>
+                  {existingInquiry.timeframe ? `Timeframe: ${existingInquiry.timeframe} • ` : ''}
+                  {existingInquiry.message}
+                </Text>
+                <View style={styles.activeInquiryActionRow}>
+                  <Text style={styles.activeInquiryActionLink}>Tap to review or edit your inquiry</Text>
+                  <Ionicons name="pencil" size={13} color={colors.goldRich} />
+                </View>
+              </View>
+            </TouchableOpacity>
+          )}
+
           {/* Partner Meta & Rating Row */}
           <View style={styles.metaRow}>
             <View style={styles.locationItem}>
@@ -400,12 +492,19 @@ export default function ServiceDetailScreen() {
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={styles.inquiryBottomBtn}
+          style={[styles.inquiryBottomBtn, existingInquiry && styles.inquiryBottomBtnEdit]}
           onPress={() => setInquiryModalVisible(true)}
           activeOpacity={0.85}
         >
-          <Text style={styles.inquiryBottomText}>Submit Formal Inquiry</Text>
-          <Ionicons name="arrow-forward" size={15} color={colors.navy} style={{ marginLeft: 6 }} />
+          <Ionicons
+            name={existingInquiry ? 'create-outline' : 'paper-plane-outline'}
+            size={16}
+            color={colors.navy}
+            style={{ marginRight: 6 }}
+          />
+          <Text style={styles.inquiryBottomText}>
+            {existingInquiry ? 'Edit Your Inquiry' : 'Submit Formal Inquiry'}
+          </Text>
         </TouchableOpacity>
       </View>
 
@@ -424,8 +523,14 @@ export default function ServiceDetailScreen() {
             {/* Header */}
             <View style={styles.modalHeaderRow}>
               <View>
-                <Text style={styles.modalTitle}>Request Partner Inquiry</Text>
-                <Text style={styles.modalSub}>{service.name}</Text>
+                <Text style={styles.modalTitle}>
+                  {existingInquiry ? 'Edit Consultation Inquiry' : 'Request Partner Inquiry'}
+                </Text>
+                <Text style={styles.modalSub}>
+                  {existingInquiry
+                    ? `Status: ${existingInquiry.status.toUpperCase()} • Update your details`
+                    : service.name}
+                </Text>
               </View>
               <TouchableOpacity
                 style={styles.modalCloseBtn}
@@ -441,9 +546,13 @@ export default function ServiceDetailScreen() {
                 <View style={styles.successIconCircle}>
                   <Ionicons name="checkmark-done" size={32} color={colors.gold} />
                 </View>
-                <Text style={styles.successStateTitle}>Inquiry Dispatched!</Text>
+                <Text style={styles.successStateTitle}>
+                  {existingInquiry ? 'Inquiry Updated!' : 'Inquiry Dispatched!'}
+                </Text>
                 <Text style={styles.successStateSub}>
-                  Your request has been forwarded directly to {service.name}. Their diaspora concierge team will reply within 24 hours.
+                  {existingInquiry
+                    ? 'Your changes have been saved and dispatched to the concierge team.'
+                    : `Your request has been forwarded directly to ${service.name}. Their diaspora concierge team will reply within 24 hours.`}
                 </Text>
               </View>
             ) : (
@@ -546,8 +655,15 @@ export default function ServiceDetailScreen() {
                     <ActivityIndicator size="small" color={colors.navy} />
                   ) : (
                     <>
-                      <Text style={styles.submitInquiryText}>Send Inquiry to Partner</Text>
-                      <Ionicons name="send" size={15} color={colors.navy} style={{ marginLeft: 8 }} />
+                      <Text style={styles.submitInquiryText}>
+                        {existingInquiry ? 'Save & Update Inquiry' : 'Send Inquiry to Partner'}
+                      </Text>
+                      <Ionicons
+                        name={existingInquiry ? 'checkmark-circle' : 'send'}
+                        size={15}
+                        color={colors.navy}
+                        style={{ marginLeft: 8 }}
+                      />
                     </>
                   )}
                 </TouchableOpacity>
@@ -1129,5 +1245,92 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#B91C1C',
     flex: 1,
+  },
+  activeInquiryBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1.5,
+    borderColor: '#DFB76C',
+    borderRadius: radius.lg,
+    padding: 14,
+    marginBottom: spacing.md,
+    shadowColor: colors.gold,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.12,
+    shadowRadius: 6,
+    elevation: 2,
+    gap: 12,
+  },
+  activeInquiryIconCircle: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: '#F8F4EC',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#DFB76C',
+  },
+  activeInquiryHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 4,
+  },
+  activeInquiryTitle: {
+    fontFamily: fonts.sansBold,
+    fontSize: 14,
+    color: colors.navy,
+  },
+  activeInquirySub: {
+    fontFamily: fonts.sansRegular,
+    fontSize: 12,
+    color: colors.charcoalSub,
+    lineHeight: 16,
+    marginBottom: 6,
+  },
+  activeInquiryActionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+  },
+  activeInquiryActionLink: {
+    fontFamily: fonts.sansSemiBold,
+    fontSize: 11.5,
+    color: colors.goldRich,
+  },
+  statusPill: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  statusPillPending: {
+    backgroundColor: '#FEF3C7',
+  },
+  statusPillConfirmed: {
+    backgroundColor: '#DCFCE7',
+  },
+  statusPillCancelled: {
+    backgroundColor: '#F1F5F9',
+  },
+  statusPillText: {
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+  },
+  statusPillTextPending: {
+    color: '#92400E',
+  },
+  statusPillTextConfirmed: {
+    color: '#166534',
+  },
+  statusPillTextCancelled: {
+    color: '#64748B',
+  },
+  inquiryBottomBtnEdit: {
+    backgroundColor: '#DFB76C',
+    borderWidth: 1,
+    borderColor: '#B8860B',
   },
 });

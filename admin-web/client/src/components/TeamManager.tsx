@@ -3,16 +3,83 @@ import { adminApi } from '../api';
 import type { AdminUser } from '../api';
 import { useAdminAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
-import { Plus, Search, Trash2, ShieldCheck, Mail, Phone, RefreshCw, KeyRound, AlertCircle, ArrowLeft, Check, UserCheck } from 'lucide-react';
+import {
+  Plus,
+  Search,
+  Trash2,
+  ShieldCheck,
+  Mail,
+  Phone,
+  RefreshCw,
+  KeyRound,
+  AlertCircle,
+  ArrowLeft,
+  Check,
+  UserCheck,
+  Compass,
+  Briefcase,
+  Calendar,
+  ShoppingBag,
+  TrendingUp,
+  Eye,
+  EyeOff,
+  Sparkles,
+  Lock,
+  CheckCircle2,
+} from 'lucide-react';
 import { ResetPasswordModal } from './ResetPasswordModal';
 
-const ROLE_OPTIONS: { value: string; label: string; desc: string }[] = [
-  { value: 'SUPER_ADMIN', label: 'Full Administrator', desc: 'Complete management authority across all modules and staff' },
-  { value: 'DESTINATION_MANAGER', label: 'Tourism & Heritage Lead', desc: 'Manage UNESCO cultural attractions and map coordinates' },
-  { value: 'SERVICE_MANAGER', label: 'Services Directory Lead', desc: 'Partner directory curation and client inquiry triage' },
-  { value: 'EVENT_MANAGER', label: 'Events Coordinator', desc: 'Summits, festivals, venue maps, and attendee RSVPs' },
-  { value: 'MARKETPLACE_MANAGER', label: 'Marketplace Lead', desc: 'Crafts inventory, artisans, and customer order inquiries' },
-  { value: 'INVESTMENT_OFFICER', label: 'Investment Officer', desc: 'Capital syndicates, prospectuses, and investor inquiries' },
+export interface RoleOption {
+  value: string;
+  label: string;
+  desc: string;
+  icon: React.ElementType;
+  permissions: string[];
+}
+
+const ROLE_OPTIONS: RoleOption[] = [
+  {
+    value: 'SUPER_ADMIN',
+    label: 'Full Platform Administrator',
+    desc: 'Unrestricted governance across all administrative departments, member accounts, and staff permissions.',
+    icon: ShieldCheck,
+    permissions: ['System Governance', 'Staff Security', 'Member Management', 'All Operational Queues'],
+  },
+  {
+    value: 'DESTINATION_MANAGER',
+    label: 'Tourism & Heritage Lead',
+    desc: 'Full curation authority over historical landmarks, UNESCO heritage sites, and geographic navigation pins.',
+    icon: Compass,
+    permissions: ['Destinations Catalog', 'Map Coordinates', 'Cultural Highlights'],
+  },
+  {
+    value: 'SERVICE_MANAGER',
+    label: 'Services Directory Lead',
+    desc: 'Oversees verified diaspora service providers, emergency services, and client formal inquiry queues.',
+    icon: Briefcase,
+    permissions: ['Provider Curation', 'Formal Inquiries', 'Business Directory'],
+  },
+  {
+    value: 'EVENT_MANAGER',
+    label: 'Events & Summits Coordinator',
+    desc: 'Coordinates cultural exhibitions, diaspora business summits, venue capacities, and attendee RSVPs.',
+    icon: Calendar,
+    permissions: ['Event Scheduling', 'RSVP Pass Verification', 'Attendee Check-In'],
+  },
+  {
+    value: 'MARKETPLACE_MANAGER',
+    label: 'Artisan Marketplace Lead',
+    desc: 'Manages Ethiopian artisan partners, fair-trade craft products, stock levels, and purchase order dispatches.',
+    icon: ShoppingBag,
+    permissions: ['Artisan Curation', 'Craft Inventory', 'Order Dispatches'],
+  },
+  {
+    value: 'INVESTMENT_OFFICER',
+    label: 'Investment Desk Officer',
+    desc: 'Handles diaspora capital syndicates, sector prospectuses, allocation requests, and investor leads.',
+    icon: TrendingUp,
+    permissions: ['Prospectus Publications', 'Investor Inquiries', 'Syndicate Leads'],
+  },
 ];
 
 export const TeamManager: React.FC = () => {
@@ -27,6 +94,7 @@ export const TeamManager: React.FC = () => {
   const [isEditorActive, setIsEditorActive] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
 
   // Form Fields
   const [formData, setFormData] = useState({
@@ -62,12 +130,23 @@ export const TeamManager: React.FC = () => {
       phone: '',
     });
     setErrorMessage('');
+    setShowPassword(false);
     setIsEditorActive(true);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleCloseEditor = () => {
     setIsEditorActive(false);
+  };
+
+  const handleGenerateKey = () => {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@#$%';
+    let key = '';
+    for (let i = 0; i < 12; i++) {
+      key += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    setFormData((prev) => ({ ...prev, password: key }));
+    setShowPassword(true);
   };
 
   const handleDelete = async (id: string, name: string) => {
@@ -103,7 +182,7 @@ export const TeamManager: React.FC = () => {
 
     try {
       await adminApi.createTeamMember(formData);
-      success(`Coordinator "${formData.name}" onboarded successfully.`, 'Coordinator Added');
+      success(`Coordinator "${formData.name}" onboarded successfully.`, 'Coordinator Authorized');
       setIsEditorActive(false);
       loadTeam();
     } catch (err: any) {
@@ -119,6 +198,8 @@ export const TeamManager: React.FC = () => {
     return ROLE_OPTIONS.find((r) => r.value === role)?.label || role;
   };
 
+  const selectedRoleConfig = ROLE_OPTIONS.find((r) => r.value === formData.adminRole) || ROLE_OPTIONS[0];
+
   const filteredTeam = team.filter(
     (m) =>
       m.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -128,6 +209,8 @@ export const TeamManager: React.FC = () => {
 
   // Dedicated In-Page Full Workspace Editor (NO POPUP)
   if (isEditorActive) {
+    const SelectedRoleIcon = selectedRoleConfig.icon;
+
     return (
       <div style={styles.container}>
         {/* Editor Top Navigation Bar */}
@@ -135,7 +218,7 @@ export const TeamManager: React.FC = () => {
           <div style={styles.editorNavLeft}>
             <button style={styles.backBtn} onClick={handleCloseEditor}>
               <ArrowLeft size={16} color="#07152B" />
-              <span>Back to Team</span>
+              <span>Back to Staff Directory</span>
             </button>
             <div style={styles.editorBreadcrumbs}>
               <span style={styles.breadcrumbMuted}>Administrative Team</span>
@@ -167,74 +250,128 @@ export const TeamManager: React.FC = () => {
           </div>
         )}
 
-        {/* 2-Column Dedicated Editor Workspace */}
+        {/* 2-Column Dedicated Luxury Workspace */}
         <div style={styles.editorGrid}>
           {/* Left Column: Account Credentials */}
           <div style={styles.formCard}>
-            <h3 style={styles.cardSectionTitle}>Coordinator Credentials</h3>
-            <p style={styles.cardSectionSub}>Staff identity, official email address, and initial access key</p>
+            <div style={styles.cardHeaderPod}>
+              <div style={styles.headerIconCircle}>
+                <Lock size={18} color="#8C6A21" />
+              </div>
+              <div>
+                <h3 style={styles.cardSectionTitle}>Staff Identity & Credentials</h3>
+                <p style={styles.cardSectionSub}>Coordinator profile and cryptographic sign-in passkey</p>
+              </div>
+            </div>
 
             <div style={styles.formStack}>
               <div>
                 <label style={styles.label}>Full Name *</label>
-                <input
-                  type="text"
-                  required
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  placeholder="e.g. Rahel Tadesse"
-                  style={styles.fullInput}
-                />
-              </div>
-
-              <div>
-                <label style={styles.label}>Official Administrative Email *</label>
-                <input
-                  type="email"
-                  required
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  placeholder="e.g. rahel@daleel.et"
-                  style={styles.fullInput}
-                />
-              </div>
-
-              <div>
-                <label style={styles.label}>Initial Access Key (Password) *</label>
-                <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-                  <KeyRound size={16} color="#8A9AA8" style={{ position: 'absolute', left: '12px' }} />
+                <div style={styles.inputWithIconWrap}>
+                  <UserCheck size={16} color="#8A9AA8" style={styles.inputLeftIcon} />
                   <input
-                    type="password"
+                    type="text"
                     required
-                    value={formData.password}
-                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                    placeholder="Minimum 8 characters"
+                    value={formData.name}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    placeholder="e.g. Rahel Tadesse"
                     style={{ ...styles.fullInput, paddingLeft: '38px' }}
                   />
                 </div>
               </div>
 
               <div>
+                <label style={styles.label}>Official Administrative Email *</label>
+                <div style={styles.inputWithIconWrap}>
+                  <Mail size={16} color="#8A9AA8" style={styles.inputLeftIcon} />
+                  <input
+                    type="email"
+                    required
+                    value={formData.email}
+                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    placeholder="e.g. rahel@daleel.et"
+                    style={{ ...styles.fullInput, paddingLeft: '38px' }}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
+                  <label style={{ ...styles.label, margin: 0 }}>Initial Access Passkey *</label>
+                  <button
+                    type="button"
+                    onClick={handleGenerateKey}
+                    style={styles.generateKeyBtn}
+                  >
+                    <Sparkles size={13} color="#8C6A21" />
+                    <span>Generate Secure Key</span>
+                  </button>
+                </div>
+                <div style={styles.inputWithIconWrap}>
+                  <KeyRound size={16} color="#8A9AA8" style={styles.inputLeftIcon} />
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    required
+                    value={formData.password}
+                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                    placeholder="Minimum 8 characters"
+                    style={{ ...styles.fullInput, paddingLeft: '38px', paddingRight: '40px' }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    style={styles.eyeToggleBtn}
+                    title={showPassword ? 'Hide passkey' : 'Show passkey'}
+                  >
+                    {showPassword ? <EyeOff size={16} color="#5A687A" /> : <Eye size={16} color="#5A687A" />}
+                  </button>
+                </div>
+              </div>
+
+              <div>
                 <label style={styles.label}>Direct Contact Phone (Optional)</label>
-                <input
-                  type="text"
-                  value={formData.phone}
-                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                  placeholder="+251 91 100 0000"
-                  style={styles.fullInput}
-                />
+                <div style={styles.inputWithIconWrap}>
+                  <Phone size={16} color="#8A9AA8" style={styles.inputLeftIcon} />
+                  <input
+                    type="text"
+                    value={formData.phone}
+                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                    placeholder="+251 91 100 0000"
+                    style={{ ...styles.fullInput, paddingLeft: '38px' }}
+                  />
+                </div>
+              </div>
+
+              {/* Security Advisory Callout */}
+              <div style={styles.securityNoticeBox}>
+                <ShieldCheck size={18} color="#8C6A21" style={{ flexShrink: 0, marginTop: '2px' }} />
+                <div>
+                  <div style={styles.securityNoticeTitle}>Administrative Access Policy</div>
+                  <div style={styles.securityNoticeText}>
+                    New coordinators receive administrative sign-in privileges immediately. Credentials must only be provisioned to authorized institutional personnel.
+                  </div>
+                </div>
               </div>
             </div>
           </div>
 
           {/* Right Column: Delegated Role Area */}
           <div style={styles.formCard}>
-            <h3 style={styles.cardSectionTitle}>Area of Responsibility</h3>
-            <p style={styles.cardSectionSub}>Select which platform module this coordinator is authorized to manage</p>
+            <div style={styles.cardHeaderPod}>
+              <div style={styles.headerIconCircle}>
+                <SelectedRoleIcon size={18} color="#8C6A21" />
+              </div>
+              <div>
+                <h3 style={styles.cardSectionTitle}>Area of Delegated Responsibility</h3>
+                <p style={styles.cardSectionSub}>Select platform operational scope assigned to this coordinator</p>
+              </div>
+            </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
               {ROLE_OPTIONS.map((opt) => {
                 const isSelected = formData.adminRole === opt.value;
+                const RoleIcon = opt.icon;
+
                 return (
                   <div
                     key={opt.value}
@@ -245,20 +382,51 @@ export const TeamManager: React.FC = () => {
                     onClick={() => setFormData({ ...formData, adminRole: opt.value })}
                   >
                     <div style={styles.roleSelectHeader}>
-                      <div style={styles.radioDotWrap}>
-                        <div
-                          style={{
-                            ...styles.radioDot,
-                            ...(isSelected ? styles.radioDotActive : {}),
-                          }}
-                        />
+                      <div
+                        style={{
+                          ...styles.roleIconCircle,
+                          ...(isSelected ? styles.roleIconCircleActive : {}),
+                        }}
+                      >
+                        <RoleIcon size={17} color={isSelected ? '#8C6A21' : '#07152B'} />
                       </div>
-                      <span style={styles.roleOptionTitle}>{opt.label}</span>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                          <span style={styles.roleOptionTitle}>{opt.label}</span>
+                          {isSelected ? (
+                            <CheckCircle2 size={18} color="#8C6A21" />
+                          ) : (
+                            <div style={styles.radioDotWrap} />
+                          )}
+                        </div>
+                        <p style={styles.roleOptionDesc}>{opt.desc}</p>
+
+                        <div style={styles.permissionsPillRow}>
+                          {opt.permissions.map((perm) => (
+                            <span
+                              key={perm}
+                              style={{
+                                ...styles.permissionPill,
+                                ...(isSelected ? styles.permissionPillActive : {}),
+                              }}
+                            >
+                              {perm}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
                     </div>
-                    <p style={styles.roleOptionDesc}>{opt.desc}</p>
                   </div>
                 );
               })}
+            </div>
+
+            {/* Scope Summary Footer */}
+            <div style={styles.scopeSummaryFooter}>
+              <div style={styles.scopeSummaryLabel}>SUMMARY OF AUTHORIZATION</div>
+              <div style={styles.scopeSummaryValue}>
+                Authorizing <strong>{formData.name || 'Coordinator'}</strong> with <strong>{selectedRoleConfig.label}</strong> credentials.
+              </div>
             </div>
           </div>
         </div>
@@ -292,15 +460,20 @@ export const TeamManager: React.FC = () => {
 
       {/* Role Delegation Guide Cards */}
       <div style={styles.roleGuideGrid}>
-        {ROLE_OPTIONS.map((opt) => (
-          <div key={opt.value} style={styles.roleCard}>
-            <div style={styles.roleCardHeader}>
-              <ShieldCheck size={16} color="#DFB76C" />
-              <span style={styles.roleCardTitle}>{opt.label}</span>
+        {ROLE_OPTIONS.map((opt) => {
+          const RoleIcon = opt.icon;
+          return (
+            <div key={opt.value} style={styles.roleCard}>
+              <div style={styles.roleCardHeader}>
+                <div style={styles.roleGuideIconBadge}>
+                  <RoleIcon size={14} color="#8C6A21" />
+                </div>
+                <span style={styles.roleCardTitle}>{opt.label}</span>
+              </div>
+              <div style={styles.roleCardDesc}>{opt.desc}</div>
             </div>
-            <div style={styles.roleCardDesc}>{opt.desc}</div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* Search & Team Table */}
@@ -690,6 +863,144 @@ const styles: { [key: string]: React.CSSProperties } = {
   roleOptionDesc: {
     fontSize: '12px',
     color: '#5A687A',
-    margin: '4px 0 0 26px',
+    margin: '4px 0 0 0',
+  },
+  cardHeaderPod: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '12px',
+    marginBottom: '18px',
+  },
+  headerIconCircle: {
+    width: '38px',
+    height: '38px',
+    borderRadius: '10px',
+    backgroundColor: '#F8F4EC',
+    border: '1px solid #DFB76C',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
+  inputWithIconWrap: {
+    position: 'relative',
+    display: 'flex',
+    alignItems: 'center',
+    width: '100%',
+  },
+  inputLeftIcon: {
+    position: 'absolute',
+    left: '12px',
+    pointerEvents: 'none',
+  },
+  generateKeyBtn: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '4px',
+    padding: '3px 8px',
+    backgroundColor: '#F8F4EC',
+    border: '1px solid #DFB76C',
+    borderRadius: '6px',
+    fontSize: '11px',
+    fontWeight: 700,
+    color: '#8C6A21',
+    cursor: 'pointer',
+    transition: 'all 0.15s ease',
+  },
+  eyeToggleBtn: {
+    position: 'absolute',
+    right: '10px',
+    background: 'transparent',
+    border: 'none',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: '4px',
+  },
+  securityNoticeBox: {
+    display: 'flex',
+    alignItems: 'flex-start',
+    gap: '10px',
+    backgroundColor: '#FBF9F5',
+    border: '1px solid rgba(223, 183, 108, 0.4)',
+    borderRadius: '10px',
+    padding: '14px',
+    marginTop: '6px',
+  },
+  securityNoticeTitle: {
+    fontSize: '12.5px',
+    fontWeight: 700,
+    color: '#07152B',
+    marginBottom: '3px',
+  },
+  securityNoticeText: {
+    fontSize: '11.5px',
+    color: '#5A687A',
+    lineHeight: 1.45,
+  },
+  roleIconCircle: {
+    width: '36px',
+    height: '36px',
+    borderRadius: '9px',
+    backgroundColor: '#F1F5F9',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+    transition: 'all 0.15s ease',
+  },
+  roleIconCircleActive: {
+    backgroundColor: '#F8F4EC',
+    border: '1px solid #DFB76C',
+  },
+  permissionsPillRow: {
+    display: 'flex',
+    flexWrap: 'wrap',
+    gap: '5px',
+    marginTop: '8px',
+  },
+  permissionPill: {
+    fontSize: '10.5px',
+    fontWeight: 600,
+    color: '#5A687A',
+    backgroundColor: '#F1F5F9',
+    padding: '2px 7px',
+    borderRadius: '5px',
+  },
+  permissionPillActive: {
+    color: '#8C6A21',
+    backgroundColor: '#FFFFFF',
+    border: '1px solid #E0C582',
+  },
+  scopeSummaryFooter: {
+    marginTop: '16px',
+    padding: '14px 16px',
+    backgroundColor: '#F8FAFC',
+    border: '1px solid #E4E9F0',
+    borderRadius: '10px',
+  },
+  scopeSummaryLabel: {
+    fontSize: '10.5px',
+    fontWeight: 800,
+    letterSpacing: '0.5px',
+    color: '#8C6A21',
+    marginBottom: '4px',
+  },
+  scopeSummaryValue: {
+    fontSize: '12.5px',
+    color: '#07152B',
+    lineHeight: 1.4,
+  },
+  roleGuideIconBadge: {
+    width: '24px',
+    height: '24px',
+    borderRadius: '6px',
+    backgroundColor: '#F8F4EC',
+    border: '1px solid #E0C582',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
   },
 };

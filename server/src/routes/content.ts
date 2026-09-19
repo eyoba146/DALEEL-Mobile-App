@@ -138,6 +138,62 @@ contentRouter.post('/services/:id/inquiry', async (req: Request, res: Response) 
   }
 });
 
+contentRouter.get('/services/:id/my-inquiry', async (req: Request, res: Response) => {
+  try {
+    const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+    const userId = getOptionalUserId(req);
+    const email = req.query.email ? String(req.query.email).trim().toLowerCase() : undefined;
+
+    if (!userId && !email) {
+      return res.json(null);
+    }
+
+    const inquiry = await prisma.serviceInquiry.findFirst({
+      where: {
+        serviceId: id,
+        OR: [
+          ...(userId ? [{ userId }] : []),
+          ...(email ? [{ contactEmail: email }] : []),
+        ],
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    res.json(inquiry || null);
+  } catch (error) {
+    console.error('Error fetching user service inquiry:', error);
+    res.status(500).json({ error: 'Failed to fetch user inquiry' });
+  }
+});
+
+contentRouter.patch('/services/inquiries/:id', async (req: Request, res: Response) => {
+  try {
+    const userId = getOptionalUserId(req);
+    const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+    const existing = await prisma.serviceInquiry.findUnique({ where: { id } });
+    if (!existing) return res.status(404).json({ error: 'Inquiry not found' });
+    if (existing.userId && userId && existing.userId !== userId) {
+      return res.status(403).json({ error: 'Unauthorized to edit this inquiry' });
+    }
+
+    const { timeframe, message, contactPhone, contactWhatsapp, fullName } = req.body;
+    const updated = await prisma.serviceInquiry.update({
+      where: { id },
+      data: {
+        timeframe: timeframe !== undefined ? (timeframe ? String(timeframe).trim() : null) : undefined,
+        message: message ? String(message).trim() : undefined,
+        contactPhone: contactPhone !== undefined ? (contactPhone ? String(contactPhone).trim() : null) : undefined,
+        contactWhatsapp: contactWhatsapp !== undefined ? (contactWhatsapp ? String(contactWhatsapp).trim() : null) : undefined,
+        fullName: fullName ? String(fullName).trim() : undefined,
+      },
+    });
+    res.json({ success: true, inquiry: updated });
+  } catch (error) {
+    console.error('Error updating service inquiry:', error);
+    res.status(500).json({ error: 'Failed to update inquiry' });
+  }
+});
+
 // --- Events ---
 
 contentRouter.get('/events', async (req: Request, res: Response) => {
@@ -226,6 +282,61 @@ contentRouter.post('/events/:id/rsvp', async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Error creating event RSVP:', error);
     res.status(500).json({ error: 'Failed to register RSVP' });
+  }
+});
+
+contentRouter.get('/events/:id/my-rsvp', async (req: Request, res: Response) => {
+  try {
+    const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+    const userId = getOptionalUserId(req);
+    const email = req.query.email ? String(req.query.email).trim().toLowerCase() : undefined;
+
+    if (!userId && !email) {
+      return res.json(null);
+    }
+
+    const rsvp = await prisma.eventRsvp.findFirst({
+      where: {
+        eventId: id,
+        OR: [
+          ...(userId ? [{ userId }] : []),
+          ...(email ? [{ email }] : []),
+        ],
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    res.json(rsvp || null);
+  } catch (error) {
+    console.error('Error fetching user event rsvp:', error);
+    res.status(500).json({ error: 'Failed to fetch user RSVP' });
+  }
+});
+
+contentRouter.patch('/events/rsvps/:id', async (req: Request, res: Response) => {
+  try {
+    const userId = getOptionalUserId(req);
+    const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+    const existing = await prisma.eventRsvp.findUnique({ where: { id } });
+    if (!existing) return res.status(404).json({ error: 'RSVP not found' });
+    if (existing.userId && userId && existing.userId !== userId) {
+      return res.status(403).json({ error: 'Unauthorized to edit this reservation' });
+    }
+
+    const { ticketsCount, notes, phone, fullName } = req.body;
+    const updated = await prisma.eventRsvp.update({
+      where: { id },
+      data: {
+        ticketsCount: Number(ticketsCount) > 0 ? Math.min(Number(ticketsCount), 10) : undefined,
+        notes: notes !== undefined ? (notes ? String(notes).trim() : null) : undefined,
+        phone: phone !== undefined ? (phone ? String(phone).trim() : null) : undefined,
+        fullName: fullName ? String(fullName).trim() : undefined,
+      },
+    });
+    res.json({ success: true, rsvp: updated });
+  } catch (error) {
+    console.error('Error updating event rsvp:', error);
+    res.status(500).json({ error: 'Failed to update reservation' });
   }
 });
 
@@ -323,6 +434,63 @@ contentRouter.post('/investments/:id/inquiry', async (req: Request, res: Respons
   } catch (error) {
     console.error('Error creating investment inquiry:', error);
     res.status(500).json({ error: 'Failed to submit investment inquiry' });
+  }
+});
+
+contentRouter.get('/investments/:id/my-inquiry', async (req: Request, res: Response) => {
+  try {
+    const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+    const userId = getOptionalUserId(req);
+    const email = req.query.email ? String(req.query.email).trim().toLowerCase() : undefined;
+
+    if (!userId && !email) {
+      return res.json(null);
+    }
+
+    const inquiry = await prisma.investmentInquiry.findFirst({
+      where: {
+        opportunityId: id,
+        OR: [
+          ...(userId ? [{ userId }] : []),
+          ...(email ? [{ contactEmail: email }] : []),
+        ],
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    res.json(inquiry || null);
+  } catch (error) {
+    console.error('Error fetching user investment inquiry:', error);
+    res.status(500).json({ error: 'Failed to fetch user investment inquiry' });
+  }
+});
+
+contentRouter.patch('/investments/inquiries/:id', async (req: Request, res: Response) => {
+  try {
+    const userId = getOptionalUserId(req);
+    const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+    const existing = await prisma.investmentInquiry.findUnique({ where: { id } });
+    if (!existing) return res.status(404).json({ error: 'Inquiry not found' });
+    if (existing.userId && userId && existing.userId !== userId) {
+      return res.status(403).json({ error: 'Unauthorized to edit this inquiry' });
+    }
+
+    const { investmentBudget, timeframe, message, contactPhone, contactWhatsapp, fullName } = req.body;
+    const updated = await prisma.investmentInquiry.update({
+      where: { id },
+      data: {
+        investmentBudget: investmentBudget !== undefined ? (investmentBudget ? String(investmentBudget).trim() : null) : undefined,
+        timeframe: timeframe !== undefined ? (timeframe ? String(timeframe).trim() : null) : undefined,
+        message: message ? String(message).trim() : undefined,
+        contactPhone: contactPhone !== undefined ? (contactPhone ? String(contactPhone).trim() : null) : undefined,
+        contactWhatsapp: contactWhatsapp !== undefined ? (contactWhatsapp ? String(contactWhatsapp).trim() : null) : undefined,
+        fullName: fullName ? String(fullName).trim() : undefined,
+      },
+    });
+    res.json({ success: true, inquiry: updated });
+  } catch (error) {
+    console.error('Error updating investment inquiry:', error);
+    res.status(500).json({ error: 'Failed to update inquiry' });
   }
 });
 
@@ -720,5 +888,191 @@ contentRouter.post('/announcements', async (req: Request, res: Response) => {
     res.status(500).json({ error: 'Failed to create announcement banner' });
   }
 });
+
+// --- Unified User Activity & Passes API ---
+
+contentRouter.get('/users/me/activity', async (req: Request, res: Response) => {
+  try {
+    const userId = getOptionalUserId(req);
+    let email = req.query.email ? String(req.query.email).trim().toLowerCase() : undefined;
+
+    if (userId && !email) {
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { email: true },
+      });
+      if (user?.email) {
+        email = user.email.trim().toLowerCase();
+      }
+    }
+
+    if (!userId && !email) {
+      return res.json({
+        items: [],
+        counts: {
+          total: 0,
+          events: 0,
+          services: 0,
+          orders: 0,
+          investments: 0,
+          pending: 0,
+          confirmed: 0,
+        },
+      });
+    }
+
+    const [rsvps, serviceInquiries, productOrders, investmentInquiries] = await Promise.all([
+      prisma.eventRsvp.findMany({
+        where: {
+          OR: [
+            ...(userId ? [{ userId }] : []),
+            ...(email ? [{ email }] : []),
+          ],
+        },
+        include: { event: true },
+        orderBy: { createdAt: 'desc' },
+      }),
+      prisma.serviceInquiry.findMany({
+        where: {
+          OR: [
+            ...(userId ? [{ userId }] : []),
+            ...(email ? [{ contactEmail: email }] : []),
+          ],
+        },
+        include: { service: true },
+        orderBy: { createdAt: 'desc' },
+      }),
+      prisma.productOrderInquiry.findMany({
+        where: {
+          OR: [
+            ...(userId ? [{ userId }] : []),
+            ...(email ? [{ email }] : []),
+          ],
+        },
+        include: { product: true },
+        orderBy: { createdAt: 'desc' },
+      }),
+      prisma.investmentInquiry.findMany({
+        where: {
+          OR: [
+            ...(userId ? [{ userId }] : []),
+            ...(email ? [{ contactEmail: email }] : []),
+          ],
+        },
+        include: { opportunity: true },
+        orderBy: { createdAt: 'desc' },
+      }),
+    ]);
+
+    const formattedEvents = rsvps.map((rsvp) => ({
+      id: rsvp.id,
+      type: 'event' as const,
+      targetId: rsvp.eventId,
+      title: rsvp.event?.title || 'Cultural Gathering / Summit',
+      subtitle: `${rsvp.event?.city || 'Addis Ababa'}${rsvp.event?.venue ? ` • ${rsvp.event.venue}` : ''}`,
+      status: rsvp.status,
+      createdAt: rsvp.createdAt.toISOString(),
+      image: rsvp.event?.image,
+      meta: {
+        date: rsvp.event?.date ? rsvp.event.date.toISOString() : undefined,
+        time: rsvp.event?.time || undefined,
+        venue: rsvp.event?.venue || undefined,
+        city: rsvp.event?.city || undefined,
+        ticketsCount: rsvp.ticketsCount,
+        passCode: `DAL-EVT-${rsvp.id.slice(0, 8).toUpperCase()}`,
+        organizer: rsvp.event?.organizer || undefined,
+        notes: rsvp.notes || undefined,
+      },
+    }));
+
+    const formattedServices = serviceInquiries.map((inq) => ({
+      id: inq.id,
+      type: 'service' as const,
+      targetId: inq.serviceId,
+      title: inq.service?.name || 'Verified Diaspora Service',
+      subtitle: inq.service?.category || 'Professional Assistance',
+      status: inq.status,
+      createdAt: inq.createdAt.toISOString(),
+      image: inq.service?.image,
+      meta: {
+        category: inq.service?.category,
+        providerName: inq.service?.name,
+        timeframe: inq.timeframe || undefined,
+        message: inq.message,
+        contactPhone: inq.contactPhone || undefined,
+        contactWhatsapp: inq.contactWhatsapp || undefined,
+      },
+    }));
+
+    const formattedOrders = productOrders.map((ord) => ({
+      id: ord.id,
+      type: 'order' as const,
+      targetId: ord.productId,
+      title: ord.product?.title || 'Artisan Craft Order',
+      subtitle: `${ord.quantity} item${ord.quantity > 1 ? 's' : ''} • ${ord.deliveryAddress}`,
+      status: ord.status,
+      createdAt: ord.createdAt.toISOString(),
+      image: ord.product?.image,
+      meta: {
+        quantity: ord.quantity,
+        unitPrice: ord.product?.price,
+        currency: ord.product?.currency || 'ETB',
+        totalPrice: ord.quantity * (ord.product?.price || 0),
+        deliveryAddress: ord.deliveryAddress,
+        notes: ord.notes || undefined,
+      },
+    }));
+
+    const formattedInvestments = investmentInquiries.map((inv) => ({
+      id: inv.id,
+      type: 'investment' as const,
+      targetId: inv.opportunityId,
+      title: inv.opportunity?.title || 'Diaspora Investment Prospectus',
+      subtitle: inv.opportunity?.sector ? `Sector: ${inv.opportunity.sector}` : 'Strategic Project',
+      status: inv.status,
+      createdAt: inv.createdAt.toISOString(),
+      image: inv.opportunity?.image,
+      meta: {
+        sector: inv.opportunity?.sector,
+        location: inv.opportunity?.location,
+        investmentBudget: inv.investmentBudget || undefined,
+        timeframe: inv.timeframe || undefined,
+        message: inv.message,
+      },
+    }));
+
+    const allItems = [
+      ...formattedEvents,
+      ...formattedServices,
+      ...formattedOrders,
+      ...formattedInvestments,
+    ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+    let pendingCount = 0;
+    let confirmedCount = 0;
+    for (const item of allItems) {
+      const s = item.status.toLowerCase();
+      if (s === 'pending' || s === 'in_review') pendingCount++;
+      if (s === 'confirmed' || s === 'completed' || s === 'dispatched') confirmedCount++;
+    }
+
+    res.json({
+      items: allItems,
+      counts: {
+        total: allItems.length,
+        events: formattedEvents.length,
+        services: formattedServices.length,
+        orders: formattedOrders.length,
+        investments: formattedInvestments.length,
+        pending: pendingCount,
+        confirmed: confirmedCount,
+      },
+    });
+  } catch (error) {
+    console.error('Error fetching user activity:', error);
+    res.status(500).json({ error: 'Failed to fetch user activity' });
+  }
+});
+
 
 

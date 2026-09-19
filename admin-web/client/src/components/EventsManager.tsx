@@ -73,6 +73,7 @@ export const EventsManager: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [rsvpCategoryFilter, setRsvpCategoryFilter] = useState<'all' | 'confirmed' | 'cancelled'>('all');
 
   // Dynamic Categories Engine
   const { categories, addCategory } = useDynamicCategories<EventItemData>(
@@ -245,6 +246,12 @@ export const EventsManager: React.FC = () => {
       (item.venue && item.venue.toLowerCase().includes(term));
     const matchesCategory = selectedCategory === 'All' || item.category === selectedCategory;
     return matchesSearch && matchesCategory;
+  });
+
+  const filteredRsvps = rsvps.filter((r) => {
+    if (rsvpCategoryFilter === 'confirmed') return r.status === 'confirmed' || r.status === 'checked_in';
+    if (rsvpCategoryFilter === 'cancelled') return r.status === 'cancelled';
+    return true;
   });
 
   // Dedicated In-Page Full Workspace Editor (NO POPUP)
@@ -697,87 +704,202 @@ export const EventsManager: React.FC = () => {
 
       {/* RSVPs Tab View */}
       {activeSubTab === 'rsvps' && (
-        <div className="table-wrap">
-          <table className="admin-table">
-            <thead>
-              <tr>
-                <th>Attendee Details</th>
-                <th>Target Event</th>
-                <th>Passes</th>
-                <th>Registration Date</th>
-                <th>Status</th>
-                <th style={{ textAlign: 'right' }}>Update Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
+        <div>
+          {/* Category Filter Pills for RSVPs */}
+          <div style={{ display: 'flex', gap: '10px', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap' }}>
+            <span style={{ fontSize: '11px', fontWeight: 700, color: '#8C6A21', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+              RSVP Category:
+            </span>
+            <div style={{ display: 'flex', gap: '6px', backgroundColor: '#FFFFFF', padding: '4px', borderRadius: '8px', border: '1px solid #E4E9F0' }}>
+              <button
+                type="button"
+                style={{
+                  padding: '5px 12px',
+                  borderRadius: '6px',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  border: 'none',
+                  cursor: 'pointer',
+                  backgroundColor: rsvpCategoryFilter === 'all' ? '#07152B' : 'transparent',
+                  color: rsvpCategoryFilter === 'all' ? '#FFFFFF' : '#5A687A',
+                }}
+                onClick={() => setRsvpCategoryFilter('all')}
+              >
+                All ({rsvps.length})
+              </button>
+              <button
+                type="button"
+                style={{
+                  padding: '5px 12px',
+                  borderRadius: '6px',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  border: 'none',
+                  cursor: 'pointer',
+                  backgroundColor: rsvpCategoryFilter === 'confirmed' ? '#07152B' : 'transparent',
+                  color: rsvpCategoryFilter === 'confirmed' ? '#FFFFFF' : '#5A687A',
+                }}
+                onClick={() => setRsvpCategoryFilter('confirmed')}
+              >
+                Confirmed & Checked In ({rsvps.filter((r) => r.status === 'confirmed' || r.status === 'checked_in').length})
+              </button>
+              <button
+                type="button"
+                style={{
+                  padding: '5px 12px',
+                  borderRadius: '6px',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  border: 'none',
+                  cursor: 'pointer',
+                  backgroundColor: rsvpCategoryFilter === 'cancelled' ? '#07152B' : 'transparent',
+                  color: rsvpCategoryFilter === 'cancelled' ? '#FFFFFF' : '#5A687A',
+                }}
+                onClick={() => setRsvpCategoryFilter('cancelled')}
+              >
+                Cancelled / Declined ({rsvps.filter((r) => r.status === 'cancelled').length})
+              </button>
+            </div>
+          </div>
+
+          <div className="table-wrap">
+            <table className="admin-table">
+              <thead>
                 <tr>
-                  <td colSpan={6} style={{ textAlign: 'center', padding: '36px', color: '#5A687A' }}>
-                    Loading attendee RSVPs...
-                  </td>
+                  <th>Attendee Details</th>
+                  <th>Target Event</th>
+                  <th>Passes</th>
+                  <th>Registration Date</th>
+                  <th>Status</th>
+                  <th style={{ textAlign: 'right' }}>Update Status</th>
                 </tr>
-              ) : rsvps.length === 0 ? (
-                <tr>
-                  <td colSpan={6} style={{ textAlign: 'center', padding: '36px', color: '#5A687A' }}>
-                    No attendee RSVPs registered yet.
-                  </td>
-                </tr>
-              ) : (
-                rsvps.map((rsvp) => (
-                  <tr key={rsvp.id}>
-                    <td>
-                      <div style={{ fontWeight: 700, color: '#07152B' }}>{rsvp.fullName}</div>
-                      <div style={{ fontSize: '12px', color: '#5A687A', marginTop: '2px' }}>
-                        {rsvp.email} • {rsvp.phone || 'No phone'}
-                      </div>
-                    </td>
-                    <td>
-                      <div style={{ fontWeight: 600, color: '#07152B', fontSize: '13px' }}>
-                        {rsvp.event?.title}
-                      </div>
-                      <div style={{ fontSize: '11.5px', color: '#5A687A' }}>
-                        {new Date(rsvp.event?.date).toLocaleDateString()}
-                      </div>
-                    </td>
-                    <td>
-                      <span style={{ fontWeight: 700, color: '#07152B' }}>
-                        {rsvp.ticketsCount} {rsvp.ticketsCount === 1 ? 'Pass' : 'Passes'}
-                      </span>
-                    </td>
-                    <td>
-                      <span style={{ fontSize: '12px', color: '#5A687A' }}>
-                        {new Date(rsvp.createdAt).toLocaleDateString()}
-                      </span>
-                    </td>
-                    <td>
-                      <span
-                        className={`badge ${
-                          rsvp.status === 'confirmed'
-                            ? 'badge-success'
-                            : rsvp.status === 'cancelled'
-                            ? 'badge-error'
-                            : 'badge-gold'
-                        }`}
-                      >
-                        {rsvp.status.toUpperCase()}
-                      </span>
-                    </td>
-                    <td style={{ textAlign: 'right' }}>
-                      <select
-                        value={rsvp.status}
-                        onChange={(e) => handleUpdateRsvpStatus(rsvp.id, e.target.value)}
-                        style={{ padding: '6px 10px', fontSize: '12px', borderRadius: '6px' }}
-                      >
-                        <option value="confirmed">Confirmed</option>
-                        <option value="checked_in">Checked In</option>
-                        <option value="cancelled">Cancelled</option>
-                      </select>
+              </thead>
+              <tbody>
+                {loading ? (
+                  <tr>
+                    <td colSpan={6} style={{ textAlign: 'center', padding: '36px', color: '#5A687A' }}>
+                      Loading attendee RSVPs...
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+                ) : filteredRsvps.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} style={{ textAlign: 'center', padding: '36px', color: '#5A687A' }}>
+                      No attendee RSVPs found in this category.
+                    </td>
+                  </tr>
+                ) : (
+                  filteredRsvps.map((rsvp) => (
+                    <tr key={rsvp.id}>
+                      <td>
+                        <div style={{ fontWeight: 700, color: '#07152B' }}>{rsvp.fullName}</div>
+                        <div style={{ fontSize: '12px', color: '#5A687A', marginTop: '2px' }}>
+                          {rsvp.email} • {rsvp.phone || 'No phone'}
+                        </div>
+                      </td>
+                      <td>
+                        <div style={{ fontWeight: 600, color: '#07152B', fontSize: '13px' }}>
+                          {rsvp.event?.title}
+                        </div>
+                        <div style={{ fontSize: '11.5px', color: '#5A687A' }}>
+                          {new Date(rsvp.event?.date).toLocaleDateString()}
+                        </div>
+                      </td>
+                      <td>
+                        <span style={{ fontWeight: 700, color: '#07152B' }}>
+                          {rsvp.ticketsCount} {rsvp.ticketsCount === 1 ? 'Pass' : 'Passes'}
+                        </span>
+                      </td>
+                      <td>
+                        <span style={{ fontSize: '12px', color: '#5A687A' }}>
+                          {new Date(rsvp.createdAt).toLocaleDateString()}
+                        </span>
+                      </td>
+                      <td>
+                        <span
+                          className={`badge ${
+                            rsvp.status === 'confirmed'
+                              ? 'badge-success'
+                              : rsvp.status === 'checked_in'
+                              ? 'badge-gold'
+                              : rsvp.status === 'cancelled'
+                              ? 'badge-error'
+                              : 'badge-navy'
+                          }`}
+                        >
+                          {rsvp.status.replace(/_/g, ' ').toUpperCase()}
+                        </span>
+                      </td>
+                      <td style={{ textAlign: 'right' }}>
+                        {/* Modernized Segmented Pill Group (NO SELECT DROPDOWN) */}
+                        <div
+                          style={{
+                            display: 'inline-flex',
+                            gap: '4px',
+                            backgroundColor: '#F8FAFC',
+                            padding: '3px',
+                            borderRadius: '8px',
+                            border: '1px solid #E4E9F0',
+                          }}
+                        >
+                          <button
+                            type="button"
+                            title="Mark Confirmed"
+                            style={{
+                              padding: '4px 9px',
+                              borderRadius: '6px',
+                              fontSize: '11.5px',
+                              fontWeight: 650,
+                              border: 'none',
+                              cursor: 'pointer',
+                              backgroundColor: rsvp.status === 'confirmed' ? '#ECFDF5' : 'transparent',
+                              color: rsvp.status === 'confirmed' ? '#065F46' : '#5A687A',
+                            }}
+                            onClick={() => handleUpdateRsvpStatus(rsvp.id, 'confirmed')}
+                          >
+                            Confirmed
+                          </button>
+                          <button
+                            type="button"
+                            title="Mark Checked In"
+                            style={{
+                              padding: '4px 9px',
+                              borderRadius: '6px',
+                              fontSize: '11.5px',
+                              fontWeight: 650,
+                              border: 'none',
+                              cursor: 'pointer',
+                              backgroundColor: rsvp.status === 'checked_in' ? '#EFF6FF' : 'transparent',
+                              color: rsvp.status === 'checked_in' ? '#1D4ED8' : '#5A687A',
+                            }}
+                            onClick={() => handleUpdateRsvpStatus(rsvp.id, 'checked_in')}
+                          >
+                            Checked In
+                          </button>
+                          <button
+                            type="button"
+                            title="Cancel Reservation"
+                            style={{
+                              padding: '4px 9px',
+                              borderRadius: '6px',
+                              fontSize: '11.5px',
+                              fontWeight: 650,
+                              border: 'none',
+                              cursor: 'pointer',
+                              backgroundColor: rsvp.status === 'cancelled' ? '#FEF2F2' : 'transparent',
+                              color: rsvp.status === 'cancelled' ? '#991B1B' : '#5A687A',
+                            }}
+                            onClick={() => handleUpdateRsvpStatus(rsvp.id, 'cancelled')}
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
     </div>

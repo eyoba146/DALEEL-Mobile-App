@@ -42,6 +42,7 @@ function toPublicUser(user: {
     country: user.country,
     language: user.language,
     isVerified: user.isVerified,
+    isActive: (user as any).isActive ?? true,
     avatarUrl: user.avatarUrl,
     savedAddress: user.savedAddress || undefined,
     savedLatitude: user.savedLatitude !== null ? user.savedLatitude : undefined,
@@ -99,6 +100,10 @@ authRouter.post('/login', async (req, res) => {
   const valid = await bcrypt.compare(password, user.passwordHash);
   if (!valid) {
     return res.status(401).json({ error: 'Incorrect email or password' });
+  }
+
+  if (user.isActive === false) {
+    return res.status(403).json({ error: 'Your account has been deactivated. Please contact support@daleel.et.' });
   }
 
   // If user is unverified, ensure a code was sent within the last 75 seconds

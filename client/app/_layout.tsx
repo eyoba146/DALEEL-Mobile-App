@@ -66,6 +66,7 @@ export default function RootLayout() {
                 <Stack.Screen name="investments" />
                 <Stack.Screen name="investment/[id]" />
                 <Stack.Screen name="notifications" />
+                <Stack.Screen name="activity" />
               </Stack>
             </View>
           </NotificationsProvider>

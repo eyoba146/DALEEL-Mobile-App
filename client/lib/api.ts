@@ -334,6 +334,48 @@ export type ServiceInquiryPayload = {
   message: string;
 };
 
+export type ServiceInquiry = {
+  id: string;
+  serviceId: string;
+  userId?: string | null;
+  fullName: string;
+  contactEmail: string;
+  contactPhone?: string | null;
+  contactWhatsapp?: string | null;
+  timeframe?: string | null;
+  message: string;
+  status: 'pending' | 'confirmed' | 'cancelled' | string;
+  createdAt: string;
+};
+
+export type EventRsvp = {
+  id: string;
+  eventId: string;
+  userId?: string | null;
+  fullName: string;
+  email: string;
+  phone?: string | null;
+  ticketsCount: number;
+  notes?: string | null;
+  status: 'pending' | 'confirmed' | 'cancelled' | string;
+  createdAt: string;
+};
+
+export type InvestmentInquiry = {
+  id: string;
+  opportunityId: string;
+  userId?: string | null;
+  fullName: string;
+  contactEmail: string;
+  contactPhone?: string | null;
+  contactWhatsapp?: string | null;
+  investmentBudget?: string | null;
+  timeframe?: string | null;
+  message: string;
+  status: 'pending' | 'confirmed' | 'cancelled' | string;
+  createdAt: string;
+};
+
 export const contentApi = {
   destinations: () => apiRequest<Destination[]>('/destinations'),
   destination: (id: string) => apiRequest<Destination>(`/destinations/${id}`),
@@ -341,29 +383,83 @@ export const contentApi = {
     apiRequest<Service[]>(category ? `/services?category=${encodeURIComponent(category)}` : '/services'),
   service: (id: string) => apiRequest<Service>(`/services/${id}`),
   createInquiry: (serviceId: string, data: ServiceInquiryPayload, token?: string | null) =>
-    apiRequest<{ success: boolean; message: string; inquiry: any }>(`/services/${serviceId}/inquiry`, {
+    apiRequest<{ success: boolean; message: string; inquiry: ServiceInquiry }>(`/services/${serviceId}/inquiry`, {
       method: 'POST',
       body: data,
       token,
     }),
+  getMyServiceInquiry: (serviceId: string, token?: string | null, email?: string) =>
+    apiRequest<ServiceInquiry | null>(
+      `/services/${serviceId}/my-inquiry${email ? `?email=${encodeURIComponent(email)}` : ''}`,
+      { token }
+    ),
+  updateServiceInquiry: (
+    inquiryId: string,
+    data: Partial<ServiceInquiryPayload>,
+    token?: string | null
+  ) =>
+    apiRequest<{ success: boolean; message: string; inquiry: ServiceInquiry }>(
+      `/services/inquiries/${inquiryId}`,
+      {
+        method: 'PATCH',
+        body: data,
+        token,
+      }
+    ),
   events: (category?: string) =>
     apiRequest<EventItem[]>(category && category !== 'All' ? `/events?category=${encodeURIComponent(category)}` : '/events'),
   event: (id: string) => apiRequest<EventItem>(`/events/${id}`),
   createEventRsvp: (eventId: string, data: EventRsvpPayload, token?: string | null) =>
-    apiRequest<{ success: boolean; message: string; rsvp: any }>(`/events/${eventId}/rsvp`, {
+    apiRequest<{ success: boolean; message: string; rsvp: EventRsvp }>(`/events/${eventId}/rsvp`, {
       method: 'POST',
       body: data,
       token,
     }),
+  getMyEventRsvp: (eventId: string, token?: string | null, email?: string) =>
+    apiRequest<EventRsvp | null>(
+      `/events/${eventId}/my-rsvp${email ? `?email=${encodeURIComponent(email)}` : ''}`,
+      { token }
+    ),
+  updateEventRsvp: (
+    rsvpId: string,
+    data: Partial<EventRsvpPayload>,
+    token?: string | null
+  ) =>
+    apiRequest<{ success: boolean; message: string; rsvp: EventRsvp }>(
+      `/events/rsvps/${rsvpId}`,
+      {
+        method: 'PATCH',
+        body: data,
+        token,
+      }
+    ),
   investments: (sector?: string) =>
     apiRequest<InvestmentOpportunity[]>(sector ? `/investments?sector=${encodeURIComponent(sector)}` : '/investments'),
   investment: (id: string) => apiRequest<InvestmentOpportunity>(`/investments/${id}`),
   createInvestmentInquiry: (opportunityId: string, data: InvestmentInquiryPayload, token?: string | null) =>
-    apiRequest<{ success: boolean; message: string; inquiry: any }>(`/investments/${opportunityId}/inquiry`, {
+    apiRequest<{ success: boolean; message: string; inquiry: InvestmentInquiry }>(`/investments/${opportunityId}/inquiry`, {
       method: 'POST',
       body: data,
       token,
     }),
+  getMyInvestmentInquiry: (opportunityId: string, token?: string | null, email?: string) =>
+    apiRequest<InvestmentInquiry | null>(
+      `/investments/${opportunityId}/my-inquiry${email ? `?email=${encodeURIComponent(email)}` : ''}`,
+      { token }
+    ),
+  updateInvestmentInquiry: (
+    inquiryId: string,
+    data: Partial<InvestmentInquiryPayload>,
+    token?: string | null
+  ) =>
+    apiRequest<{ success: boolean; message: string; inquiry: InvestmentInquiry }>(
+      `/investments/inquiries/${inquiryId}`,
+      {
+        method: 'PATCH',
+        body: data,
+        token,
+      }
+    ),
   products: (category?: string) =>
     apiRequest<Product[]>(category && category !== 'All' ? `/products?category=${encodeURIComponent(category)}` : '/products'),
   product: (id: string) => apiRequest<Product>(`/products/${id}`),
@@ -492,5 +588,70 @@ export type AnnouncementBanner = {
 export const announcementsApi = {
   getAll: () => apiRequest<AnnouncementBanner[]>('/announcements'),
 };
+
+export type ActivityType = 'event' | 'service' | 'order' | 'investment';
+
+export type UnifiedActivityItem = {
+  id: string;
+  type: ActivityType;
+  targetId: string;
+  title: string;
+  subtitle: string;
+  status: 'pending' | 'in_review' | 'confirmed' | 'completed' | 'dispatched' | 'cancelled' | string;
+  createdAt: string;
+  image?: string | null;
+  meta: {
+    // Event specific
+    date?: string;
+    time?: string;
+    venue?: string;
+    city?: string;
+    ticketsCount?: number;
+    passCode?: string;
+    organizer?: string;
+    notes?: string;
+    // Service specific
+    category?: string;
+    providerName?: string;
+    timeframe?: string;
+    message?: string;
+    contactPhone?: string;
+    contactWhatsapp?: string;
+    // Order specific
+    quantity?: number;
+    unitPrice?: number;
+    currency?: string;
+    totalPrice?: number;
+    deliveryAddress?: string;
+    // Investment specific
+    sector?: string;
+    location?: string;
+    investmentBudget?: string;
+  };
+};
+
+export type UserActivityCounts = {
+  total: number;
+  events: number;
+  services: number;
+  orders: number;
+  investments: number;
+  pending: number;
+  confirmed: number;
+};
+
+export type UserActivityResponse = {
+  items: UnifiedActivityItem[];
+  counts: UserActivityCounts;
+};
+
+export const userActivityApi = {
+  getMyActivity: (token?: string | null, email?: string) =>
+    apiRequest<UserActivityResponse>(
+      `/users/me/activity${email ? `?email=${encodeURIComponent(email)}` : ''}`,
+      { token }
+    ),
+};
+
 
 

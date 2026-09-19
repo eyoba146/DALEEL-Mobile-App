@@ -150,6 +150,15 @@ export default function Home() {
           <View style={styles.headerActions}>
             <TouchableOpacity
               style={styles.notifBtn}
+              onPress={() => router.push('/activity')}
+              activeOpacity={0.75}
+              accessibilityLabel="My Passes & Activity"
+            >
+              <Ionicons name="ticket-outline" size={20} color="#FFFFFF" />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.notifBtn}
               onPress={() => router.push('/notifications')}
               activeOpacity={0.75}
               accessibilityLabel="Notifications"
