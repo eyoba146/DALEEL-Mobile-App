@@ -24,6 +24,7 @@ import { contentApi, Service, ServiceInquiry, ServiceInquiryPayload } from '../.
 import { useAuth } from '../../lib/auth-context';
 import { useFavorites } from '../../lib/favorites-context';
 import { LocationCard } from '../../components/LocationCard';
+import { ReviewsSection } from '../../components/ReviewsSection';
 import { colors, fonts, radius, spacing } from '../../theme/tokens';
 
 const TIMEFRAMES = ['Urgent (<48h)', 'Next 2 Weeks', 'Within 1-3 Months', 'General Inquiry'];
@@ -521,6 +522,13 @@ export default function ServiceDetailScreen() {
               style={{ marginTop: 8 }}
             />
           </View>
+
+          {/* Diaspora Community Reviews & Ratings */}
+          <ReviewsSection
+            targetType="service"
+            targetId={service.id}
+            targetName={service.name}
+          />
 
           <View style={{ height: 100 }} />
         </View>

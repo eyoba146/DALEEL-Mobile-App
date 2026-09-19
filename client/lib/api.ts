@@ -688,6 +688,65 @@ export const currencyApi = {
     apiRequest<{ base: string; rates: Record<string, number>; lastUpdated?: string }>('/currency/rates'),
 };
 
+export type ReviewItem = {
+  id: string;
+  targetType: 'service' | 'product' | 'destination';
+  targetId: string;
+  userId?: string | null;
+  authorName: string;
+  authorAvatar?: string | null;
+  rating: number;
+  title?: string | null;
+  comment: string;
+  photos?: string | null;
+  verified: boolean;
+  status: string;
+  helpfulCount: number;
+  createdAt: string;
+  user?: {
+    id: string;
+    name: string;
+    avatarUrl?: string | null;
+    userType?: string;
+    country?: string;
+  } | null;
+};
+
+export type ReviewsResponse = {
+  targetType: string;
+  targetId: string;
+  totalReviews: number;
+  averageRating: number;
+  distribution: Record<number, number>;
+  reviews: ReviewItem[];
+};
+
+export type CreateReviewPayload = {
+  targetType: 'service' | 'product' | 'destination';
+  targetId: string;
+  rating: number;
+  title?: string;
+  comment: string;
+  photos?: string[];
+  authorName?: string;
+};
+
+export const reviewsApi = {
+  getReviews: (targetType: string, targetId: string) =>
+    apiRequest<ReviewsResponse>(`/reviews/${targetType}/${targetId}`),
+  createReview: (payload: CreateReviewPayload, token?: string | null) =>
+    apiRequest<{ review: ReviewItem }>('/reviews', {
+      method: 'POST',
+      body: payload,
+      token,
+    }),
+  voteHelpful: (reviewId: string) =>
+    apiRequest<{ review: ReviewItem }>(`/reviews/${reviewId}/helpful`, {
+      method: 'POST',
+    }),
+};
+
+
 
 
 

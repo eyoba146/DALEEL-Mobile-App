@@ -22,7 +22,10 @@ import { destinations as sampleDestinations, services as sampleServices } from '
 import { contentApi, Destination, Service } from '../../lib/api';
 import { useAuth } from '../../lib/auth-context';
 import { useFavorites } from '../../lib/favorites-context';
+import { useOfflineGuide } from '../../lib/offline-guide-context';
+import { HeritageAudioPlayer } from '../../components/HeritageAudioPlayer';
 import { LocationCard } from '../../components/LocationCard';
+import { ReviewsSection } from '../../components/ReviewsSection';
 import { colors, fonts, radius, spacing } from '../../theme/tokens';
 
 const TRAVEL_PARTIES = ['Solo Traveler', 'Couple (2)', 'Family / Group (3+)'];
@@ -34,6 +37,13 @@ export default function DestinationDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { isFavorite, toggleFavorite } = useFavorites();
   const { user, token } = useAuth();
+  const {
+    isDownloaded,
+    downloadDestination,
+    removeDestination,
+    downloadProgress,
+    getOfflinePack,
+  } = useOfflineGuide();
 
   const [destination, setDestination] = useState<Destination | null>(null);
   const [loading, setLoading] = useState(true);
@@ -98,6 +108,14 @@ export default function DestinationDetailScreen() {
       `Hello DALEEL Concierge, I would like to plan a bespoke trip to ${destination.name} (${destination.region}, Ethiopia). Could you assist me with certified guides and luxury lodging?`
     );
     Linking.openURL(`https://wa.me/251911234567?text=${text}`).catch(() => {});
+  };
+
+  const offlinePack = destination ? getOfflinePack(destination.id) : null;
+  const isPackDownloaded = destination ? isDownloaded(destination.id) : false;
+  const packProgress = destination ? downloadProgress[destination.id] : undefined;
+
+  const handleCall = (number: string) => {
+    Linking.openURL(`tel:${number.replace(/\s+/g, '')}`).catch(() => {});
   };
 
   const handleSubmitJourneyRequest = async () => {
@@ -264,6 +282,84 @@ export default function DestinationDetailScreen() {
             </View>
           </View>
 
+          {/* Heritage Audio Guide Narration Player */}
+          <HeritageAudioPlayer
+            destinationId={destination.id}
+            destinationName={destination.name}
+            style={{ marginTop: 14, marginBottom: 14 }}
+          />
+
+          {/* Offline Pocket Guide Download Card */}
+          <View style={styles.offlinePackCard}>
+            <View style={styles.offlinePackTopRow}>
+              <View
+                style={[
+                  styles.offlinePackIconWrap,
+                  isPackDownloaded && {
+                    backgroundColor: 'rgba(34, 197, 94, 0.15)',
+                    borderColor: 'rgba(34, 197, 94, 0.4)',
+                  },
+                ]}
+              >
+                <Ionicons
+                  name={isPackDownloaded ? 'cloud-done' : 'cloud-download-outline'}
+                  size={20}
+                  color={isPackDownloaded ? '#22C55E' : colors.gold}
+                />
+              </View>
+              <View style={{ flex: 1, marginLeft: 10 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Text style={styles.offlinePackTitle}>Offline Pocket Guide</Text>
+                  {isPackDownloaded && (
+                    <View style={styles.offlineDownloadedBadge}>
+                      <Text style={styles.offlineDownloadedBadgeText}>SAVED</Text>
+                    </View>
+                  )}
+                </View>
+                <Text style={styles.offlinePackSub}>
+                  {isPackDownloaded
+                    ? `Full audio narration, etiquette rules, and emergency dispatch saved (${offlinePack?.sizeMB || 8.4} MB). Ready for off-grid remote travel.`
+                    : `Download full audio narration, cultural etiquette rules, and emergency dispatch (${offlinePack?.sizeMB || 8.4} MB) for off-grid travel.`}
+                </Text>
+              </View>
+            </View>
+
+            {typeof packProgress === 'number' ? (
+              <View style={styles.offlineProgressRow}>
+                <View style={styles.progressBarBackground}>
+                  <View style={[styles.progressBarFill, { width: `${packProgress}%` }]} />
+                </View>
+                <Text style={styles.progressPercentText}>{packProgress}% downloading…</Text>
+              </View>
+            ) : isPackDownloaded ? (
+              <View style={styles.offlineActionRow}>
+                <View style={styles.offlineReadyPill}>
+                  <Ionicons name="shield-checkmark" size={13} color="#22C55E" />
+                  <Text style={styles.offlineReadyText}>100% Offline Ready</Text>
+                </View>
+                <TouchableOpacity
+                  style={styles.offlineRemoveBtn}
+                  onPress={() => removeDestination(destination.id)}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name="trash-outline" size={13} color={colors.charcoalLight} />
+                  <Text style={styles.offlineRemoveText}>Remove Pack</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <TouchableOpacity
+                style={styles.offlineDownloadBtn}
+                onPress={() => downloadDestination(destination.id)}
+                activeOpacity={0.85}
+              >
+                <Ionicons name="download-outline" size={16} color={colors.navy} />
+                <Text style={styles.offlineDownloadBtnText}>
+                  Download Offline Pack ({offlinePack?.sizeMB || 8.4} MB)
+                </Text>
+              </TouchableOpacity>
+            )}
+          </View>
+
           {/* Overview Section */}
           <View style={styles.sectionWrap}>
             <Text style={styles.sectionTitle}>About the Heritage</Text>
@@ -338,6 +434,90 @@ export default function DestinationDetailScreen() {
             />
           </View>
 
+          {/* Cultural Etiquette & Local Respect Section */}
+          <View style={styles.sectionWrap}>
+            <View style={styles.sectionHeaderRow}>
+              <Ionicons name="shield-checkmark-outline" size={18} color={colors.goldRich} />
+              <Text style={styles.sectionTitle}>Cultural Etiquette & Local Respect</Text>
+            </View>
+            <Text style={styles.sectionSubtitle}>
+              Essential traditions, dressing standards, and sacred site conduct observed in {destination.region}.
+            </Text>
+
+            <View style={styles.etiquetteList}>
+              {(offlinePack?.etiquetteTips || [
+                {
+                  icon: 'shirt-outline',
+                  title: 'Sacred Church Dress Code',
+                  rule: 'Modest attire covering shoulders and knees. White cotton Netela shawl recommended for all pilgrims.',
+                },
+                {
+                  icon: 'footsteps-outline',
+                  title: 'Shoe Removal at Thresholds',
+                  rule: 'Always remove shoes before stepping onto church carpets and stone entrances.',
+                },
+                {
+                  icon: 'camera-outline',
+                  title: 'Silent Reverence & No Flash',
+                  rule: 'Never use flash on ancient murals or manuscripts. Always ask permission before photographing monks or priests.',
+                },
+                {
+                  icon: 'heart-outline',
+                  title: 'Fasting Etiquette (Tsom)',
+                  rule: 'On Wednesdays, Fridays, and fasting seasons, restaurants serve strictly vegan dishes (Beyaynetu).',
+                },
+              ]).map((item, index) => (
+                <View key={index} style={styles.etiquetteCard}>
+                  <View style={styles.etiquetteIconBox}>
+                    <Ionicons name={(item.icon as any) || 'information-circle'} size={18} color={colors.gold} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.etiquetteRuleTitle}>{item.title}</Text>
+                    <Text style={styles.etiquetteRuleBody}>{item.rule}</Text>
+                  </View>
+                </View>
+              ))}
+            </View>
+          </View>
+
+          {/* Emergency & Concierge Dispatch */}
+          <View style={styles.sectionWrap}>
+            <View style={styles.sectionHeaderRow}>
+              <Ionicons name="call-outline" size={18} color={colors.goldRich} />
+              <Text style={styles.sectionTitle}>Emergency & Concierge Dispatch</Text>
+            </View>
+            <Text style={styles.sectionSubtitle}>
+              Direct emergency channels for diaspora travelers, certified medical responders, and tourist police.
+            </Text>
+
+            <View style={styles.emergencyGrid}>
+              {(offlinePack?.emergencyContacts || [
+                { label: 'Tourist Police & Security', number: '991', icon: 'shield-outline' },
+                { label: 'Regional Medical & Ambulance', number: '907', icon: 'medkit-outline' },
+                { label: 'DALEEL 24/7 Concierge Hotline', number: '+251911234567', icon: 'headset-outline' },
+              ]).map((contact, index) => (
+                <TouchableOpacity
+                  key={index}
+                  style={styles.emergencyContactCard}
+                  onPress={() => handleCall(contact.number)}
+                  activeOpacity={0.8}
+                >
+                  <View style={styles.emergencyIconWrap}>
+                    <Ionicons name={(contact.icon as any) || 'call-outline'} size={18} color={colors.navy} />
+                  </View>
+                  <View style={{ flex: 1, marginLeft: 10 }}>
+                    <Text style={styles.emergencyLabel}>{contact.label}</Text>
+                    <Text style={styles.emergencyNumber}>{contact.number}</Text>
+                  </View>
+                  <View style={styles.callBadge}>
+                    <Ionicons name="call" size={12} color="#FFFFFF" />
+                    <Text style={styles.callBadgeText}>CALL</Text>
+                  </View>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+
           {/* Certified Local Guide Direct Spotlight */}
           {matchedGuide && (
             <View style={styles.guideSpotlightCard}>
@@ -370,6 +550,14 @@ export default function DestinationDetailScreen() {
               </TouchableOpacity>
             </View>
           )}
+
+          {/* Destination Traveler Reviews & Ratings */}
+          <ReviewsSection
+            targetType="destination"
+            targetId={destination.id}
+            targetName={destination.name}
+            style={{ marginTop: spacing.md }}
+          />
 
           <View style={{ height: 110 }} />
         </View>
@@ -1206,5 +1394,216 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 19,
     paddingHorizontal: spacing.md,
+  },
+  offlinePackCard: {
+    backgroundColor: '#0A1B38',
+    borderRadius: radius.xl,
+    padding: spacing.md,
+    borderWidth: 1,
+    borderColor: 'rgba(223, 183, 108, 0.25)',
+    marginBottom: spacing.md,
+  },
+  offlinePackTopRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+  },
+  offlinePackIconWrap: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: 'rgba(223, 183, 108, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(223, 183, 108, 0.35)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  offlinePackTitle: {
+    fontFamily: fonts.serifBold,
+    fontSize: 15,
+    color: '#FFFFFF',
+  },
+  offlineDownloadedBadge: {
+    backgroundColor: 'rgba(34, 197, 94, 0.2)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: '#22C55E',
+  },
+  offlineDownloadedBadgeText: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 9,
+    color: '#22C55E',
+  },
+  offlinePackSub: {
+    fontFamily: fonts.body,
+    fontSize: 12,
+    color: '#94A3B8',
+    marginTop: 4,
+    lineHeight: 17,
+  },
+  offlineProgressRow: {
+    marginTop: 12,
+  },
+  progressBarBackground: {
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    overflow: 'hidden',
+  },
+  progressBarFill: {
+    height: '100%',
+    backgroundColor: colors.gold,
+  },
+  progressPercentText: {
+    fontFamily: fonts.bodyMedium,
+    fontSize: 11,
+    color: colors.gold,
+    marginTop: 4,
+  },
+  offlineActionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 12,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  offlineReadyPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+  },
+  offlineReadyText: {
+    fontFamily: fonts.bodySemiBold,
+    fontSize: 12,
+    color: '#22C55E',
+  },
+  offlineRemoveBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: radius.md,
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    gap: 4,
+  },
+  offlineRemoveText: {
+    fontFamily: fonts.bodyMedium,
+    fontSize: 11,
+    color: '#CBD5E1',
+  },
+  offlineDownloadBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.gold,
+    borderRadius: radius.lg,
+    paddingVertical: 10,
+    marginTop: 12,
+    gap: 6,
+  },
+  offlineDownloadBtnText: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 13,
+    color: colors.navy,
+  },
+  sectionSubtitle: {
+    fontFamily: fonts.body,
+    fontSize: 13,
+    color: colors.charcoalLight,
+    marginTop: -4,
+    marginBottom: spacing.md,
+    lineHeight: 18,
+  },
+  etiquetteList: {
+    gap: 10,
+  },
+  etiquetteCard: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    backgroundColor: '#FFFFFF',
+    borderRadius: radius.lg,
+    padding: spacing.md,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 0, 0, 0.06)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    elevation: 1,
+  },
+  etiquetteIconBox: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: 'rgba(223, 183, 108, 0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  etiquetteRuleTitle: {
+    fontFamily: fonts.bodySemiBold,
+    fontSize: 13.5,
+    color: colors.navy,
+    marginBottom: 2,
+  },
+  etiquetteRuleBody: {
+    fontFamily: fonts.body,
+    fontSize: 12.5,
+    color: colors.charcoalSub,
+    lineHeight: 18,
+  },
+  emergencyGrid: {
+    gap: 10,
+  },
+  emergencyContactCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: radius.lg,
+    padding: spacing.md,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 0, 0, 0.06)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    elevation: 1,
+  },
+  emergencyIconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(7, 21, 43, 0.08)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emergencyLabel: {
+    fontFamily: fonts.bodySemiBold,
+    fontSize: 13,
+    color: colors.navy,
+  },
+  emergencyNumber: {
+    fontFamily: fonts.bodyMedium,
+    fontSize: 12,
+    color: colors.goldRich,
+    marginTop: 2,
+  },
+  callBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.navy,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: radius.pill,
+    gap: 4,
+  },
+  callBadgeText: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 10,
+    color: '#FFFFFF',
+    letterSpacing: 0.8,
   },
 });

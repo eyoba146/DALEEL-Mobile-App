@@ -57,6 +57,7 @@ model User {
   productOrderInquiries ProductOrderInquiry[]
   notifications       Notification[]
   notificationPreference NotificationPreference?
+  reviews             Review[]
 }
 
 model Destination {
@@ -334,4 +335,26 @@ model AnnouncementBanner {
   active      Boolean  @default(true)
   order       Int      @default(0)
   createdAt   DateTime @default(now())
+}
+
+model Review {
+  id           String   @id @default(uuid())
+  targetType   String   // 'service' | 'product' | 'destination'
+  targetId     String
+  userId       String?
+  authorName   String
+  authorAvatar String?
+  rating       Int      // 1 to 5
+  title        String?
+  comment      String
+  photos       String?  // comma-separated image URLs
+  verified     Boolean  @default(true)
+  status       String   @default("approved") // approved, pending, rejected
+  helpfulCount Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user         User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([targetType, targetId])
 }

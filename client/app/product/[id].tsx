@@ -22,6 +22,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { products as sampleProducts } from '../../assets/data/sample';
 import { CurrencySelector } from '../../components/CurrencySelector';
+import { ReviewsSection } from '../../components/ReviewsSection';
 import { contentApi, Product, ProductOrderInquiry, ProductOrderInquiryPayload } from '../../lib/api';
 import { useAuth } from '../../lib/auth-context';
 import { useCart } from '../../lib/cart-context';
@@ -637,6 +638,13 @@ export default function ProductDetailScreen() {
               </Text>
             </View>
           </View>
+
+          {/* Diaspora Community Reviews & Ratings */}
+          <ReviewsSection
+            targetType="product"
+            targetId={product.id}
+            targetName={product.title}
+          />
         </View>
       </Animated.ScrollView>
 
