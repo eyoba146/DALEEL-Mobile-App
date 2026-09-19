@@ -451,7 +451,11 @@ export const EventCheckInDesk: React.FC<EventCheckInDeskProps> = ({
         cameraConfig = { facingMode: 'environment' };
       }
 
-      const html5QrCode = new Html5Qrcode('gate-qr-reader');
+      const html5QrCode = new Html5Qrcode('gate-qr-reader', {
+        experimentalFeatures: {
+          useBarCodeDetectorIfSupported: true,
+        },
+      } as any);
       html5QrCodeRef.current = html5QrCode;
 
       const onScanSuccess = (decodedText: string) => {
@@ -459,26 +463,32 @@ export const EventCheckInDesk: React.FC<EventCheckInDeskProps> = ({
         const clean = decodedText.trim();
         const now = Date.now();
 
-        // Prevent spamming the same code if camera remains pointed at the same phone screen
-        if (clean === lastScannedCodeRef.current && now - lastScannedAtRef.current < 6000) {
+        // If scanning the exact same pass code, require a brief 1.5s cooldown
+        // If scanning a DIFFERENT pass code (next attendee in line), allow instant scan (400ms cooldown)
+        const isSameCode = clean === lastScannedCodeRef.current;
+        const minCooldown = isSameCode ? 1500 : 400;
+
+        if (now - lastScannedAtRef.current < minCooldown) {
           return;
         }
 
         lastScannedCodeRef.current = clean;
         lastScannedAtRef.current = now;
         isScanningRef.current = true;
-        handleProcessCheckIn(clean);
-        setTimeout(() => {
-          isScanningRef.current = false;
-        }, 2000);
+
+        handleProcessCheckIn(clean).finally(() => {
+          setTimeout(() => {
+            isScanningRef.current = false;
+          }, 350);
+        });
       };
 
       try {
         await html5QrCode.start(
           cameraConfig,
           {
-            fps: 10,
-            qrbox: { width: 250, height: 250 },
+            fps: 24,
+            qrbox: { width: 260, height: 260 },
             aspectRatio: 1.0,
           },
           onScanSuccess,
@@ -490,8 +500,8 @@ export const EventCheckInDesk: React.FC<EventCheckInDeskProps> = ({
         await html5QrCode.start(
           { facingMode: 'user' },
           {
-            fps: 10,
-            qrbox: { width: 250, height: 250 },
+            fps: 24,
+            qrbox: { width: 260, height: 260 },
             aspectRatio: 1.0,
           },
           onScanSuccess,
@@ -816,6 +826,31 @@ export const EventCheckInDesk: React.FC<EventCheckInDeskProps> = ({
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <Camera size={18} color="#8C6A21" />
                 <h3 style={styles.sectionHeading}>QR Camera Scanner</h3>
+                {isCameraActive && (
+                  <span
+                    style={{
+                      fontSize: '11px',
+                      fontWeight: 700,
+                      padding: '2px 8px',
+                      borderRadius: '999px',
+                      backgroundColor: isSubmittingCheckIn ? '#FEF3C7' : '#DCFCE7',
+                      color: isSubmittingCheckIn ? '#B45309' : '#166534',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                    }}
+                  >
+                    <span
+                      style={{
+                        width: '6px',
+                        height: '6px',
+                        borderRadius: '50%',
+                        backgroundColor: isSubmittingCheckIn ? '#B45309' : '#16A34A',
+                      }}
+                    />
+                    {isSubmittingCheckIn ? 'Verifying...' : 'Ready'}
+                  </span>
+                )}
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 {availableCameras.length > 1 && (
