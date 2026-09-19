@@ -12,6 +12,7 @@ import {
   sendEventRsvpStatusEmail,
   sendInvestmentInquiryStatusEmail,
 } from '../lib/email';
+import { resolveTargetInfo } from './reviews';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'fallback-secret';
 
@@ -471,15 +472,16 @@ adminRouter.get(
 
       const activeStatuses = ['pending', 'in_review', 'waitlist'];
 
-      const [servicesCount, eventsCount, marketplaceCount, investmentsCount, unverifiedUsersCount] = await Promise.all([
+      const [servicesCount, eventsCount, marketplaceCount, investmentsCount, unverifiedUsersCount, pendingReviewsCount] = await Promise.all([
         canAccessServices ? prisma.serviceInquiry.count({ where: { status: { in: activeStatuses, mode: 'insensitive' } } }) : 0,
         canAccessEvents ? prisma.eventRsvp.count({ where: { status: { in: activeStatuses, mode: 'insensitive' } } }) : 0,
         canAccessMarketplace ? prisma.productOrderInquiry.count({ where: { status: { in: activeStatuses, mode: 'insensitive' } } }) : 0,
         canAccessInvestments ? prisma.investmentInquiry.count({ where: { status: { in: activeStatuses, mode: 'insensitive' } } }) : 0,
         isSuperAdmin ? prisma.user.count({ where: { isAdmin: false, isVerified: false } }) : 0,
+        prisma.review.count({ where: { status: 'pending' } }),
       ]);
 
-      const totalPending = servicesCount + eventsCount + marketplaceCount + investmentsCount;
+      const totalPending = servicesCount + eventsCount + marketplaceCount + investmentsCount + pendingReviewsCount;
 
       res.json({
         totalPending,
@@ -488,6 +490,7 @@ adminRouter.get(
         marketplace: marketplaceCount,
         investments: investmentsCount,
         unverifiedUsers: unverifiedUsersCount,
+        reviews: pendingReviewsCount,
       });
     } catch (error) {
       console.error('Error fetching sidebar counts:', error);
@@ -2182,6 +2185,142 @@ adminRouter.patch(
     } catch (error) {
       console.error('Error updating investment inquiry status:', error);
       res.status(500).json({ error: 'Failed to update inquiry status' });
+    }
+  }
+);
+
+// --- Reviews Moderation & Community Verification Desk ---
+
+adminRouter.get(
+  '/reviews',
+  authenticateAdmin,
+  async (req: AdminRequest, res: Response) => {
+    try {
+      const { targetType, status, search } = req.query;
+
+      const where: any = {};
+      if (targetType && targetType !== 'all') {
+        where.targetType = String(targetType);
+      }
+      if (status && status !== 'all') {
+        where.status = String(status);
+      }
+      if (search) {
+        const query = String(search).trim();
+        where.OR = [
+          { authorName: { contains: query, mode: 'insensitive' } },
+          { title: { contains: query, mode: 'insensitive' } },
+          { comment: { contains: query, mode: 'insensitive' } },
+        ];
+      }
+
+      const [rawReviews, totalCount, pendingCount, approvedCount, rejectedCount, verifiedCount] =
+        await Promise.all([
+          prisma.review.findMany({
+            where,
+            orderBy: { createdAt: 'desc' },
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  name: true,
+                  email: true,
+                  avatarUrl: true,
+                  userType: true,
+                  country: true,
+                },
+              },
+            },
+          }),
+          prisma.review.count(),
+          prisma.review.count({ where: { status: 'pending' } }),
+          prisma.review.count({ where: { status: 'approved' } }),
+          prisma.review.count({ where: { status: 'rejected' } }),
+          prisma.review.count({ where: { verified: true } }),
+        ]);
+
+      const reviews = await Promise.all(
+        rawReviews.map(async (r) => {
+          const targetMeta = await resolveTargetInfo(r.targetType, r.targetId);
+          return {
+            ...r,
+            ...targetMeta,
+          };
+        })
+      );
+
+      res.json({
+        reviews,
+        counts: {
+          total: totalCount,
+          pending: pendingCount,
+          approved: approvedCount,
+          rejected: rejectedCount,
+          verified: verifiedCount,
+        },
+      });
+    } catch (error) {
+      console.error('Admin get reviews error:', error);
+      res.status(500).json({ error: 'Failed to retrieve reviews' });
+    }
+  }
+);
+
+adminRouter.patch(
+  '/reviews/:id/status',
+  authenticateAdmin,
+  async (req: AdminRequest, res: Response) => {
+    const id = String(req.params.id);
+    const { status } = req.body;
+
+    if (!['approved', 'rejected', 'pending'].includes(status)) {
+      return res.status(400).json({ error: 'Invalid review status. Must be approved, rejected, or pending.' });
+    }
+
+    try {
+      const updated = await prisma.review.update({
+        where: { id },
+        data: { status },
+      });
+      res.json({ review: updated });
+    } catch (error) {
+      console.error('Update review status error:', error);
+      res.status(500).json({ error: 'Failed to update review status' });
+    }
+  }
+);
+
+adminRouter.patch(
+  '/reviews/:id/verified',
+  authenticateAdmin,
+  async (req: AdminRequest, res: Response) => {
+    const id = String(req.params.id);
+    const { verified } = req.body;
+
+    try {
+      const updated = await prisma.review.update({
+        where: { id },
+        data: { verified: Boolean(verified) },
+      });
+      res.json({ review: updated });
+    } catch (error) {
+      console.error('Toggle review verified error:', error);
+      res.status(500).json({ error: 'Failed to update verification badge' });
+    }
+  }
+);
+
+adminRouter.delete(
+  '/reviews/:id',
+  authenticateAdmin,
+  async (req: AdminRequest, res: Response) => {
+    const id = String(req.params.id);
+    try {
+      await prisma.review.delete({ where: { id } });
+      res.json({ success: true, message: 'Review deleted permanently' });
+    } catch (error) {
+      console.error('Delete review error:', error);
+      res.status(500).json({ error: 'Failed to delete review' });
     }
   }
 );

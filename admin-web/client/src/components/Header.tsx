@@ -19,6 +19,10 @@ const TAB_TITLES: Record<AppModule, { title: string; subtitle: string }> = {
     title: 'Master Triage Desk',
     subtitle: 'Role-based triage desk monitoring customer inquiries, reservations, and orders',
   },
+  reviews: {
+    title: 'Community Reviews & Ratings Desk',
+    subtitle: 'Moderate feedback, verify diaspora buyers, and maintain authentic Ethiopian community trust',
+  },
   destinations: {
     title: 'Heritage & Tourism',
     subtitle: 'Manage regional attractions, UNESCO cultural sites, and map coordinates',

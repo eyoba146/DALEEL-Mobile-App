@@ -744,6 +744,41 @@ export const reviewsApi = {
     apiRequest<{ review: ReviewItem }>(`/reviews/${reviewId}/helpful`, {
       method: 'POST',
     }),
+  getMyReviews: (token?: string | null, email?: string) =>
+    apiRequest<MyReviewsResponse>(
+      `/reviews/my${email ? `?email=${encodeURIComponent(email)}` : ''}`,
+      { token }
+    ),
+  updateMyReview: (
+    reviewId: string,
+    payload: Partial<CreateReviewPayload>,
+    token?: string | null
+  ) =>
+    apiRequest<{ review: ReviewItem }>(`/reviews/${reviewId}`, {
+      method: 'PATCH',
+      body: payload,
+      token,
+    }),
+  deleteMyReview: (reviewId: string, token?: string | null) =>
+    apiRequest<{ success: boolean; message: string }>(`/reviews/${reviewId}`, {
+      method: 'DELETE',
+      token,
+    }),
+};
+
+export type UserReviewItem = ReviewItem & {
+  targetTitle?: string;
+  targetImage?: string;
+  targetCategory?: string;
+};
+
+export type MyReviewsResponse = {
+  reviews: UserReviewItem[];
+  stats: {
+    totalReviews: number;
+    totalHelpfulReceived: number;
+    avgRatingGiven: number;
+  };
 };
 
 

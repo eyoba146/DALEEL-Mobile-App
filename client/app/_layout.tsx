@@ -75,6 +75,7 @@ export default function RootLayout() {
                       <Stack.Screen name="investment/[id]" />
                       <Stack.Screen name="notifications" />
                       <Stack.Screen name="activity" />
+                      <Stack.Screen name="my-reviews" />
                     </Stack>
                   </View>
                 </CartProvider>

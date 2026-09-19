@@ -5,6 +5,7 @@ import type { AdminUser } from '../api';
 export type AppModule =
   | 'dashboard'
   | 'inquiries'
+  | 'reviews'
   | 'destinations'
   | 'services'
   | 'events'
@@ -88,6 +89,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return true;
       case 'inquiries':
         return true; // All authorized roles access the role-scoped triage desk
+      case 'reviews':
+        return (
+          adminUser.adminRole === 'MARKETPLACE_MANAGER' ||
+          adminUser.adminRole === 'SERVICE_MANAGER' ||
+          adminUser.adminRole === 'DESTINATION_MANAGER'
+        );
       case 'destinations':
         return adminUser.adminRole === 'DESTINATION_MANAGER';
       case 'services':

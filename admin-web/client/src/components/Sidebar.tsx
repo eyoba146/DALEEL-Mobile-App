@@ -18,6 +18,7 @@ import {
   User,
   Inbox,
   UserCheck,
+  Star,
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -62,6 +63,7 @@ const NAV_SECTIONS: NavSection[] = [
       { id: 'services', label: 'Verified Services', icon: Briefcase },
       { id: 'marketplace', label: 'Artisan Marketplace', icon: ShoppingBag },
       { id: 'investments', label: 'Diaspora Investments', icon: TrendingUp },
+      { id: 'reviews', label: 'Reviews Moderation', icon: Star },
     ],
   },
   {
@@ -117,6 +119,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
         return counts.investments;
       case 'users':
         return counts.unverifiedUsers;
+      case 'reviews':
+        return counts.reviews || 0;
       default:
         return 0;
     }

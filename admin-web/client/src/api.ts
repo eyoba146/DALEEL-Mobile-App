@@ -55,6 +55,7 @@ export interface SidebarCounts {
   marketplace: number;
   investments: number;
   unverifiedUsers: number;
+  reviews?: number;
 }
 
 export interface UnifiedInquiryItem {
@@ -315,4 +316,68 @@ export const adminApi = {
       method: 'PATCH',
       body: JSON.stringify({ status }),
     }),
+
+  // Reviews Moderation & Community Verification
+  getAdminReviews: (params?: { targetType?: string; status?: string; search?: string }) => {
+    const q = new URLSearchParams();
+    if (params?.targetType) q.set('targetType', params.targetType);
+    if (params?.status) q.set('status', params.status);
+    if (params?.search) q.set('search', params.search);
+    const qs = q.toString();
+    return request<{
+      reviews: AdminReviewItem[];
+      counts: {
+        total: number;
+        pending: number;
+        approved: number;
+        rejected: number;
+        verified: number;
+      };
+    }>(`/admin/reviews${qs ? `?${qs}` : ''}`);
+  },
+
+  updateReviewStatus: (id: string, status: 'approved' | 'rejected' | 'pending') =>
+    request<{ review: AdminReviewItem }>(`/admin/reviews/${id}/status`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status }),
+    }),
+
+  toggleReviewVerified: (id: string, verified: boolean) =>
+    request<{ review: AdminReviewItem }>(`/admin/reviews/${id}/verified`, {
+      method: 'PATCH',
+      body: JSON.stringify({ verified }),
+    }),
+
+  deleteReview: (id: string) =>
+    request<{ success: boolean; message: string }>(`/admin/reviews/${id}`, {
+      method: 'DELETE',
+    }),
 };
+
+export interface AdminReviewItem {
+  id: string;
+  targetType: 'service' | 'product' | 'destination';
+  targetId: string;
+  userId?: string | null;
+  authorName: string;
+  authorAvatar?: string | null;
+  rating: number;
+  title?: string | null;
+  comment: string;
+  photos?: string | null;
+  verified: boolean;
+  status: 'approved' | 'rejected' | 'pending';
+  helpfulCount: number;
+  createdAt: string;
+  targetTitle?: string;
+  targetImage?: string;
+  targetCategory?: string;
+  user?: {
+    id: string;
+    name: string;
+    email: string;
+    avatarUrl?: string | null;
+    userType?: string;
+    country?: string;
+  } | null;
+}

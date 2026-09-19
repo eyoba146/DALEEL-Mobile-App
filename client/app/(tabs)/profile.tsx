@@ -624,6 +624,30 @@ export default function ProfileScreen() {
           </View>
         </TouchableOpacity>
 
+        {/* My Reviews & Community Ratings Card */}
+        <TouchableOpacity
+          style={[styles.activityHubHeroCard, { borderColor: '#E2E8F0', marginTop: -4 }]}
+          onPress={() => router.push('/my-reviews')}
+          activeOpacity={0.85}
+        >
+          <View style={styles.activityHubLeft}>
+            <View style={[styles.activityHubIconHalo, { backgroundColor: 'rgba(223, 183, 108, 0.15)' }]}>
+              <Ionicons name="star" size={20} color={colors.goldRich} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <View style={styles.activityHubTitleRow}>
+                <Text style={styles.activityHubTitle}>My Reviews & Photos</Text>
+              </View>
+              <Text style={styles.activityHubSub}>
+                Community feedback, star ratings & helpful upvotes
+              </Text>
+            </View>
+          </View>
+          <View style={styles.activityHubArrowCircle}>
+            <Ionicons name="chevron-forward" size={18} color={colors.navy} />
+          </View>
+        </TouchableOpacity>
+
         {/* Individual Info Field Cards (Each Individually Editable Inline) */}
         {/* 1. First Name Card */}
         {activeField === 'firstName' ? (

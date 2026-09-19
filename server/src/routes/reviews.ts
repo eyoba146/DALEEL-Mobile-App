@@ -204,6 +204,149 @@ reviewsRouter.post('/', async (req: Request, res: Response) => {
   }
 });
 
+export async function resolveTargetInfo(targetType: string, targetId: string) {
+  try {
+    if (targetType === 'product') {
+      const p = await prisma.product.findUnique({ where: { id: targetId } });
+      if (p) return { targetTitle: p.title, targetImage: p.image, targetCategory: p.category };
+      if (targetId === 'p1') return { targetTitle: 'Royal Habesha Kemis', targetImage: 'https://images.unsplash.com/photo-1583391733956-3750e0ff4e8b?w=800', targetCategory: 'Traditional Attire' };
+      if (targetId === 'p2') return { targetTitle: 'Guji Highland Peaberry Coffee', targetImage: 'https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?w=800', targetCategory: 'Specialty Coffee' };
+    } else if (targetType === 'service') {
+      const s = await prisma.service.findUnique({ where: { id: targetId } });
+      if (s) return { targetTitle: s.name, targetImage: s.image, targetCategory: s.category };
+      if (targetId === 's1') return { targetTitle: 'Addis Relocation Partners', targetImage: 'https://images.unsplash.com/photo-1560184897-ae75f418493e?w=800', targetCategory: 'Relocation & Housing' };
+      if (targetId === 's2') return { targetTitle: 'Habesha Legal Group', targetImage: 'https://images.unsplash.com/photo-1589829545856-d10d557cf95f?w=800', targetCategory: 'Legal & Land Title' };
+      if (targetId === 's3') return { targetTitle: 'Bole Executive Concierge & Chauffeur', targetImage: 'https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?w=800', targetCategory: 'Logistics & Transport' };
+    } else if (targetType === 'destination') {
+      const d = await prisma.destination.findUnique({ where: { id: targetId } });
+      if (d) return { targetTitle: d.name, targetImage: d.image, targetCategory: d.region };
+      if (targetId === 'd1') return { targetTitle: 'Lalibela Rock-Hewn Churches', targetImage: 'https://images.unsplash.com/photo-1596701062351-8c2c14d1fdd1?w=800', targetCategory: 'Amhara Region' };
+      if (targetId === 'd2') return { targetTitle: 'Simien Mountains National Park', targetImage: 'https://images.unsplash.com/photo-1516426122078-c23e76319801?w=800', targetCategory: 'Highland Escarpments' };
+      if (targetId === 'd3') return { targetTitle: 'Gondar Fasil Ghebbi Royal Enclosure', targetImage: 'https://images.unsplash.com/photo-1547471080-7cc2caa01a7e?w=800', targetCategory: 'Imperial Castles' };
+      if (targetId === 'd4') return { targetTitle: 'Harar Jugol Fortified Historic Town', targetImage: 'https://images.unsplash.com/photo-1578925518470-4def7a0f08bb?w=800', targetCategory: 'Historic Walled City' };
+    }
+  } catch (err) {
+    console.warn('resolveTargetInfo error:', err);
+  }
+  return {
+    targetTitle: `${targetType.charAt(0).toUpperCase() + targetType.slice(1)} (${targetId})`,
+    targetImage: 'https://images.unsplash.com/photo-1523821741446-edb2b68bb7a0?w=800',
+    targetCategory: targetType,
+  };
+}
+
+// GET /api/reviews/my (Reviews authored by the current user)
+reviewsRouter.get('/my', async (req: Request, res: Response) => {
+  const userId = getOptionalUserId(req);
+  const email = req.query.email ? String(req.query.email).trim().toLowerCase() : undefined;
+
+  try {
+    let resolvedUser: { id: string; name: string } | null = null;
+    if (userId) {
+      resolvedUser = await prisma.user.findUnique({ where: { id: userId }, select: { id: true, name: true } });
+    } else if (email) {
+      resolvedUser = await prisma.user.findUnique({ where: { email }, select: { id: true, name: true } });
+    }
+
+    const whereCondition = resolvedUser
+      ? {
+          OR: [
+            { userId: resolvedUser.id },
+            { authorName: resolvedUser.name },
+          ],
+        }
+      : { userId: 'unauthenticated' };
+
+    const rawReviews = await prisma.review.findMany({
+      where: whereCondition,
+      orderBy: { createdAt: 'desc' },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            avatarUrl: true,
+            userType: true,
+            country: true,
+          },
+        },
+      },
+    });
+
+    const reviews = await Promise.all(
+      rawReviews.map(async (r) => {
+        const targetMeta = await resolveTargetInfo(r.targetType, r.targetId);
+        return {
+          ...r,
+          ...targetMeta,
+        };
+      })
+    );
+
+    const totalReviews = reviews.length;
+    const totalHelpfulReceived = reviews.reduce((sum, r) => sum + (r.helpfulCount || 0), 0);
+    const avgRatingGiven = totalReviews > 0
+      ? Number((reviews.reduce((sum, r) => sum + r.rating, 0) / totalReviews).toFixed(1))
+      : 5.0;
+
+    res.json({
+      reviews,
+      stats: {
+        totalReviews,
+        totalHelpfulReceived,
+        avgRatingGiven,
+      },
+    });
+  } catch (error) {
+    console.error('Fetch my reviews error:', error);
+    res.status(500).json({ error: 'Failed to retrieve your reviews' });
+  }
+});
+
+// PATCH /api/reviews/:id (Author edits their review)
+reviewsRouter.patch('/:id', async (req: Request, res: Response) => {
+  const id = String(req.params.id);
+  const { rating, title, comment, photos } = req.body;
+
+  try {
+    const existing = await prisma.review.findUnique({ where: { id } });
+    if (!existing) {
+      res.status(404).json({ error: 'Review not found' });
+      return;
+    }
+
+    const updateData: any = {};
+    if (rating !== undefined) updateData.rating = Math.max(1, Math.min(5, Number(rating)));
+    if (title !== undefined) updateData.title = String(title).trim() || null;
+    if (comment !== undefined) updateData.comment = String(comment).trim();
+    if (photos !== undefined) {
+      updateData.photos = Array.isArray(photos) ? photos.join(',') : (String(photos).trim() || null);
+    }
+
+    const updated = await prisma.review.update({
+      where: { id },
+      data: updateData,
+    });
+
+    res.json({ review: updated });
+  } catch (error) {
+    console.error('Update review error:', error);
+    res.status(500).json({ error: 'Failed to update review' });
+  }
+});
+
+// DELETE /api/reviews/:id (Author deletes review)
+reviewsRouter.delete('/:id', async (req: Request, res: Response) => {
+  const id = String(req.params.id);
+  try {
+    await prisma.review.delete({ where: { id } });
+    res.json({ success: true, message: 'Review deleted successfully' });
+  } catch (error) {
+    console.error('Delete review error:', error);
+    res.status(500).json({ error: 'Failed to delete review' });
+  }
+});
+
 // POST /api/reviews/:id/helpful
 reviewsRouter.post('/:id/helpful', async (req: Request, res: Response) => {
   const id = String(req.params.id);

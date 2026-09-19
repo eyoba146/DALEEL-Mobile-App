@@ -12,10 +12,12 @@ import { TeamManager } from './TeamManager';
 import { ProfileSecurityView } from './ProfileSecurityView';
 import { TriageInboxManager } from './TriageInboxManager';
 import { UsersManager } from './UsersManager';
+import { ReviewsManager } from './ReviewsManager';
 
 const VALID_MODULES: AppModule[] = [
   'dashboard',
   'inquiries',
+  'reviews',
   'destinations',
   'services',
   'events',
@@ -70,6 +72,8 @@ export const Layout: React.FC = () => {
         return <DashboardView onNavigate={handleSelectTab} />;
       case 'inquiries':
         return <TriageInboxManager />;
+      case 'reviews':
+        return <ReviewsManager />;
       case 'destinations':
         return <DestinationsManager />;
       case 'services':
