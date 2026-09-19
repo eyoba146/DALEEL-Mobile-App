@@ -887,5 +887,32 @@ input::placeholder, textarea::placeholder {
   animation: toastSlideIn 0.26s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
+/* Live Gate Check-In Desk Layout & Interactive Styles */
+.gate-desk-main-grid {
+  display: grid;
+  grid-template-columns: minmax(360px, 440px) 1fr;
+  gap: 24px;
+  align-items: start;
+}
 
+@media (max-width: 1080px) {
+  .gate-desk-main-grid {
+    grid-template-columns: 1fr;
+  }
+}
 
+.gate-roster-row:hover {
+  background-color: #F8FAFC !important;
+}
+
+.gate-admit-btn:hover {
+  background-color: #112649 !important;
+  transform: translateY(-1px);
+  box-shadow: 0 3px 8px rgba(7, 21, 43, 0.25) !important;
+}
+
+.gate-verify-btn:hover:not(:disabled) {
+  background-color: #112649 !important;
+  transform: translateY(-1px);
+  box-shadow: 0 3px 8px rgba(7, 21, 43, 0.25) !important;
+}

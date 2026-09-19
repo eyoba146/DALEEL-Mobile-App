@@ -66,7 +66,6 @@ function playFeedbackAudio(type: 'success' | 'warning' | 'error') {
     const ctx = new AudioContext();
 
     if (type === 'success') {
-      // Pleasant double chime (C5 -> G5)
       const osc1 = ctx.createOscillator();
       const gain1 = ctx.createGain();
       osc1.type = 'sine';
@@ -89,7 +88,6 @@ function playFeedbackAudio(type: 'success' | 'warning' | 'error') {
       osc2.start(ctx.currentTime + 0.12);
       osc2.stop(ctx.currentTime + 0.35);
     } else if (type === 'warning') {
-      // Amber alert double pulse
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
       osc.type = 'triangle';
@@ -101,7 +99,6 @@ function playFeedbackAudio(type: 'success' | 'warning' | 'error') {
       osc.start();
       osc.stop(ctx.currentTime + 0.3);
     } else {
-      // Low buzz error
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
       osc.type = 'sawtooth';
@@ -269,7 +266,6 @@ export const EventCheckInDesk: React.FC<EventCheckInDeskProps> = ({
           if (!isScanningRef.current) {
             isScanningRef.current = true;
             handleProcessCheckIn(decodedText);
-            // Delay to avoid multi-trigger
             setTimeout(() => {
               isScanningRef.current = false;
             }, 2500);
@@ -340,53 +336,48 @@ export const EventCheckInDesk: React.FC<EventCheckInDeskProps> = ({
   });
 
   return (
-    <div className="space-y-6">
-      {/* Top Breadcrumb & Event Selection Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
-        <div className="flex items-center gap-4">
+    <div style={styles.container}>
+      {/* Top Header Card */}
+      <div style={styles.headerCard}>
+        <div style={styles.headerLeft}>
           {onBack && (
             <button
               onClick={() => {
                 stopCamera();
                 onBack();
               }}
-              className="p-2.5 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-600 transition-colors"
+              style={styles.backBtn}
               title="Return to Events Catalog"
             >
-              <ArrowLeft size={18} />
+              <ArrowLeft size={17} color="#07152B" />
+              <span>Back to Catalog</span>
             </button>
           )}
 
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-xl bg-[#07152B] flex items-center justify-center text-[#DFB76C] shadow-md">
-              <QrCode size={24} />
+          <div style={styles.brandingBlock}>
+            <div style={styles.brandIconCircle}>
+              <QrCode size={22} color="#DFB76C" />
             </div>
             <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-xl font-bold text-[#07152B] tracking-tight">
-                  Gate Check-In & Scanner Desk
-                </h1>
-                <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-[#DFB76C]/20 text-[#8C6A21] border border-[#DFB76C]/40">
-                  LIVE GATE
-                </span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <h2 style={styles.brandTitle}>Gate Check-In & Scanner Desk</h2>
+                <span style={styles.liveGateBadge}>LIVE GATE</span>
               </div>
-              <p className="text-xs text-slate-500 font-medium">
-                Verify digital admission passes, scan QR codes, and monitor venue capacity
+              <p style={styles.brandSubtitle}>
+                Verify attendee admission passes, scan digital QR codes, and monitor venue capacity
               </p>
             </div>
           </div>
         </div>
 
         {/* Event Switcher Dropdown */}
-        <div className="flex items-center gap-3">
-          <div className="relative min-w-[260px]">
-            <label className="block text-[10px] font-bold tracking-wider text-slate-400 uppercase mb-1">
-              Active Event Venue
-            </label>
+        <div style={styles.headerRight}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <span style={styles.selectorLabel}>ACTIVE EVENT VENUE</span>
             <select
               value={selectedEventId}
               onChange={(e) => setSelectedEventId(e.target.value)}
-              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm font-semibold text-[#07152B] focus:outline-none focus:ring-2 focus:ring-[#DFB76C] focus:border-transparent transition-all cursor-pointer"
+              style={styles.eventSelect}
             >
               {events.map((ev) => (
                 <option key={ev.id} value={ev.id}>
@@ -399,182 +390,169 @@ export const EventCheckInDesk: React.FC<EventCheckInDeskProps> = ({
           <button
             onClick={fetchAttendance}
             disabled={isRefreshing}
-            className="p-2.5 mt-4 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-600 transition-colors disabled:opacity-50"
+            style={styles.refreshBtn}
             title="Refresh Attendance Stats"
           >
-            <RefreshCw size={18} className={isRefreshing ? 'animate-spin text-[#8C6A21]' : ''} />
+            <RefreshCw size={17} color={isRefreshing ? '#8C6A21' : '#07152B'} />
           </button>
         </div>
       </div>
 
       {/* Attendance Telemetry Ribbon */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div style={styles.telemetryGrid}>
         {/* Metric 1: Admitted Guests */}
-        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm relative overflow-hidden">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
-              Admitted Guests
-            </span>
-            <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
-              <CheckCircle2 size={18} />
+        <div style={styles.telemetryCard}>
+          <div style={styles.telemetryTopRow}>
+            <span style={styles.telemetryLabel}>ADMITTED GUESTS</span>
+            <div style={{ ...styles.iconCircleSmall, backgroundColor: '#E8F7ED', color: '#16803C' }}>
+              <CheckCircle2 size={16} />
             </div>
           </div>
-          <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-3xl font-extrabold text-[#07152B]">
-              {metrics.checkedInTickets}
-            </span>
-            <span className="text-sm font-semibold text-slate-400">
-              / {metrics.totalTickets} Expected
-            </span>
+          <div style={styles.telemetryBigNumRow}>
+            <span style={styles.telemetryBigNum}>{metrics.checkedInTickets}</span>
+            <span style={styles.telemetrySubNum}>/ {metrics.totalTickets} Expected</span>
           </div>
-          <div className="mt-3 w-full bg-slate-100 rounded-full h-2 overflow-hidden">
+          <div style={styles.progressBarTrack}>
             <div
-              className="bg-emerald-500 h-full rounded-full transition-all duration-500"
-              style={{ width: `${Math.min(100, metrics.attendanceRate)}%` }}
+              style={{
+                ...styles.progressBarFill,
+                width: `${Math.min(100, metrics.attendanceRate)}%`,
+                backgroundColor: '#16803C',
+              }}
             />
           </div>
         </div>
 
         {/* Metric 2: Attendance Rate */}
-        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
-              Attendance Rate
-            </span>
-            <div className="w-8 h-8 rounded-lg bg-[#DFB76C]/20 text-[#8C6A21] flex items-center justify-center">
-              <Sparkles size={18} />
+        <div style={styles.telemetryCard}>
+          <div style={styles.telemetryTopRow}>
+            <span style={styles.telemetryLabel}>ATTENDANCE RATE</span>
+            <div style={{ ...styles.iconCircleSmall, backgroundColor: '#F5E8CC', color: '#8C6A21' }}>
+              <Sparkles size={16} />
             </div>
           </div>
-          <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-3xl font-extrabold text-[#07152B]">
-              {metrics.attendanceRate}%
-            </span>
-            <span className="text-xs font-semibold text-emerald-600">
-              {metrics.checkedInCount} Parties Checked In
+          <div style={styles.telemetryBigNumRow}>
+            <span style={styles.telemetryBigNum}>{metrics.attendanceRate}%</span>
+            <span style={{ fontSize: '12px', fontWeight: 700, color: '#16803C' }}>
+              {metrics.checkedInCount} Parties In
             </span>
           </div>
-          <p className="mt-2 text-xs text-slate-500">
-            {metrics.capacity ? `Venue Capacity: ${metrics.capacity} Pax` : 'Open Venue Capacity'}
+          <p style={styles.telemetryFootnote}>
+            {metrics.capacity ? `Venue Capacity: ${metrics.capacity} Pax` : 'Open Hall / Festival Area'}
           </p>
         </div>
 
         {/* Metric 3: Awaiting Arrival */}
-        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
-              Awaiting Arrival
-            </span>
-            <div className="w-8 h-8 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center">
-              <Clock size={18} />
+        <div style={styles.telemetryCard}>
+          <div style={styles.telemetryTopRow}>
+            <span style={styles.telemetryLabel}>AWAITING ARRIVAL</span>
+            <div style={{ ...styles.iconCircleSmall, backgroundColor: '#FEF3C7', color: '#B45309' }}>
+              <Clock size={16} />
             </div>
           </div>
-          <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-3xl font-extrabold text-amber-700">
+          <div style={styles.telemetryBigNumRow}>
+            <span style={{ ...styles.telemetryBigNum, color: '#B45309' }}>
               {metrics.remainingTickets}
             </span>
-            <span className="text-sm font-semibold text-slate-400">Tickets</span>
+            <span style={styles.telemetrySubNum}>Tickets</span>
           </div>
-          <p className="mt-2 text-xs text-slate-500">
+          <p style={styles.telemetryFootnote}>
             {metrics.confirmedCount} Confirmed Parties En Route
           </p>
         </div>
 
         {/* Metric 4: Total RSVPs */}
-        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
-              Total Registrations
-            </span>
-            <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
-              <Users size={18} />
+        <div style={styles.telemetryCard}>
+          <div style={styles.telemetryTopRow}>
+            <span style={styles.telemetryLabel}>TOTAL REGISTRATIONS</span>
+            <div style={{ ...styles.iconCircleSmall, backgroundColor: '#EFF6FF', color: '#1D4ED8' }}>
+              <Users size={16} />
             </div>
           </div>
-          <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-3xl font-extrabold text-[#07152B]">
-              {metrics.totalRsvps}
-            </span>
-            <span className="text-sm font-semibold text-slate-400">Parties</span>
+          <div style={styles.telemetryBigNumRow}>
+            <span style={styles.telemetryBigNum}>{metrics.totalRsvps}</span>
+            <span style={styles.telemetrySubNum}>Parties</span>
           </div>
-          <p className="mt-2 text-xs text-slate-500">
-            {eventDetails?.venue ? `${eventDetails.venue}` : 'Venue Reception'}
+          <p style={styles.telemetryFootnote}>
+            {eventDetails?.venue ? `${eventDetails.venue}` : 'Venue Gate Reception'}
           </p>
         </div>
       </div>
 
-      {/* Main Check-In Scanning Interface */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Left Column (5 cols): Camera Scanner & Quick Input */}
-        <div className="lg:col-span-5 space-y-4">
-          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-5">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Camera size={18} className="text-[#8C6A21]" />
-                <h2 className="text-base font-bold text-[#07152B]">QR Camera Scanner</h2>
+      {/* Main Check-In 2-Column Interface */}
+      <div className="gate-desk-main-grid">
+        {/* Left Column: Camera Scanner & Quick Input */}
+        <div style={styles.leftCol}>
+          <div style={styles.scannerCard}>
+            <div style={styles.scannerHeaderRow}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Camera size={18} color="#8C6A21" />
+                <h3 style={styles.sectionHeading}>QR Camera Scanner</h3>
               </div>
               <button
                 onClick={isCameraActive ? stopCamera : startCamera}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors ${
-                  isCameraActive
-                    ? 'bg-rose-50 text-rose-700 border border-rose-200 hover:bg-rose-100'
-                    : 'bg-[#07152B] text-[#DFB76C] hover:bg-[#0B1F3D]'
-                }`}
+                style={isCameraActive ? styles.stopCameraBtn : styles.startCameraBtn}
               >
                 {isCameraActive ? (
                   <>
-                    <CameraOff size={14} /> Stop Camera
+                    <CameraOff size={14} />
+                    <span>Stop Camera</span>
                   </>
                 ) : (
                   <>
-                    <Camera size={14} /> Launch Camera
+                    <Camera size={14} />
+                    <span>Launch Camera</span>
                   </>
                 )}
               </button>
             </div>
 
-            {/* Camera Viewport / Placeholder */}
-            <div className="relative rounded-xl overflow-hidden bg-slate-900 border-2 border-dashed border-slate-200 min-h-[260px] flex items-center justify-center">
+            {/* Camera Viewport */}
+            <div style={styles.cameraViewport}>
               <div
                 id="gate-qr-reader"
-                className={`w-full h-full ${!isCameraActive ? 'hidden' : ''}`}
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  display: isCameraActive ? 'block' : 'none',
+                }}
               />
 
               {!isCameraActive && (
-                <div className="p-6 text-center space-y-3">
-                  <div className="w-14 h-14 rounded-2xl bg-white/10 text-[#DFB76C] flex items-center justify-center mx-auto">
-                    <QrCode size={30} />
+                <div style={styles.cameraIdleContent}>
+                  <div style={styles.cameraIdleIconCircle}>
+                    <QrCode size={32} color="#DFB76C" />
                   </div>
-                  <div>
-                    <p className="text-sm font-bold text-white">Camera Scanner Idle</p>
-                    <p className="text-xs text-slate-400 mt-1 max-w-[240px] mx-auto">
-                      Click "Launch Camera" to scan attendee mobile passes through your device camera
+                  <div style={{ textAlign: 'center' }}>
+                    <p style={{ color: '#FFFFFF', fontWeight: 700, fontSize: '14px', margin: '0 0 4px 0' }}>
+                      Camera Scanner Idle
+                    </p>
+                    <p style={{ color: '#94A3B8', fontSize: '12px', margin: 0, maxWidth: '280px', lineHeight: '16px' }}>
+                      Click "Launch Camera" to scan attendee mobile passes via your device webcam or tablet camera
                     </p>
                   </div>
-                  <button
-                    onClick={startCamera}
-                    className="px-4 py-2 rounded-xl bg-[#DFB76C] text-[#07152B] text-xs font-bold hover:bg-[#c99f57] transition-all shadow-md"
-                  >
+                  <button onClick={startCamera} style={styles.primaryGoldBtn}>
                     Start Camera
                   </button>
                 </div>
               )}
 
               {cameraError && (
-                <div className="absolute inset-0 bg-rose-950/90 flex flex-col items-center justify-center p-4 text-center text-rose-200 space-y-2">
-                  <AlertTriangle size={24} className="text-rose-400" />
-                  <p className="text-xs font-semibold">{cameraError}</p>
-                  <button
-                    onClick={startCamera}
-                    className="mt-2 px-3 py-1 bg-white text-rose-900 rounded-lg text-xs font-bold"
-                  >
+                <div style={styles.cameraErrorOverlay}>
+                  <AlertTriangle size={24} color="#F87171" />
+                  <p style={{ color: '#FECACA', fontSize: '12px', fontWeight: 600, margin: '6px 0 0 0', textAlign: 'center' }}>
+                    {cameraError}
+                  </p>
+                  <button onClick={startCamera} style={styles.retryBtn}>
                     Retry
                   </button>
                 </div>
               )}
             </div>
 
-            {/* Express Manual Pass Verification Bar */}
-            <div className="space-y-2 pt-2 border-t border-slate-100">
-              <label className="block text-xs font-bold text-[#07152B]">
+            {/* Express Manual Input */}
+            <div style={styles.manualInputSection}>
+              <label style={styles.manualInputLabel}>
                 Express Pass Search / Barcode Gun Input
               </label>
               <form
@@ -582,78 +560,82 @@ export const EventCheckInDesk: React.FC<EventCheckInDeskProps> = ({
                   e.preventDefault();
                   handleProcessCheckIn(manualCode);
                 }}
-                className="flex gap-2"
+                style={styles.manualForm}
               >
-                <div className="relative flex-1">
-                  <Ticket
-                    size={16}
-                    className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"
-                  />
+                <div style={styles.inputWithIconWrap}>
+                  <Ticket size={16} color="#8A9AA8" style={{ position: 'absolute', left: '12px' }} />
                   <input
                     type="text"
                     value={manualCode}
                     onChange={(e) => setManualCode(e.target.value)}
                     placeholder="Enter DAL-EVT-XXXX or name..."
-                    className="w-full pl-10 pr-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-mono text-[#07152B] placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#DFB76C] transition-all"
+                    style={styles.manualTextInput}
                   />
                 </div>
                 <button
                   type="submit"
                   disabled={isSubmittingCheckIn || !manualCode.trim()}
-                  className="px-4 py-2.5 rounded-xl bg-[#07152B] text-[#DFB76C] font-bold text-xs hover:bg-[#0B1F3D] transition-colors disabled:opacity-50 flex items-center gap-1.5 shadow-sm"
+                  className="gate-verify-btn"
+                  style={{
+                    ...styles.verifyBtn,
+                    opacity: isSubmittingCheckIn || !manualCode.trim() ? 0.5 : 1,
+                  }}
                 >
                   {isSubmittingCheckIn ? (
-                    <RefreshCw size={14} className="animate-spin" />
+                    <RefreshCw size={14} style={{ animation: 'spin 1s linear infinite' }} />
                   ) : (
                     <>
-                      <Check size={14} /> Verify
+                      <Check size={14} />
+                      <span>Verify</span>
                     </>
                   )}
                 </button>
               </form>
-              <p className="text-[11px] text-slate-400">
+              <p style={styles.barcodeTipText}>
                 Tip: Hardware USB/Bluetooth scanners automatically submit here upon scanning.
               </p>
             </div>
           </div>
 
-          {/* Instant Scan Result Verification Banner */}
+          {/* Instant Verification Banner */}
           {scanResult && (
             <div
-              className={`p-5 rounded-2xl border shadow-sm transition-all duration-300 animate-in fade-in slide-in-from-top-2 ${
-                scanResult.status === 'success'
-                  ? 'bg-emerald-50 border-emerald-300 text-emerald-950'
+              style={{
+                ...styles.resultBanner,
+                ...(scanResult.status === 'success'
+                  ? styles.resultSuccess
                   : scanResult.status === 'warning'
-                  ? 'bg-amber-50 border-amber-300 text-amber-950'
-                  : 'bg-rose-50 border-rose-300 text-rose-950'
-              }`}
+                  ? styles.resultWarning
+                  : styles.resultError),
+              }}
             >
-              <div className="flex items-start justify-between">
-                <div className="flex items-start gap-3">
+              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '14px' }}>
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
                   <div
-                    className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
-                      scanResult.status === 'success'
-                        ? 'bg-emerald-600 text-white shadow-emerald-200 shadow-md'
-                        : scanResult.status === 'warning'
-                        ? 'bg-amber-600 text-white shadow-amber-200 shadow-md'
-                        : 'bg-rose-600 text-white shadow-rose-200 shadow-md'
-                    }`}
+                    style={{
+                      ...styles.resultIconCircle,
+                      backgroundColor:
+                        scanResult.status === 'success'
+                          ? '#10B981'
+                          : scanResult.status === 'warning'
+                          ? '#F59E0B'
+                          : '#EF4444',
+                    }}
                   >
-                    {scanResult.status === 'success' && <CheckCircle2 size={22} />}
-                    {scanResult.status === 'warning' && <AlertTriangle size={22} />}
-                    {scanResult.status === 'error' && <XCircle size={22} />}
+                    {scanResult.status === 'success' && <CheckCircle2 size={22} color="#FFFFFF" />}
+                    {scanResult.status === 'warning' && <AlertTriangle size={22} color="#FFFFFF" />}
+                    {scanResult.status === 'error' && <XCircle size={22} color="#FFFFFF" />}
                   </div>
+
                   <div>
-                    <h3 className="font-extrabold text-sm tracking-wide uppercase">
-                      {scanResult.title}
-                    </h3>
-                    <p className="text-sm font-semibold mt-0.5">{scanResult.message}</p>
+                    <h4 style={styles.resultTitle}>{scanResult.title}</h4>
+                    <p style={styles.resultMessage}>{scanResult.message}</p>
                     {scanResult.rsvp && (
-                      <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
-                        <span className="font-mono bg-white/80 px-2 py-0.5 rounded border border-current font-bold">
+                      <div style={styles.resultMetaRow}>
+                        <span style={styles.resultPassPill}>
                           {scanResult.rsvp.passCode || `DAL-EVT-${scanResult.rsvp.id.slice(0, 8).toUpperCase()}`}
                         </span>
-                        <span className="font-medium opacity-80">
+                        <span style={{ fontSize: '11.5px', color: 'inherit', opacity: 0.8 }}>
                           Scanned at {scanResult.timestamp}
                         </span>
                       </div>
@@ -666,10 +648,11 @@ export const EventCheckInDesk: React.FC<EventCheckInDeskProps> = ({
                     onClick={() =>
                       handleUndoCheckIn(scanResult.rsvp.id, scanResult.rsvp.fullName || 'Guest')
                     }
-                    className="px-2.5 py-1 text-xs font-bold rounded-lg border border-slate-300 bg-white/80 hover:bg-white text-slate-700 flex items-center gap-1 shadow-xs transition-colors shrink-0"
+                    style={styles.resultUndoBtn}
                     title="Undo Check-In"
                   >
-                    <Undo2 size={12} /> Undo
+                    <Undo2 size={13} />
+                    <span>Undo</span>
                   </button>
                 )}
               </div>
@@ -677,47 +660,49 @@ export const EventCheckInDesk: React.FC<EventCheckInDeskProps> = ({
           )}
         </div>
 
-        {/* Right Column (7 cols): Live Attendee Roster Table */}
-        <div className="lg:col-span-7 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        {/* Right Column: Live Attendee Roster Table */}
+        <div style={styles.rosterCard}>
+          <div style={styles.rosterHeaderRow}>
             <div>
-              <h2 className="text-base font-bold text-[#07152B]">
-                Live Attendee Roster
-              </h2>
-              <p className="text-xs text-slate-500 font-medium">
-                {attendees.length} Total Registered Parties ({metrics.totalTickets} Tickets)
+              <h3 style={styles.sectionHeading}>Live Attendee Roster</h3>
+              <p style={{ fontSize: '12px', color: '#5A687A', margin: '2px 0 0 0' }}>
+                {attendees.length} Registered Parties ({metrics.totalTickets} Tickets)
               </p>
             </div>
 
-            {/* Filter Tabs */}
-            <div className="flex items-center bg-slate-100 p-1 rounded-xl gap-1">
+            {/* Segmented Filter Pills */}
+            <div style={styles.filterPillsRow}>
               <button
+                type="button"
+                style={{
+                  ...styles.filterPillBtn,
+                  ...(tableFilter === 'all' ? styles.filterPillBtnActive : {}),
+                }}
                 onClick={() => setTableFilter('all')}
-                className={`px-3 py-1 rounded-lg text-xs font-bold transition-colors ${
-                  tableFilter === 'all'
-                    ? 'bg-white text-[#07152B] shadow-xs'
-                    : 'text-slate-600 hover:text-[#07152B]'
-                }`}
               >
                 All ({attendees.length})
               </button>
               <button
+                type="button"
+                style={{
+                  ...styles.filterPillBtn,
+                  ...(tableFilter === 'checked_in'
+                    ? { backgroundColor: '#16803C', color: '#FFFFFF', borderColor: '#16803C' }
+                    : {}),
+                }}
                 onClick={() => setTableFilter('checked_in')}
-                className={`px-3 py-1 rounded-lg text-xs font-bold transition-colors ${
-                  tableFilter === 'checked_in'
-                    ? 'bg-emerald-600 text-white shadow-xs'
-                    : 'text-slate-600 hover:text-[#07152B]'
-                }`}
               >
                 Checked In ({metrics.checkedInCount})
               </button>
               <button
+                type="button"
+                style={{
+                  ...styles.filterPillBtn,
+                  ...(tableFilter === 'awaiting'
+                    ? { backgroundColor: '#B45309', color: '#FFFFFF', borderColor: '#B45309' }
+                    : {}),
+                }}
                 onClick={() => setTableFilter('awaiting')}
-                className={`px-3 py-1 rounded-lg text-xs font-bold transition-colors ${
-                  tableFilter === 'awaiting'
-                    ? 'bg-amber-600 text-white shadow-xs'
-                    : 'text-slate-600 hover:text-[#07152B]'
-                }`}
               >
                 Awaiting ({metrics.confirmedCount + metrics.pendingCount})
               </button>
@@ -725,36 +710,33 @@ export const EventCheckInDesk: React.FC<EventCheckInDeskProps> = ({
           </div>
 
           {/* Search Box */}
-          <div className="relative">
-            <Search
-              size={16}
-              className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"
-            />
+          <div style={styles.rosterSearchWrap}>
+            <Search size={16} color="#8A9AA8" style={{ position: 'absolute', left: '12px' }} />
             <input
               type="text"
               value={tableSearch}
               onChange={(e) => setTableSearch(e.target.value)}
               placeholder="Search by attendee name, email, or pass code..."
-              className="w-full pl-10 pr-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm text-[#07152B] placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#DFB76C] transition-all"
+              style={styles.rosterSearchInput}
             />
           </div>
 
-          {/* Attendees Table */}
-          <div className="overflow-x-auto border border-slate-100 rounded-xl max-h-[500px] overflow-y-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-slate-50 text-slate-500 font-bold uppercase tracking-wider sticky top-0 z-10 border-b border-slate-200">
-                <tr>
-                  <th className="py-3 px-4">Pass Code</th>
-                  <th className="py-3 px-4">Attendee</th>
-                  <th className="py-3 px-4">Tickets</th>
-                  <th className="py-3 px-4">Status</th>
-                  <th className="py-3 px-4 text-right">Action</th>
+          {/* Table Container */}
+          <div style={styles.tableContainer}>
+            <table style={styles.rosterTable}>
+              <thead>
+                <tr style={styles.tableHeadRow}>
+                  <th style={styles.th}>Pass Code</th>
+                  <th style={styles.th}>Attendee</th>
+                  <th style={styles.th}>Tickets</th>
+                  <th style={styles.th}>Status</th>
+                  <th style={{ ...styles.th, textAlign: 'right' }}>Action</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100 font-medium">
+              <tbody>
                 {filteredAttendees.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="py-8 text-center text-slate-400">
+                    <td colSpan={5} style={styles.emptyTd}>
                       No attendees found matching your criteria.
                     </td>
                   </tr>
@@ -768,51 +750,57 @@ export const EventCheckInDesk: React.FC<EventCheckInDeskProps> = ({
                     return (
                       <tr
                         key={att.id}
-                        className={`hover:bg-slate-50/80 transition-colors ${
-                          isCheckedIn ? 'bg-emerald-50/20' : ''
-                        }`}
+                        className="gate-roster-row"
+                        style={{
+                          ...styles.tableRow,
+                          backgroundColor: isCheckedIn ? 'rgba(22, 128, 60, 0.03)' : '#FFFFFF',
+                        }}
                       >
-                        <td className="py-3 px-4 font-mono font-bold text-[#8C6A21]">
-                          {att.passCode}
+                        <td style={styles.tdCode}>{att.passCode}</td>
+                        <td style={styles.td}>
+                          <div style={{ fontWeight: 700, color: '#07152B' }}>{att.fullName}</div>
+                          <div style={{ fontSize: '11px', color: '#8A9AA8' }}>{att.email}</div>
                         </td>
-                        <td className="py-3 px-4">
-                          <div className="font-bold text-[#07152B]">{att.fullName}</div>
-                          <div className="text-[11px] text-slate-400">{att.email}</div>
+                        <td style={styles.td}>
+                          <span style={{ fontWeight: 700, color: '#07152B' }}>{att.ticketsCount}</span>{' '}
+                          <span style={{ color: '#8A9AA8' }}>Pax</span>
                         </td>
-                        <td className="py-3 px-4">
-                          <span className="font-bold text-[#07152B]">{att.ticketsCount}</span>{' '}
-                          <span className="text-slate-400">Pax</span>
-                        </td>
-                        <td className="py-3 px-4">
+                        <td style={styles.td}>
                           {isCheckedIn ? (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800">
-                              <CheckCircle2 size={12} /> Checked In
+                            <span style={styles.badgeCheckedIn}>
+                              <CheckCircle2 size={12} />
+                              <span>Checked In</span>
                             </span>
                           ) : isCancelled ? (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-rose-100 text-rose-800">
-                              <XCircle size={12} /> Cancelled
+                            <span style={styles.badgeCancelled}>
+                              <XCircle size={12} />
+                              <span>Cancelled</span>
                             </span>
                           ) : (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-100 text-amber-800">
-                              <Clock size={12} /> Confirmed
+                            <span style={styles.badgeConfirmed}>
+                              <Clock size={12} />
+                              <span>Confirmed</span>
                             </span>
                           )}
                         </td>
-                        <td className="py-3 px-4 text-right">
+                        <td style={{ ...styles.td, textAlign: 'right' }}>
                           {isCheckedIn ? (
                             <button
                               onClick={() => handleUndoCheckIn(att.id, att.fullName)}
-                              className="px-2.5 py-1 text-xs font-semibold rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100 transition-colors"
+                              style={styles.undoBtn}
                               title="Revert check-in status"
                             >
                               Undo
                             </button>
                           ) : isCancelled ? (
-                            <span className="text-slate-400 text-xs italic">Denied</span>
+                            <span style={{ color: '#8A9AA8', fontSize: '11.5px', fontStyle: 'italic' }}>
+                              Denied
+                            </span>
                           ) : (
                             <button
                               onClick={() => handleProcessCheckIn(att.id)}
-                              className="px-3 py-1 text-xs font-bold rounded-lg bg-[#07152B] text-[#DFB76C] hover:bg-[#0B1F3D] transition-colors shadow-xs"
+                              className="gate-admit-btn"
+                              style={styles.admitBtn}
                             >
                               Admit
                             </button>
@@ -829,4 +817,579 @@ export const EventCheckInDesk: React.FC<EventCheckInDeskProps> = ({
       </div>
     </div>
   );
+};
+
+const styles: { [key: string]: React.CSSProperties } = {
+  container: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '24px',
+  },
+  headerCard: {
+    display: 'flex',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: '16px',
+    backgroundColor: '#FFFFFF',
+    border: '1px solid #E4E9F0',
+    borderRadius: '16px',
+    padding: '20px 24px',
+    boxShadow: '0 2px 8px rgba(7, 21, 43, 0.04)',
+  },
+  headerLeft: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '16px',
+    flex: 1,
+    minWidth: '280px',
+  },
+  backBtn: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '6px',
+    padding: '8px 14px',
+    backgroundColor: '#F8FAFC',
+    border: '1px solid #E4E9F0',
+    borderRadius: '10px',
+    fontSize: '12.5px',
+    fontWeight: 700,
+    color: '#07152B',
+    cursor: 'pointer',
+    transition: 'background-color 0.2s',
+  },
+  brandingBlock: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '14px',
+  },
+  brandIconCircle: {
+    width: '46px',
+    height: '46px',
+    borderRadius: '12px',
+    backgroundColor: '#07152B',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    boxShadow: '0 4px 12px rgba(7, 21, 43, 0.15)',
+  },
+  brandTitle: {
+    fontSize: '18px',
+    fontWeight: 800,
+    color: '#07152B',
+    margin: 0,
+    letterSpacing: '-0.01em',
+  },
+  liveGateBadge: {
+    padding: '2px 8px',
+    borderRadius: '999px',
+    fontSize: '10.5px',
+    fontWeight: 800,
+    backgroundColor: 'rgba(223, 183, 108, 0.2)',
+    color: '#8C6A21',
+    border: '1px solid rgba(223, 183, 108, 0.4)',
+    letterSpacing: '0.04em',
+  },
+  brandSubtitle: {
+    fontSize: '12px',
+    color: '#5A687A',
+    margin: '2px 0 0 0',
+    fontWeight: 500,
+  },
+  headerRight: {
+    display: 'flex',
+    alignItems: 'flex-end',
+    gap: '10px',
+  },
+  selectorLabel: {
+    fontSize: '10px',
+    fontWeight: 800,
+    color: '#8A9AA8',
+    letterSpacing: '0.06em',
+  },
+  eventSelect: {
+    backgroundColor: '#F8FAFC',
+    border: '1px solid #E4E9F0',
+    borderRadius: '10px',
+    padding: '9px 14px',
+    fontSize: '13.5px',
+    fontWeight: 650,
+    color: '#07152B',
+    cursor: 'pointer',
+    minWidth: '240px',
+    outline: 'none',
+  },
+  refreshBtn: {
+    padding: '10px',
+    borderRadius: '10px',
+    border: '1px solid #E4E9F0',
+    backgroundColor: '#FFFFFF',
+    cursor: 'pointer',
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  telemetryGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+    gap: '16px',
+  },
+  telemetryCard: {
+    backgroundColor: '#FFFFFF',
+    border: '1px solid #E4E9F0',
+    borderRadius: '16px',
+    padding: '20px',
+    boxShadow: '0 2px 8px rgba(7, 21, 43, 0.04)',
+    display: 'flex',
+    flexDirection: 'column',
+  },
+  telemetryTopRow: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: '8px',
+  },
+  telemetryLabel: {
+    fontSize: '11px',
+    fontWeight: 800,
+    letterSpacing: '0.06em',
+    color: '#8A9AA8',
+  },
+  iconCircleSmall: {
+    width: '30px',
+    height: '30px',
+    borderRadius: '8px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  telemetryBigNumRow: {
+    display: 'flex',
+    alignItems: 'baseline',
+    gap: '8px',
+  },
+  telemetryBigNum: {
+    fontSize: '28px',
+    fontWeight: 800,
+    color: '#07152B',
+  },
+  telemetrySubNum: {
+    fontSize: '13px',
+    fontWeight: 600,
+    color: '#8A9AA8',
+  },
+  progressBarTrack: {
+    width: '100%',
+    height: '6px',
+    borderRadius: '999px',
+    backgroundColor: '#F1F5F9',
+    marginTop: '12px',
+    overflow: 'hidden',
+  },
+  progressBarFill: {
+    height: '100%',
+    borderRadius: '999px',
+    transition: 'width 0.4s ease',
+  },
+  telemetryFootnote: {
+    fontSize: '12px',
+    color: '#5A687A',
+    margin: '10px 0 0 0',
+    fontWeight: 500,
+  },
+  mainGrid: {
+    display: 'grid',
+    gap: '24px',
+  },
+  leftCol: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '16px',
+  },
+  scannerCard: {
+    backgroundColor: '#FFFFFF',
+    border: '1px solid #E4E9F0',
+    borderRadius: '16px',
+    padding: '22px',
+    boxShadow: '0 2px 8px rgba(7, 21, 43, 0.04)',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '18px',
+  },
+  scannerHeaderRow: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  sectionHeading: {
+    fontSize: '16px',
+    fontWeight: 800,
+    color: '#07152B',
+    margin: 0,
+  },
+  startCameraBtn: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '6px',
+    backgroundColor: '#07152B',
+    color: '#DFB76C',
+    padding: '7px 13px',
+    borderRadius: '10px',
+    fontSize: '12px',
+    fontWeight: 700,
+    border: 'none',
+    cursor: 'pointer',
+  },
+  stopCameraBtn: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '6px',
+    backgroundColor: '#FFF0F0',
+    color: '#D63031',
+    border: '1px solid #FED7D7',
+    padding: '7px 13px',
+    borderRadius: '10px',
+    fontSize: '12px',
+    fontWeight: 700,
+    cursor: 'pointer',
+  },
+  cameraViewport: {
+    position: 'relative',
+    borderRadius: '14px',
+    overflow: 'hidden',
+    backgroundColor: '#07152B',
+    border: '1.5px dashed #CBD5E1',
+    minHeight: '260px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cameraIdleContent: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: '12px',
+    padding: '24px',
+  },
+  cameraIdleIconCircle: {
+    width: '56px',
+    height: '56px',
+    borderRadius: '16px',
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  primaryGoldBtn: {
+    backgroundColor: '#DFB76C',
+    color: '#07152B',
+    padding: '8px 18px',
+    borderRadius: '10px',
+    fontSize: '12.5px',
+    fontWeight: 800,
+    border: 'none',
+    cursor: 'pointer',
+    boxShadow: '0 2px 8px rgba(223, 183, 108, 0.3)',
+  },
+  cameraErrorOverlay: {
+    position: 'absolute',
+    inset: 0,
+    backgroundColor: 'rgba(15, 23, 42, 0.95)',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: '20px',
+  },
+  retryBtn: {
+    marginTop: '10px',
+    backgroundColor: '#FFFFFF',
+    color: '#D63031',
+    padding: '6px 14px',
+    borderRadius: '8px',
+    fontSize: '11.5px',
+    fontWeight: 700,
+    border: 'none',
+    cursor: 'pointer',
+  },
+  manualInputSection: {
+    borderTop: '1px solid #F1F5F9',
+    paddingTop: '14px',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '8px',
+  },
+  manualInputLabel: {
+    fontSize: '12px',
+    fontWeight: 800,
+    color: '#07152B',
+  },
+  manualForm: {
+    display: 'flex',
+    gap: '8px',
+  },
+  inputWithIconWrap: {
+    position: 'relative',
+    flex: 1,
+    display: 'flex',
+    alignItems: 'center',
+  },
+  manualTextInput: {
+    width: '100%',
+    padding: '9px 14px 9px 36px',
+    backgroundColor: '#F8FAFC',
+    border: '1px solid #E4E9F0',
+    borderRadius: '10px',
+    fontSize: '13.5px',
+    fontFamily: 'monospace',
+    color: '#07152B',
+    fontWeight: 700,
+    outline: 'none',
+  },
+  verifyBtn: {
+    backgroundColor: '#07152B',
+    color: '#DFB76C',
+    padding: '9px 16px',
+    borderRadius: '10px',
+    border: 'none',
+    fontSize: '12.5px',
+    fontWeight: 800,
+    cursor: 'pointer',
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '6px',
+  },
+  barcodeTipText: {
+    fontSize: '11px',
+    color: '#8A9AA8',
+    margin: 0,
+  },
+  resultBanner: {
+    borderRadius: '14px',
+    padding: '18px 20px',
+    boxShadow: '0 2px 10px rgba(7, 21, 43, 0.06)',
+  },
+  resultSuccess: {
+    backgroundColor: '#ECFDF5',
+    border: '1.5px solid #10B981',
+    color: '#064E3B',
+  },
+  resultWarning: {
+    backgroundColor: '#FFFBEB',
+    border: '1.5px solid #F59E0B',
+    color: '#78350F',
+  },
+  resultError: {
+    backgroundColor: '#FEF2F2',
+    border: '1.5px solid #EF4444',
+    color: '#7F1D1D',
+  },
+  resultIconCircle: {
+    width: '38px',
+    height: '38px',
+    borderRadius: '10px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
+  resultTitle: {
+    fontSize: '13px',
+    fontWeight: 800,
+    letterSpacing: '0.04em',
+    textTransform: 'uppercase',
+    margin: 0,
+  },
+  resultMessage: {
+    fontSize: '13.5px',
+    fontWeight: 650,
+    margin: '3px 0 0 0',
+  },
+  resultMetaRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    marginTop: '6px',
+  },
+  resultPassPill: {
+    fontFamily: 'monospace',
+    fontWeight: 800,
+    fontSize: '11px',
+    padding: '2px 8px',
+    borderRadius: '4px',
+    backgroundColor: 'rgba(255, 255, 255, 0.8)',
+    border: '1px solid currentColor',
+  },
+  resultUndoBtn: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '4px',
+    padding: '6px 10px',
+    borderRadius: '8px',
+    border: '1px solid #CBD5E1',
+    backgroundColor: '#FFFFFF',
+    color: '#07152B',
+    fontSize: '11.5px',
+    fontWeight: 700,
+    cursor: 'pointer',
+    flexShrink: 0,
+  },
+  rosterCard: {
+    backgroundColor: '#FFFFFF',
+    border: '1px solid #E4E9F0',
+    borderRadius: '16px',
+    padding: '24px',
+    boxShadow: '0 2px 8px rgba(7, 21, 43, 0.04)',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '16px',
+  },
+  rosterHeaderRow: {
+    display: 'flex',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: '12px',
+  },
+  filterPillsRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '6px',
+    backgroundColor: '#F8FAFC',
+    border: '1px solid #E4E9F0',
+    borderRadius: '10px',
+    padding: '4px',
+  },
+  filterPillBtn: {
+    padding: '5px 12px',
+    borderRadius: '8px',
+    fontSize: '12px',
+    fontWeight: 700,
+    border: 'none',
+    cursor: 'pointer',
+    backgroundColor: 'transparent',
+    color: '#5A687A',
+    transition: 'all 0.2s',
+  },
+  filterPillBtnActive: {
+    backgroundColor: '#07152B',
+    color: '#FFFFFF',
+    boxShadow: '0 1px 3px rgba(7, 21, 43, 0.1)',
+  },
+  rosterSearchWrap: {
+    position: 'relative',
+    display: 'flex',
+    alignItems: 'center',
+  },
+  rosterSearchInput: {
+    width: '100%',
+    padding: '9px 14px 9px 36px',
+    backgroundColor: '#F8FAFC',
+    border: '1px solid #E4E9F0',
+    borderRadius: '10px',
+    fontSize: '13px',
+    color: '#07152B',
+    outline: 'none',
+  },
+  tableContainer: {
+    maxHeight: '480px',
+    overflowY: 'auto',
+    border: '1px solid #E4E9F0',
+    borderRadius: '12px',
+  },
+  rosterTable: {
+    width: '100%',
+    borderCollapse: 'collapse',
+    textAlign: 'left',
+    fontSize: '12.5px',
+  },
+  tableHeadRow: {
+    backgroundColor: '#F8FAFC',
+    borderBottom: '1px solid #E4E9F0',
+    position: 'sticky',
+    top: 0,
+    zIndex: 2,
+  },
+  th: {
+    padding: '12px 16px',
+    fontSize: '11px',
+    fontWeight: 800,
+    color: '#8A9AA8',
+    letterSpacing: '0.04em',
+    textTransform: 'uppercase',
+  },
+  tableRow: {
+    borderBottom: '1px solid #F1F5F9',
+    transition: 'background-color 0.15s',
+  },
+  td: {
+    padding: '12px 16px',
+    color: '#07152B',
+  },
+  tdCode: {
+    padding: '12px 16px',
+    fontFamily: 'monospace',
+    fontWeight: 800,
+    color: '#8C6A21',
+  },
+  emptyTd: {
+    padding: '36px',
+    textAlign: 'center',
+    color: '#8A9AA8',
+    fontSize: '13px',
+  },
+  badgeCheckedIn: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '4px',
+    padding: '3px 9px',
+    borderRadius: '999px',
+    fontSize: '11px',
+    fontWeight: 700,
+    backgroundColor: '#DCFCE7',
+    color: '#166534',
+  },
+  badgeConfirmed: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '4px',
+    padding: '3px 9px',
+    borderRadius: '999px',
+    fontSize: '11px',
+    fontWeight: 700,
+    backgroundColor: '#FEF3C7',
+    color: '#92400E',
+  },
+  badgeCancelled: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '4px',
+    padding: '3px 9px',
+    borderRadius: '999px',
+    fontSize: '11px',
+    fontWeight: 700,
+    backgroundColor: '#FEE2E2',
+    color: '#991B1B',
+  },
+  admitBtn: {
+    backgroundColor: '#07152B',
+    color: '#DFB76C',
+    padding: '5px 12px',
+    borderRadius: '8px',
+    border: 'none',
+    fontSize: '11.5px',
+    fontWeight: 800,
+    cursor: 'pointer',
+    boxShadow: '0 1px 3px rgba(7, 21, 43, 0.15)',
+  },
+  undoBtn: {
+    backgroundColor: '#F8FAFC',
+    color: '#5A687A',
+    padding: '4px 10px',
+    borderRadius: '8px',
+    border: '1px solid #CBD5E1',
+    fontSize: '11.5px',
+    fontWeight: 700,
+    cursor: 'pointer',
+  },
 };
