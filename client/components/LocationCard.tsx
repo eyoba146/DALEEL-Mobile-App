@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Modal,
@@ -13,13 +13,15 @@ import {
 } from 'react-native';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { WebView } from 'react-native-webview';
-import { colors, fonts, radius, shadow, spacing } from '../theme/tokens';
+import { colors, radius, shadow, spacing } from '../theme/tokens';
 import {
   calculateDistanceKm,
   formatDistance,
   getCurrentUserLocation,
   openDirectionsInMaps,
 } from '../lib/location';
+
+export type MapLayerMode = 'streets' | 'satellite' | 'topographic';
 
 type Props = {
   title: string;
@@ -29,6 +31,7 @@ type Props = {
   longitude?: number | null;
   userLatitude?: number | null;
   userLongitude?: number | null;
+  initialLayer?: MapLayerMode;
   style?: StyleProp<ViewStyle>;
 };
 
@@ -38,7 +41,8 @@ function generateMapHtml(
   title: string,
   address: string,
   zoom: number = 14,
-  showZoomControl: boolean = true
+  showZoomControl: boolean = false,
+  initialLayer: MapLayerMode = 'streets'
 ) {
   const safeTitle = JSON.stringify(title);
   const safeAddress = JSON.stringify(address || '');
@@ -105,24 +109,6 @@ function generateMapHtml(
     .leaflet-bar a:hover {
       background-color: #13284F !important;
     }
-    .leaflet-control-layers {
-      background: #07152B !important;
-      color: #DFB76C !important;
-      border: 1px solid rgba(223, 183, 108, 0.4) !important;
-      border-radius: 8px !important;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.5) !important;
-      font-size: 11px !important;
-      font-weight: 600 !important;
-    }
-    .leaflet-control-layers-expanded {
-      padding: 6px 10px !important;
-      background: rgba(7, 21, 43, 0.95) !important;
-      color: #EAEFF8 !important;
-    }
-    .leaflet-control-layers-toggle {
-      background-color: #07152B !important;
-      border-radius: 6px !important;
-    }
   </style>
 </head>
 <body>
@@ -139,29 +125,53 @@ function generateMapHtml(
       zoomSnap: 0.5
     }).setView([lat, lng], ${zoom});
 
-    // High resolution Esri World Street Map - 100% Free, NO API key required, zero watermarks
+    // 1. Street Map: Esri World Street Map (High resolution street level)
     var streetLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
-      maxZoom: 19,
-      attribution: 'Esri'
-    }).addTo(map);
-
-    var satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
       maxZoom: 19,
       attribution: 'Esri'
     });
 
+    // 2. Satellite View: Esri World Imagery + Hybrid Boundaries & Places Overlay
+    var satelliteImagery = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+      maxZoom: 19,
+      attribution: 'Esri'
+    });
+    var labelsOverlay = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', {
+      maxZoom: 19,
+      opacity: 0.95
+    });
+    var satelliteLayer = L.layerGroup([satelliteImagery, labelsOverlay]);
+
+    // 3. Topographic View: Esri World Topo Map (Elevation contours & mountain terrain)
     var topoLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}', {
       maxZoom: 19,
       attribution: 'Esri'
     });
 
-    ${showZoomControl ? `
-    L.control.layers({
-      'Street View': streetLayer,
-      'Satellite': satelliteLayer,
-      'Topographic': topoLayer
-    }, null, { position: 'topright', collapsed: true }).addTo(map);
-    ` : ''}
+    // Set initial layer
+    var initialMode = '${initialLayer}';
+    if (initialMode === 'satellite') {
+      satelliteLayer.addTo(map);
+    } else if (initialMode === 'topographic') {
+      topoLayer.addTo(map);
+    } else {
+      streetLayer.addTo(map);
+    }
+
+    // Dynamic layer switcher called from React Native
+    window.switchLayer = function(mode) {
+      if (map.hasLayer(streetLayer)) map.removeLayer(streetLayer);
+      if (map.hasLayer(satelliteLayer)) map.removeLayer(satelliteLayer);
+      if (map.hasLayer(topoLayer)) map.removeLayer(topoLayer);
+
+      if (mode === 'satellite') {
+        satelliteLayer.addTo(map);
+      } else if (mode === 'topographic') {
+        topoLayer.addTo(map);
+      } else {
+        streetLayer.addTo(map);
+      }
+    };
 
     var markerIcon = L.divIcon({
       className: 'marker-wrap',
@@ -187,6 +197,7 @@ export function LocationCard({
   longitude,
   userLatitude,
   userLongitude,
+  initialLayer = 'streets',
   style,
 }: Props) {
   const [liveUserLat, setLiveUserLat] = useState<number | null>(userLatitude ?? null);
@@ -194,6 +205,10 @@ export function LocationCard({
   const [calculatingDist, setCalculatingDist] = useState<boolean>(false);
   const [isFullscreenModalOpen, setIsFullscreenModalOpen] = useState<boolean>(false);
   const [mapLoading, setMapLoading] = useState<boolean>(true);
+  const [layerMode, setLayerMode] = useState<MapLayerMode>(initialLayer);
+
+  const embeddedWebRef = useRef<WebView>(null);
+  const fullscreenWebRef = useRef<WebView>(null);
 
   useEffect(() => {
     if (userLatitude && userLongitude) {
@@ -233,13 +248,19 @@ export function LocationCard({
 
   const embeddedMapHtml = useMemo(() => {
     if (!hasCoords) return '';
-    return generateMapHtml(latitude, longitude, title, displayAddress, 13.5, false);
-  }, [hasCoords, latitude, longitude, title, displayAddress]);
+    return generateMapHtml(latitude, longitude, title, displayAddress, 13.5, false, layerMode);
+  }, [hasCoords, latitude, longitude, title, displayAddress, layerMode]);
 
   const fullscreenMapHtml = useMemo(() => {
     if (!hasCoords) return '';
-    return generateMapHtml(latitude, longitude, title, displayAddress, 15, true);
-  }, [hasCoords, latitude, longitude, title, displayAddress]);
+    return generateMapHtml(latitude, longitude, title, displayAddress, 15, true, layerMode);
+  }, [hasCoords, latitude, longitude, title, displayAddress, layerMode]);
+
+  const handleSwitchLayer = (mode: MapLayerMode) => {
+    setLayerMode(mode);
+    embeddedWebRef.current?.injectJavaScript(`window.switchLayer && window.switchLayer('${mode}'); true;`);
+    fullscreenWebRef.current?.injectJavaScript(`window.switchLayer && window.switchLayer('${mode}'); true;`);
+  };
 
   const handleOpenNativeDirections = () => {
     if (hasCoords) {
@@ -257,6 +278,7 @@ export function LocationCard({
         {hasCoords ? (
           <>
             <WebView
+              ref={embeddedWebRef}
               originWhitelist={['*']}
               source={{ html: embeddedMapHtml }}
               style={styles.webView}
@@ -288,9 +310,74 @@ export function LocationCard({
                 activeOpacity={0.8}
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               >
-                <Feather name="maximize-2" size={13} color={colors.navy} />
+                <Feather name="maximize-2" size={12} color={colors.navy} />
                 <Text style={styles.expandMapIconBtnText}>Expand</Text>
               </TouchableOpacity>
+            </View>
+
+            {/* Floating GIS Map Layer Switcher Dock on Embedded Card */}
+            <View style={styles.floatingLayerDock} pointerEvents="box-none">
+              <View style={styles.layerPillGroup}>
+                <TouchableOpacity
+                  style={[styles.layerChipBtn, layerMode === 'streets' && styles.layerChipBtnActive]}
+                  onPress={() => handleSwitchLayer('streets')}
+                  activeOpacity={0.85}
+                >
+                  <Ionicons
+                    name="map-outline"
+                    size={11}
+                    color={layerMode === 'streets' ? colors.navy : '#CAD5E2'}
+                  />
+                  <Text
+                    style={[
+                      styles.layerChipBtnText,
+                      layerMode === 'streets' && styles.layerChipBtnTextActive,
+                    ]}
+                  >
+                    Streets
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.layerChipBtn, layerMode === 'satellite' && styles.layerChipBtnActive]}
+                  onPress={() => handleSwitchLayer('satellite')}
+                  activeOpacity={0.85}
+                >
+                  <Ionicons
+                    name="planet-outline"
+                    size={11}
+                    color={layerMode === 'satellite' ? colors.navy : '#CAD5E2'}
+                  />
+                  <Text
+                    style={[
+                      styles.layerChipBtnText,
+                      layerMode === 'satellite' && styles.layerChipBtnTextActive,
+                    ]}
+                  >
+                    Satellite
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.layerChipBtn, layerMode === 'topographic' && styles.layerChipBtnActive]}
+                  onPress={() => handleSwitchLayer('topographic')}
+                  activeOpacity={0.85}
+                >
+                  <Feather
+                    name="triangle"
+                    size={10}
+                    color={layerMode === 'topographic' ? colors.navy : '#CAD5E2'}
+                  />
+                  <Text
+                    style={[
+                      styles.layerChipBtnText,
+                      layerMode === 'topographic' && styles.layerChipBtnTextActive,
+                    ]}
+                  >
+                    Topo
+                  </Text>
+                </TouchableOpacity>
+              </View>
             </View>
 
             {/* Bottom Distance & Region Pill */}
@@ -400,16 +487,93 @@ export function LocationCard({
             </TouchableOpacity>
           </View>
 
-          {/* Fullscreen Interactive WebView */}
+          {/* Fullscreen Interactive WebView with Floating Segmented Dock */}
           <View style={styles.modalMapArea}>
             {hasCoords ? (
-              <WebView
-                originWhitelist={['*']}
-                source={{ html: fullscreenMapHtml }}
-                style={styles.fullscreenWebView}
-                javaScriptEnabled={true}
-                domStorageEnabled={true}
-              />
+              <>
+                <WebView
+                  ref={fullscreenWebRef}
+                  originWhitelist={['*']}
+                  source={{ html: fullscreenMapHtml }}
+                  style={styles.fullscreenWebView}
+                  javaScriptEnabled={true}
+                  domStorageEnabled={true}
+                />
+
+                {/* Floating GIS Switcher Dock in Fullscreen Modal */}
+                <View style={styles.modalFloatingDockWrap} pointerEvents="box-none">
+                  <View style={styles.modalLayerDockPill}>
+                    <TouchableOpacity
+                      style={[
+                        styles.modalLayerChipBtn,
+                        layerMode === 'streets' && styles.modalLayerChipBtnActive,
+                      ]}
+                      onPress={() => handleSwitchLayer('streets')}
+                      activeOpacity={0.85}
+                    >
+                      <Ionicons
+                        name="map-outline"
+                        size={13}
+                        color={layerMode === 'streets' ? colors.navy : '#CAD5E2'}
+                      />
+                      <Text
+                        style={[
+                          styles.modalLayerChipBtnText,
+                          layerMode === 'streets' && styles.modalLayerChipBtnTextActive,
+                        ]}
+                      >
+                        Streets
+                      </Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={[
+                        styles.modalLayerChipBtn,
+                        layerMode === 'satellite' && styles.modalLayerChipBtnActive,
+                      ]}
+                      onPress={() => handleSwitchLayer('satellite')}
+                      activeOpacity={0.85}
+                    >
+                      <Ionicons
+                        name="planet-outline"
+                        size={13}
+                        color={layerMode === 'satellite' ? colors.navy : '#CAD5E2'}
+                      />
+                      <Text
+                        style={[
+                          styles.modalLayerChipBtnText,
+                          layerMode === 'satellite' && styles.modalLayerChipBtnTextActive,
+                        ]}
+                      >
+                        Satellite
+                      </Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={[
+                        styles.modalLayerChipBtn,
+                        layerMode === 'topographic' && styles.modalLayerChipBtnActive,
+                      ]}
+                      onPress={() => handleSwitchLayer('topographic')}
+                      activeOpacity={0.85}
+                    >
+                      <Feather
+                        name="triangle"
+                        size={12}
+                        color={layerMode === 'topographic' ? colors.navy : '#CAD5E2'}
+                      />
+                      <Text
+                        style={[
+                          styles.modalLayerChipBtnText,
+                          layerMode === 'topographic' && styles.modalLayerChipBtnTextActive,
+                        ]}
+                      >
+                        Topographic
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              </>
             ) : null}
 
             {/* Bottom Floating Info Card inside Fullscreen Modal */}
@@ -461,7 +625,7 @@ const styles = StyleSheet.create({
     ...shadow.card,
   },
   mapCanvasContainer: {
-    height: 190,
+    height: 210,
     backgroundColor: colors.navyDeep,
     position: 'relative',
     overflow: 'hidden',
@@ -520,6 +684,42 @@ const styles = StyleSheet.create({
   expandMapIconBtnText: {
     color: colors.navy,
     fontSize: 10.5,
+    fontWeight: '700',
+  },
+  floatingLayerDock: {
+    position: 'absolute',
+    top: 38,
+    right: spacing.sm,
+    zIndex: 11,
+  },
+  layerPillGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(7,21,43,0.90)',
+    borderRadius: radius.full,
+    padding: 2.5,
+    borderWidth: 1,
+    borderColor: 'rgba(223,183,108,0.35)',
+    ...shadow.card,
+  },
+  layerChipBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: radius.full,
+  },
+  layerChipBtnActive: {
+    backgroundColor: colors.gold,
+  },
+  layerChipBtnText: {
+    fontSize: 9.5,
+    fontWeight: '600',
+    color: '#CAD5E2',
+  },
+  layerChipBtnTextActive: {
+    color: colors.navy,
     fontWeight: '700',
   },
   bottomBadgesRow: {
@@ -709,6 +909,44 @@ const styles = StyleSheet.create({
   fullscreenWebView: {
     flex: 1,
     backgroundColor: colors.navyDeep,
+  },
+  modalFloatingDockWrap: {
+    position: 'absolute',
+    top: spacing.md,
+    left: spacing.md,
+    right: spacing.md,
+    alignItems: 'center',
+    zIndex: 20,
+  },
+  modalLayerDockPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(7,21,43,0.92)',
+    borderRadius: radius.full,
+    padding: 3,
+    borderWidth: 1.5,
+    borderColor: 'rgba(223,183,108,0.45)',
+    ...shadow.modal,
+  },
+  modalLayerChipBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: radius.full,
+  },
+  modalLayerChipBtnActive: {
+    backgroundColor: colors.gold,
+  },
+  modalLayerChipBtnText: {
+    fontSize: 11.5,
+    fontWeight: '600',
+    color: '#CAD5E2',
+  },
+  modalLayerChipBtnTextActive: {
+    color: colors.navy,
+    fontWeight: '700',
   },
   modalFloatingCard: {
     position: 'absolute',
