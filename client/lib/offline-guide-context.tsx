@@ -2,17 +2,6 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { Destination } from './api';
 
-export interface AudioChapter {
-  id: string;
-  title: string;
-  titleAmharic: string;
-  durationSeconds: number;
-  durationFormatted: string;
-  description: string;
-  transcript: string;
-  transcriptAmharic: string;
-}
-
 export interface EtiquetteTip {
   icon: string;
   title: string;
@@ -25,71 +14,54 @@ export interface EmergencyContact {
   icon: string;
 }
 
+export interface CulturalNote {
+  title: string;
+  detail: string;
+}
+
 export interface OfflineDestinationPack {
   destinationId: string;
   destinationName: string;
   region: string;
   downloadedAt: string;
   sizeMB: number;
-  chapters: AudioChapter[];
+  culturalNotes: CulturalNote[];
   etiquetteTips: EtiquetteTip[];
   emergencyContacts: EmergencyContact[];
 }
 
-// Curated Heritage Audio & Guide packs
+// Curated Heritage Pocket Guide & Etiquette packs (lightweight off-grid data)
 export const HERITAGE_PACKS_DATABASE: Record<string, Omit<OfflineDestinationPack, 'downloadedAt'>> = {
   d1: {
     destinationId: 'd1',
     destinationName: 'Lalibela Rock-Hewn Churches',
     region: 'Amhara Region, Northern Wollo',
-    sizeMB: 8.4,
-    chapters: [
+    sizeMB: 1.2,
+    culturalNotes: [
       {
-        id: 'ch1',
         title: 'King Lalibela & The 12th Century Jerusalem',
-        titleAmharic: 'የንጉሥ ላሊበላ ታሪክ እና አዲሷ እየሩሳሌም',
-        durationSeconds: 265,
-        durationFormatted: '04:25',
-        description: 'How King Gebre Mesqel Lalibela carved 11 monolithic churches straight down into red volcanic basalt after Muslim conquests captured Jerusalem in 1187.',
-        transcript: 'Welcome to Roha, the ancient capital of the Zagwe Dynasty, renamed Lalibela in honor of King Gebre Mesqel Lalibela. Following the fall of old Jerusalem to Saladin in 1187, King Lalibela received a vision to construct a New Ethiopian Jerusalem so orthodox pilgrims would never again endure hazardous desert journeys. Carved entirely from live volcanic scoria rock from the roof downwards, without a single block of mortar or timber, the 11 churches remain an active center of Ethiopian Orthodox Christian pilgrimage to this day.',
-        transcriptAmharic: 'እንኳን ወደ ቀደመችው የዛጉዌ ስርወ መንግስት መናገሻ ሮሃ በደህና መጡ። ንጉስ ላሊበላ በ12ኛው መቶ ክፍለ ዘመን 11ቱን ከአንድ ወጥ አለት የተፈለፈሉ አብያተ ክርስቲያናት አንጸዋል...',
+        detail: 'Carved entirely from live volcanic scoria rock from the roof downwards in the 12th century, the 11 churches remain an active center of Ethiopian Orthodox Christian pilgrimage.',
       },
       {
-        id: 'ch2',
-        title: 'Bete Giyorgis: Architectural & Hydraulic Genius',
-        titleAmharic: 'ቤተ ጊዮርጊስ፡ ድንቅ የሕንፃ እና የውሃ ምህንድስና',
-        durationSeconds: 310,
-        durationFormatted: '05:10',
-        description: 'Detailed architectural walkthrough of the iconic Greek-cross church of Saint George, its hidden trenches, baptismal pools, and subterranean tunnels.',
-        transcript: 'Standing isolated on the southwestern perimeter, Bete Giyorgis (House of Saint George) is widely regarded as the pinnacle of rock-hewn engineering. Carved within a 25-meter deep trench in the shape of a symmetrical Greek cross, its roof features three concentric relief crosses designed to drain monsoonal rainwater into subterranean stone cisterns. Notice the hand-chiselled windows with Aksumite-style wooden beam rosettes and the underground tunnel connecting it to the northern group.',
-        transcriptAmharic: 'ቤተ ጊዮርጊስ በግሪክ መስቀል ቅርፅ ከላይ ወደ ታች የተፈለፈለ ድንቅ የኪነ-ህንፃ ጥበብ ነው። ጣሪያው የዝናብ ውኃን የሚያስወግድ ልዩ የምህንድስና ሥርዓት አለው...',
-      },
-      {
-        id: 'ch3',
-        title: 'Pilgrimage Etiquette, Tabot & Holy Water',
-        titleAmharic: 'የቅዱሳን ቦታዎች ስነ-ስርዓት እና የፀበል ደንቦች',
-        durationSeconds: 195,
-        durationFormatted: '03:15',
-        description: 'Essential customs for travelers: shoe removal protocols, white Netela prayer scarves, respectful photography around hermits, and receiving blessings.',
-        transcript: 'Lalibela is not an archaeological museum; it is a living sanctuary of daily worship. Before stepping across church thresholds, visitors must remove shoes and place them with the church attendant. Both women and men are encouraged to drape a white cotton Netela or shawl around their shoulders as a gesture of reverence. Flash photography is strictly forbidden inside prayer sanctums where 800-year-old parchment manuscripts and hand-painted icon crosses are preserved.',
-        transcriptAmharic: 'ወደ ቤተ መቅደስ ከመግባታችን በፊት ጫማ ማውለቅ፣ ነጠላ መልበስ እና በጸሎት ሰዓት ያለ ፍላሽ ፎቶ ማንሳት ይገባል...',
+        title: 'Bete Giyorgis Architecture',
+        detail: 'Carved within a 25-meter deep trench in the shape of a symmetrical Greek cross, its roof features relief crosses designed to drain rainwater into subterranean stone cisterns.',
       },
     ],
     etiquetteTips: [
       {
         icon: 'shirt-outline',
         title: 'Sacred Church Dress Code',
-        rule: 'Modest attire covering shoulders and knees. White cotton Netela shawl recommended for all pilgrims.',
+        rule: 'Modest attire covering shoulders and knees. White cotton Netela shawl recommended for all visitors.',
       },
       {
         icon: 'footsteps-outline',
         title: 'Shoe Removal at Thresholds',
-        rule: 'Always remove shoes before stepping onto church carpets and stone entrances. Local attendants guard shoes for a small tip (20–50 ETB).',
+        rule: 'Always remove shoes before stepping onto church carpets and stone entrances. Attendants guard shoes for a nominal tip (20–50 ETB).',
       },
       {
         icon: 'camera-outline',
         title: 'Silent Reverence & No Flash',
-        rule: 'Never use flash on 12th-century murals or ancient Ge’ez manuscripts. Seek verbal permission before photographing priests or hermits.',
+        rule: 'Never use flash on 12th-century murals or ancient Ge’ez manuscripts. Seek verbal permission before photographing monks or priests.',
       },
       {
         icon: 'heart-outline',
@@ -98,127 +70,111 @@ export const HERITAGE_PACKS_DATABASE: Record<string, Omit<OfflineDestinationPack
       },
     ],
     emergencyContacts: [
-      { label: 'Lalibela Tourist Police Desk', number: '+251 33 336 0012', icon: 'shield-checkmark-outline' },
-      { label: 'Lalibela General Hospital Emergency', number: '+251 33 336 0222', icon: 'medkit-outline' },
-      { label: 'DALEEL Verified 4WD Driver Concierge', number: '+251 911 234 567', icon: 'car-outline' },
+      { label: 'Tourist Police (Lalibela Post)', number: '991', icon: 'shield-outline' },
+      { label: 'Lalibela General Hospital Emergency', number: '+251333360022', icon: 'medkit-outline' },
+      { label: 'DALEEL 24/7 Concierge Hotline', number: '+251911234567', icon: 'headset-outline' },
     ],
   },
   d2: {
     destinationId: 'd2',
     destinationName: 'Simien Mountains National Park',
-    region: 'North Gondar Zone',
-    sizeMB: 7.9,
-    chapters: [
+    region: 'Amhara Region, North Gondar',
+    sizeMB: 1.1,
+    culturalNotes: [
       {
-        id: 'ch1',
-        title: 'The Roof of Africa: Afro-Alpine Wilderness',
-        titleAmharic: 'የአፍሪካ ጣሪያ፡ ስሜን ተራሮች',
-        durationSeconds: 240,
-        durationFormatted: '04:00',
-        description: 'Geological origins of the dramatic basalt escarpments rising to Ras Dejen (4,550m), Ethiopia’s highest summit.',
-        transcript: 'Formed through massive volcanic upheavals 75 million years ago, the Simien Mountains present one of the most staggering rift escarpments on Earth, plummeting over 1,500 meters into jagged gorges. This high-altitude afro-alpine refuge is home to species found nowhere else on the planet, including the friendly Gelada baboon, the endangered Walia ibex, and the elusive Ethiopian wolf.',
-        transcriptAmharic: 'የስሜን ተራሮች በዓለም ላይ ካሉ አስደናቂ የተፈጥሮ ገፅታዎች አንዱ ሲሆን ልዩ የዱር እንስሳት መኖሪያ ነው...',
-      },
-      {
-        id: 'ch2',
-        title: 'Gelada Baboons & Endangered Wildlife',
-        titleAmharic: 'ጭላዳ ዝንጀሮ እና የዱር እንስሳት ጥበቃ',
-        durationSeconds: 280,
-        durationFormatted: '04:40',
-        description: 'Behavioral ecology of the vegetarian "Bleeding Heart" Geladas and how to observe troops respectfully.',
-        transcript: 'Unlike common primates, Geladas are the world’s only grass-eating monkeys. Known as "Bleeding Heart Baboons" due to the vivid red hourglass patch on their chests, they form harmonious super-troops of up to 400 individuals along Jinbar Waterfall and Sankaber Camp. They are completely peaceful towards human travelers as long as you maintain a respectful distance of 3 to 5 meters.',
-        transcriptAmharic: 'ጭላዳ ዝንጀሮዎች ሳር ብቻ የሚመገቡ ሰላማዊ ዝንጀሮዎች ናቸው...',
+        title: 'The Roof of Africa',
+        detail: 'Home to Ras Dejen (4,550m), the dramatic escarpments are sanctuary to the endemic Gelada baboon, Walia ibex, and Ethiopian wolf.',
       },
     ],
     etiquetteTips: [
       {
-        icon: 'thermometer-outline',
-        title: 'Altitude & Temperature Shifts',
-        rule: 'Elevations exceed 3,600m; temperatures drop below freezing at night. Pack thermal windbreakers and drink 3L water daily to prevent AMS.',
+        icon: 'trail-sign-outline',
+        title: 'Mandatory Scout & Guide',
+        rule: 'Park regulations mandate hiring an armed park scout and certified community guide from the Debark Park HQ before entering.',
       },
       {
-        icon: 'shield-outline',
-        title: 'Mandatory Scout Requirement',
-        rule: 'Park regulations mandate an official armed scout and licensed local guide for all trekking routes between camps.',
+        icon: 'paw-outline',
+        title: 'Gelada Baboon Sanctuary Respect',
+        rule: 'Gelada monkeys are peaceful grass-grazers. Maintain at least 5 meters distance and never offer food or litter plastic.',
       },
       {
-        icon: 'trash-outline',
-        title: 'Leave No Trace Wilderness',
-        rule: 'Pack out all personal waste, plastics, and batteries. Open fires outside designated camp spots are strictly forbidden.',
+        icon: 'flame-outline',
+        title: 'Highland Fire Regulations',
+        rule: 'Strictly campfire only in designated Sankaber, Gich, and Chennek campsites. Do not gather deadwood from Erica forest zones.',
       },
     ],
     emergencyContacts: [
-      { label: 'Debark Park Headquarters Dispatch', number: '+251 58 117 0049', icon: 'shield-checkmark-outline' },
-      { label: 'Gondar Referral Hospital Ambulance', number: '+251 58 111 0243', icon: 'medkit-outline' },
-      { label: 'DALEEL Highland Mountain Rescue Desk', number: '+251 911 234 567', icon: 'call-outline' },
+      { label: 'Debark Park Ranger Headquarters', number: '+251581170028', icon: 'shield-outline' },
+      { label: 'Highland Search & Rescue Dispatch', number: '991', icon: 'navigate-outline' },
+      { label: 'DALEEL Concierge Desk', number: '+251911234567', icon: 'headset-outline' },
     ],
   },
   d3: {
     destinationId: 'd3',
-    destinationName: 'Fasil Ghebbi Imperial Enclosure',
-    region: 'Gondar, Amhara Region',
-    sizeMB: 7.2,
-    chapters: [
+    destinationName: 'Gondar Fasil Ghebbi Royal Enclosure',
+    region: 'Amhara Region, Central Gondar',
+    sizeMB: 1.2,
+    culturalNotes: [
       {
-        id: 'ch1',
-        title: 'Emperor Fasilides & The Camelot of Africa',
-        titleAmharic: 'አጼ ፋሲለደስ እና የጎንደር ቤተመንግስት',
-        durationSeconds: 270,
-        durationFormatted: '04:30',
-        description: 'How Gondar became the permanent capital in 1636, blending Portuguese, Indian, and Aksumite architectural styles.',
-        transcript: 'For centuries, Ethiopian emperors ruled from roaming tented tent cities. In 1636, Emperor Fasilides broke this nomadic tradition by founding Gondar as the permanent imperial capital. Within this 70,000-square-meter walled fortress stand 20 palaces, royal libraries, banqueting halls, and steam baths displaying a magnificent synthesis of Moorish, Portuguese Baroque, and indigenous Aksumite masonry.',
-        transcriptAmharic: 'አጼ ፋሲለደስ በ1636 ዓ.ም ጎንደርን ቋሚ መዲና በማድረግ ድንቅ ቤተመንግስታትን አንጸዋል...',
+        title: 'The Camelot of Africa',
+        detail: 'Founded by Emperor Fasilides in 1636, this fortified fortress complex blends Portuguese, Indian, and Aksumite architectural styles.',
       },
     ],
     etiquetteTips: [
       {
-        icon: 'walk-outline',
-        title: 'Cobblestone Walking',
-        rule: 'Wear comfortable walking shoes with traction for medieval stone steps, watchtowers, and royal courtyards.',
+        icon: 'business-outline',
+        title: 'Ancient Stone Masonry Care',
+        rule: 'Do not climb upon exposed 17th-century castle parapets, battlements, or crumbling timber ceiling beams.',
       },
       {
         icon: 'water-outline',
-        title: 'Fasilides Bath Timkat Ceremony',
-        rule: 'If visiting during Epiphany (Timkat, Jan 19), expect massive sacred crowds celebrating the renewal of baptismal vows.',
+        title: 'Fasilides Bath (Timkat Respect)',
+        rule: 'During the annual Timkat Epiphany festival, dress in white and follow designated spectator viewing tiers respectfully.',
+      },
+      {
+        icon: 'color-palette-outline',
+        title: 'Debre Berhan Selassie Murals',
+        rule: 'The famous ceiling of 104 winged angel faces must be viewed silently. Flash photography is prohibited inside the inner sanctuary.',
       },
     ],
     emergencyContacts: [
-      { label: 'Gondar Tourist Police Office', number: '+251 58 111 1422', icon: 'shield-checkmark-outline' },
-      { label: 'University of Gondar Hospital', number: '+251 58 114 1230', icon: 'medkit-outline' },
+      { label: 'Gondar Heritage Police Unit', number: '991', icon: 'shield-outline' },
+      { label: 'University of Gondar Hospital Dispatch', number: '+251581110243', icon: 'medkit-outline' },
+      { label: 'DALEEL Concierge Desk', number: '+251911234567', icon: 'headset-outline' },
     ],
   },
   d4: {
     destinationId: 'd4',
-    destinationName: 'Harar Jugol Historical Walled City',
+    destinationName: 'Harar Jugol Historical Fortified Town',
     region: 'Harari Region, Eastern Ethiopia',
-    sizeMB: 6.8,
-    chapters: [
+    sizeMB: 1.1,
+    culturalNotes: [
       {
-        id: 'ch1',
-        title: 'The Fourth Holy City of Islam',
-        titleAmharic: 'የሐረር ጁጎል ታሪክ እና የሰላም ከተማ',
-        durationSeconds: 290,
-        durationFormatted: '04:50',
-        description: 'Exploring the 16th-century fortified walls, 82 historic mosques, and peaceful coexistence of diverse communities.',
-        transcript: 'Encircling an ancient maze of 368 cobblestone alleyways, the Jugol wall was constructed between the 13th and 16th centuries with five historic gates. Considered the fourth holiest city of Islam, Harar is renowned for traditional Harari townhouse interiors, vibrant textile bazaars, and world-famous specialty coffee.',
-        transcriptAmharic: 'የሐረር ጁጎል ግንብ ከ13ኛው እስከ 16ኛው መቶ ክፍለ ዘመን የተሰራ ታሪካዊ ቅርስ ነው...',
+        title: 'The City of Peace & 82 Mosques',
+        detail: 'The fourth-holiest city of Islam, encircled by high 16th-century Jugol walls with 5 historic gates.',
       },
     ],
     etiquetteTips: [
       {
         icon: 'moon-outline',
-        title: 'Hyena Feeding Courtesy',
-        rule: 'The nightly wild hyena feeding ceremony outside the city gates is led by traditional hyena men. Remain still and follow your guide instructions.',
+        title: 'Respectful Islamic Quarter Modesty',
+        rule: 'Harar is an ancient holy city. Both men and women should wear loose, modest clothing covering arms and legs.',
+      },
+      {
+        icon: 'heart-half-outline',
+        title: 'Night Hyena Feeding Ritual',
+        rule: 'Only feed hyenas through the master hyena men at Fallana or Erer gates. Never attempt approaching stray animals alone.',
       },
       {
         icon: 'home-outline',
-        title: 'Harari House Interior Etiquette',
-        rule: 'Remove shoes before stepping onto the raised carpeted platforms (Gidir Gēgar) of traditional Harari living rooms.',
+        title: 'Traditional Gey Gar Home Visits',
+        rule: 'Remove shoes at doorway entry to traditional Harari homes. Accept offered spiced tea or coffee with the right hand.',
       },
     ],
     emergencyContacts: [
-      { label: 'Harar Jugol Tourist Protection Unit', number: '+251 25 666 0123', icon: 'shield-checkmark-outline' },
-      { label: 'Hiwot Fana Specialized Hospital', number: '+251 25 666 1822', icon: 'medkit-outline' },
+      { label: 'Harar Jugol Tourist Protection', number: '991', icon: 'shield-outline' },
+      { label: 'Hiwot Fana Comprehensive Hospital', number: '+251256660144', icon: 'medkit-outline' },
+      { label: 'DALEEL Concierge Desk', number: '+251911234567', icon: 'headset-outline' },
     ],
   },
 };
@@ -226,80 +182,72 @@ export const HERITAGE_PACKS_DATABASE: Record<string, Omit<OfflineDestinationPack
 interface OfflineGuideContextType {
   downloadedIds: string[];
   isDownloaded: (id: string) => boolean;
-  downloadDestination: (id: string, destinationName?: string) => Promise<void>;
+  downloadDestination: (id: string) => Promise<void>;
   removeDestination: (id: string) => Promise<void>;
   getOfflinePack: (id: string) => OfflineDestinationPack | null;
   downloadProgress: Record<string, number>;
   totalStorageMB: number;
 }
 
-const DOWNLOADED_IDS_KEY = '@daleel_downloaded_destination_ids_v1';
-const PACK_STORAGE_PREFIX = '@daleel_offline_pack_';
+const OfflineGuideContext = createContext<OfflineGuideContextType | undefined>(undefined);
 
-const OfflineGuideContext = createContext<OfflineGuideContextType | null>(null);
+const DOWNLOADED_IDS_KEY = '@daleel_downloaded_destinations_v1';
+const PACK_STORAGE_PREFIX = '@daleel_dest_pack_';
 
 export const OfflineGuideProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [downloadedIds, setDownloadedIds] = useState<string[]>(['d1']); // d1 (Lalibela) pre-cached by default for seamless instant testing!
+  const [downloadedIds, setDownloadedIds] = useState<string[]>([]);
   const [downloadProgress, setDownloadProgress] = useState<Record<string, number>>({});
 
   useEffect(() => {
-    let mounted = true;
-    (async () => {
+    async function loadSaved() {
       try {
-        const stored = await AsyncStorage.getItem(DOWNLOADED_IDS_KEY);
-        if (mounted && stored) {
-          const parsed = JSON.parse(stored);
-          if (Array.isArray(parsed)) {
-            setDownloadedIds(parsed);
-          }
+        const raw = await AsyncStorage.getItem(DOWNLOADED_IDS_KEY);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (Array.isArray(parsed)) setDownloadedIds(parsed);
         }
       } catch (err) {
-        console.warn('Failed to load offline destinations list:', err);
+        console.warn('Failed to load offline destinations:', err);
       }
-    })();
-    return () => {
-      mounted = false;
-    };
+    }
+    loadSaved();
   }, []);
 
   const isDownloaded = useCallback(
-    (id: string): boolean => {
-      return downloadedIds.includes(id);
-    },
+    (id: string) => downloadedIds.includes(id),
     [downloadedIds]
   );
 
   const getOfflinePack = useCallback((id: string): OfflineDestinationPack | null => {
-    const raw = HERITAGE_PACKS_DATABASE[id] || HERITAGE_PACKS_DATABASE.d1;
-    if (!raw) return null;
-    return {
-      ...raw,
-      downloadedAt: 'Downloaded for Offline Access',
-    };
+    const data = HERITAGE_PACKS_DATABASE[id];
+    if (data) {
+      return {
+        ...data,
+        downloadedAt: new Date().toISOString(),
+      };
+    }
+    return null;
   }, []);
 
   const downloadDestination = useCallback(
-    async (id: string, destinationName?: string) => {
+    async (id: string) => {
       if (downloadedIds.includes(id)) return;
 
-      // Simulate step-by-step progress download for audio tracks & maps
-      setDownloadProgress((prev) => ({ ...prev, [id]: 0.15 }));
+      setDownloadProgress((prev) => ({ ...prev, [id]: 15 }));
       await new Promise((r) => setTimeout(r, 250));
-
-      setDownloadProgress((prev) => ({ ...prev, [id]: 0.45 }));
+      setDownloadProgress((prev) => ({ ...prev, [id]: 45 }));
       await new Promise((r) => setTimeout(r, 300));
-
-      setDownloadProgress((prev) => ({ ...prev, [id]: 0.8 }));
+      setDownloadProgress((prev) => ({ ...prev, [id]: 80 }));
       await new Promise((r) => setTimeout(r, 250));
-
-      setDownloadProgress((prev) => ({ ...prev, [id]: 1.0 }));
+      setDownloadProgress((prev) => ({ ...prev, [id]: 100 }));
+      await new Promise((r) => setTimeout(r, 150));
 
       const pack = HERITAGE_PACKS_DATABASE[id] || {
         destinationId: id,
-        destinationName: destinationName || 'Ethiopian Heritage Site',
+        destinationName: 'Ethiopian Heritage Site',
         region: 'Ethiopia',
-        sizeMB: 7.5,
-        chapters: HERITAGE_PACKS_DATABASE.d1.chapters,
+        sizeMB: 1.2,
+        culturalNotes: HERITAGE_PACKS_DATABASE.d1.culturalNotes,
         etiquetteTips: HERITAGE_PACKS_DATABASE.d1.etiquetteTips,
         emergencyContacts: HERITAGE_PACKS_DATABASE.d1.emergencyContacts,
       };
@@ -342,7 +290,7 @@ export const OfflineGuideProvider: React.FC<{ children: React.ReactNode }> = ({ 
   const totalStorageMB = useMemo(() => {
     return downloadedIds.reduce((sum, id) => {
       const pack = HERITAGE_PACKS_DATABASE[id];
-      return sum + (pack?.sizeMB || 7.5);
+      return sum + (pack?.sizeMB || 1.2);
     }, 0);
   }, [downloadedIds]);
 

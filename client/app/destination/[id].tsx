@@ -23,7 +23,6 @@ import { contentApi, Destination, Service } from '../../lib/api';
 import { useAuth } from '../../lib/auth-context';
 import { useFavorites } from '../../lib/favorites-context';
 import { useOfflineGuide } from '../../lib/offline-guide-context';
-import { HeritageAudioPlayer } from '../../components/HeritageAudioPlayer';
 import { LocationCard } from '../../components/LocationCard';
 import { ReviewsSection } from '../../components/ReviewsSection';
 import { colors, fonts, radius, spacing } from '../../theme/tokens';
@@ -282,15 +281,8 @@ export default function DestinationDetailScreen() {
             </View>
           </View>
 
-          {/* Heritage Audio Guide Narration Player */}
-          <HeritageAudioPlayer
-            destinationId={destination.id}
-            destinationName={destination.name}
-            style={{ marginTop: 14, marginBottom: 14 }}
-          />
-
           {/* Offline Pocket Guide Download Card */}
-          <View style={styles.offlinePackCard}>
+          <View style={[styles.offlinePackCard, { marginTop: spacing.md }]}>
             <View style={styles.offlinePackTopRow}>
               <View
                 style={[
@@ -309,7 +301,7 @@ export default function DestinationDetailScreen() {
               </View>
               <View style={{ flex: 1, marginLeft: 10 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                  <Text style={styles.offlinePackTitle}>Offline Pocket Guide</Text>
+                  <Text style={styles.offlinePackTitle}>Offline Pocket Guide & Etiquette</Text>
                   {isPackDownloaded && (
                     <View style={styles.offlineDownloadedBadge}>
                       <Text style={styles.offlineDownloadedBadgeText}>SAVED</Text>
@@ -318,8 +310,8 @@ export default function DestinationDetailScreen() {
                 </View>
                 <Text style={styles.offlinePackSub}>
                   {isPackDownloaded
-                    ? `Full audio narration, etiquette rules, and emergency dispatch saved (${offlinePack?.sizeMB || 8.4} MB). Ready for off-grid remote travel.`
-                    : `Download full audio narration, cultural etiquette rules, and emergency dispatch (${offlinePack?.sizeMB || 8.4} MB) for off-grid travel.`}
+                    ? `Cultural etiquette guidelines, sacred site customs, and emergency dispatch saved (${offlinePack?.sizeMB || 1.2} MB). Ready for off-grid remote travel.`
+                    : `Download cultural etiquette guidelines, sacred site customs, and emergency dispatch (${offlinePack?.sizeMB || 1.2} MB) for off-grid travel.`}
                 </Text>
               </View>
             </View>
@@ -354,7 +346,7 @@ export default function DestinationDetailScreen() {
               >
                 <Ionicons name="download-outline" size={16} color={colors.navy} />
                 <Text style={styles.offlineDownloadBtnText}>
-                  Download Offline Pack ({offlinePack?.sizeMB || 8.4} MB)
+                  Download Offline Pocket Guide ({offlinePack?.sizeMB || 1.2} MB)
                 </Text>
               </TouchableOpacity>
             )}
