@@ -56,6 +56,55 @@ adminRouter.post('/login', async (req, res: Response) => {
   }
 });
 
+// Unauthenticated Administrative Password Recovery Request
+adminRouter.post('/forgot-password', async (req, res: Response) => {
+  try {
+    const { email } = req.body;
+    if (!email) {
+      return res.status(400).json({ error: 'Email address is required' });
+    }
+
+    const cleanEmail = String(email).trim().toLowerCase();
+    const user = await prisma.user.findUnique({
+      where: { email: cleanEmail },
+    });
+
+    if (!user || !user.isAdmin) {
+      return res.json({
+        success: true,
+        message: 'If an administrative account exists for this address, a reset request has been logged for the Super Administrator.',
+      });
+    }
+
+    // Alert all Super Admins in the platform notifications
+    const superAdmins = await prisma.user.findMany({
+      where: { isAdmin: true, adminRole: AdminRole.SUPER_ADMIN },
+      select: { id: true },
+    });
+
+    for (const sa of superAdmins) {
+      await prisma.notification.create({
+        data: {
+          userId: sa.id,
+          title: 'Administrative Password Reset Requested',
+          message: `Coordinator ${user.name} (${user.email}, Role: ${user.adminRole}) has requested a password reset. You can assign a new credential from the Administrative Team portal.`,
+          type: 'system',
+        },
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'Password reset request registered with the Super Administrator.',
+      coordinatorName: user.name,
+      coordinatorEmail: user.email,
+    });
+  } catch (error) {
+    console.error('Forgot password error:', error);
+    res.status(500).json({ error: 'Failed to process password recovery request' });
+  }
+});
+
 // All subsequent routes require a verified admin token
 adminRouter.use(authenticateAdmin as any);
 
@@ -69,6 +118,77 @@ adminRouter.get('/me', (req: AdminRequest, res: Response) => {
     phone: user.phone,
     avatarUrl: user.avatarUrl,
   });
+});
+
+// Update current admin profile
+adminRouter.patch('/profile', async (req: AdminRequest, res: Response) => {
+  try {
+    const user = req.adminUser!;
+    const { name, phone, avatarUrl } = req.body;
+
+    const updateData: any = {};
+    if (name) updateData.name = String(name).trim();
+    if (phone !== undefined) updateData.phone = phone ? String(phone).trim() : null;
+    if (avatarUrl !== undefined) updateData.avatarUrl = avatarUrl ? String(avatarUrl).trim() : null;
+
+    const updated = await prisma.user.update({
+      where: { id: user.id },
+      data: updateData,
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        adminRole: true,
+        phone: true,
+        avatarUrl: true,
+      },
+    });
+
+    res.json(updated);
+  } catch (error) {
+    console.error('Error updating admin profile:', error);
+    res.status(500).json({ error: 'Failed to update administrative profile' });
+  }
+});
+
+// Change current admin password
+adminRouter.post('/change-password', async (req: AdminRequest, res: Response) => {
+  try {
+    const user = req.adminUser!;
+    const { currentPassword, newPassword } = req.body;
+
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ error: 'Current password and new password are required' });
+    }
+
+    if (String(newPassword).length < 6) {
+      return res.status(400).json({ error: 'New password must be at least 6 characters' });
+    }
+
+    const fullUser = await prisma.user.findUnique({
+      where: { id: user.id },
+    });
+
+    if (!fullUser) {
+      return res.status(404).json({ error: 'Account not found' });
+    }
+
+    const isMatch = await bcrypt.compare(currentPassword, fullUser.passwordHash);
+    if (!isMatch) {
+      return res.status(401).json({ error: 'Current password does not match' });
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { passwordHash: hashedPassword },
+    });
+
+    res.json({ success: true, message: 'Password updated successfully' });
+  } catch (error) {
+    console.error('Error changing admin password:', error);
+    res.status(500).json({ error: 'Failed to change password' });
+  }
 });
 
 // --- Image & Media Upload (Base64 & Camera) ---
@@ -268,6 +388,42 @@ adminRouter.patch(
     } catch (error) {
       console.error('Error updating admin member:', error);
       res.status(500).json({ error: 'Failed to update team member' });
+    }
+  }
+);
+
+// Super Admin direct password reset for team coordinator
+adminRouter.post(
+  '/team/:id/reset-password',
+  requireRole([AdminRole.SUPER_ADMIN]) as any,
+  async (req: AdminRequest, res: Response) => {
+    try {
+      const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+      const { newPassword } = req.body;
+
+      if (!newPassword || String(newPassword).length < 6) {
+        return res.status(400).json({ error: 'New password must be at least 6 characters' });
+      }
+
+      const hashedPassword = await bcrypt.hash(newPassword, 10);
+      const targetUser = await prisma.user.update({
+        where: { id },
+        data: { passwordHash: hashedPassword },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          adminRole: true,
+        },
+      });
+
+      res.json({
+        success: true,
+        message: `Password for ${targetUser.name} (${targetUser.email}) has been reset successfully.`,
+      });
+    } catch (error) {
+      console.error('Error resetting coordinator password:', error);
+      res.status(500).json({ error: 'Failed to reset coordinator password' });
     }
   }
 );

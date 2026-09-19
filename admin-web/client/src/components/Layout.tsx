@@ -9,6 +9,7 @@ import { EventsManager } from './EventsManager';
 import { MarketplaceManager } from './MarketplaceManager';
 import { InvestmentsManager } from './InvestmentsManager';
 import { TeamManager } from './TeamManager';
+import { ProfileSecurityModal } from './ProfileSecurityModal';
 
 const VALID_MODULES: AppModule[] = [
   'dashboard',
@@ -36,6 +37,7 @@ const getInitialTab = (): AppModule => {
 
 export const Layout: React.FC = () => {
   const [currentTab, setCurrentTab] = useState<AppModule>(getInitialTab);
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
 
   React.useEffect(() => {
     const handleHashChange = () => {
@@ -81,14 +83,27 @@ export const Layout: React.FC = () => {
 
   return (
     <div style={styles.layoutRoot}>
-      <Sidebar currentTab={currentTab} onSelectTab={handleSelectTab} />
+      <Sidebar
+        currentTab={currentTab}
+        onSelectTab={handleSelectTab}
+        onOpenProfile={() => setIsProfileOpen(true)}
+      />
 
       <div style={styles.mainWrapper}>
-        <Header currentTab={currentTab} />
+        <Header
+          currentTab={currentTab}
+          onOpenProfile={() => setIsProfileOpen(true)}
+        />
         <main style={styles.contentArea}>
           {renderModule()}
         </main>
       </div>
+
+      {/* Global Administrator Profile & Security Modal */}
+      <ProfileSecurityModal
+        isOpen={isProfileOpen}
+        onClose={() => setIsProfileOpen(false)}
+      />
     </div>
   );
 };

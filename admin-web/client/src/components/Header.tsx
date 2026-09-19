@@ -1,10 +1,11 @@
 import React from 'react';
 import { useAdminAuth } from '../context/AuthContext';
 import type { AppModule } from '../context/AuthContext';
-import { CalendarDays } from 'lucide-react';
+import { CalendarDays, ShieldCheck } from 'lucide-react';
 
 interface HeaderProps {
   currentTab: AppModule;
+  onOpenProfile?: () => void;
 }
 
 const TAB_TITLES: Record<AppModule, { title: string; subtitle: string }> = {
@@ -38,7 +39,7 @@ const TAB_TITLES: Record<AppModule, { title: string; subtitle: string }> = {
   },
 };
 
-export const Header: React.FC<HeaderProps> = ({ currentTab }) => {
+export const Header: React.FC<HeaderProps> = ({ currentTab, onOpenProfile }) => {
   const { adminUser } = useAdminAuth();
 
   const formattedDate = new Intl.DateTimeFormat('en-US', {
@@ -66,8 +67,14 @@ export const Header: React.FC<HeaderProps> = ({ currentTab }) => {
           <span style={styles.dateText}>{formattedDate}</span>
         </div>
 
-        {/* User Profile Pill */}
-        <div style={styles.userPill}>
+        {/* User Profile & Security Pill */}
+        <div
+          style={styles.userPill}
+          onClick={onOpenProfile}
+          role="button"
+          tabIndex={0}
+          title="Click to manage profile, credentials, and permissions"
+        >
           <div style={styles.userAvatar}>
             {adminUser?.name?.charAt(0).toUpperCase() || 'A'}
           </div>
@@ -76,6 +83,9 @@ export const Header: React.FC<HeaderProps> = ({ currentTab }) => {
             <span style={styles.userRole}>
               {adminUser?.adminRole === 'SUPER_ADMIN' ? 'Full Administrator' : 'Coordinator'}
             </span>
+          </div>
+          <div style={styles.securityIcon}>
+            <ShieldCheck size={16} color="#8C6A21" />
           </div>
         </div>
       </div>
@@ -135,10 +145,12 @@ const styles: { [key: string]: React.CSSProperties } = {
     backgroundColor: '#F8FAFC',
     border: '1px solid #E4E9F0',
     borderRadius: '9999px',
+    cursor: 'pointer',
+    transition: 'all 0.18s ease',
   },
   userAvatar: {
-    width: '30px',
-    height: '30px',
+    width: '32px',
+    height: '32px',
     borderRadius: '50%',
     backgroundColor: '#07152B',
     color: '#DFB76C',
@@ -163,5 +175,11 @@ const styles: { [key: string]: React.CSSProperties } = {
     fontSize: '10.5px',
     fontWeight: 600,
     color: '#8C6A21',
+  },
+  securityIcon: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingLeft: '4px',
   },
 };

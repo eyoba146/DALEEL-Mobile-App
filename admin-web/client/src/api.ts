@@ -69,7 +69,25 @@ export const adminApi = {
       body: JSON.stringify({ email, password }),
     }),
 
+  forgotPassword: (email: string) =>
+    request<{ success: boolean; message: string; coordinatorName?: string }>('/admin/forgot-password', {
+      method: 'POST',
+      body: JSON.stringify({ email }),
+    }),
+
   getMe: () => request<AdminUser>('/admin/me'),
+
+  updateProfile: (data: { name?: string; phone?: string; avatarUrl?: string }) =>
+    request<AdminUser>('/admin/profile', {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    }),
+
+  changePassword: (currentPassword: string, newPassword: string) =>
+    request<{ success: boolean; message: string }>('/admin/change-password', {
+      method: 'POST',
+      body: JSON.stringify({ currentPassword, newPassword }),
+    }),
 
   // Media & Photo Upload
   uploadImage: (imageBase64: string) =>
@@ -89,6 +107,11 @@ export const adminApi = {
     request<AdminUser>(`/admin/team/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
   deleteTeamMember: (id: string) =>
     request<{ success: boolean; message: string }>(`/admin/team/${id}`, { method: 'DELETE' }),
+  resetCoordinatorPassword: (id: string, newPassword: string) =>
+    request<{ success: boolean; message: string }>(`/admin/team/${id}/reset-password`, {
+      method: 'POST',
+      body: JSON.stringify({ newPassword }),
+    }),
 
   // Heritage Destinations
   getDestinations: () => request<any[]>('/admin/destinations'),

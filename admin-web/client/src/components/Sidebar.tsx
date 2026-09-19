@@ -11,30 +11,64 @@ import {
   Users,
   LogOut,
   Shield,
+  ShieldCheck,
+  Activity,
+  User,
 } from 'lucide-react';
 
 interface SidebarProps {
   currentTab: AppModule;
   onSelectTab: (tab: AppModule) => void;
+  onOpenProfile?: () => void;
 }
 
 interface NavItem {
   id: AppModule;
   label: string;
+  badge?: string;
   icon: React.ComponentType<{ size?: number; color?: string }>;
 }
 
-const NAV_ITEMS: NavItem[] = [
-  { id: 'dashboard', label: 'Overview', icon: LayoutDashboard },
-  { id: 'destinations', label: 'Heritage Destinations', icon: Compass },
-  { id: 'services', label: 'Verified Services', icon: Briefcase },
-  { id: 'events', label: 'Events & Gatherings', icon: Calendar },
-  { id: 'marketplace', label: 'Artisan Marketplace', icon: ShoppingBag },
-  { id: 'investments', label: 'Diaspora Investments', icon: TrendingUp },
-  { id: 'team', label: 'Administrative Team', icon: Users },
+interface NavSection {
+  title: string;
+  items: NavItem[];
+}
+
+const NAV_SECTIONS: NavSection[] = [
+  {
+    title: 'EXECUTIVE CORE',
+    items: [
+      { id: 'dashboard', label: 'Overview & Ops', icon: LayoutDashboard },
+    ],
+  },
+  {
+    title: 'HERITAGE & TOURISM',
+    items: [
+      { id: 'destinations', label: 'Destinations & Sites', icon: Compass },
+      { id: 'events', label: 'Events & Gatherings', icon: Calendar },
+    ],
+  },
+  {
+    title: 'COMMERCE & DIRECTORY',
+    items: [
+      { id: 'services', label: 'Verified Services', icon: Briefcase },
+      { id: 'marketplace', label: 'Artisan Marketplace', icon: ShoppingBag },
+      { id: 'investments', label: 'Diaspora Investments', icon: TrendingUp },
+    ],
+  },
+  {
+    title: 'GOVERNANCE & AUDIT',
+    items: [
+      { id: 'team', label: 'Administrative Team', icon: Users },
+    ],
+  },
 ];
 
-export const Sidebar: React.FC<SidebarProps> = ({ currentTab, onSelectTab }) => {
+export const Sidebar: React.FC<SidebarProps> = ({
+  currentTab,
+  onSelectTab,
+  onOpenProfile,
+}) => {
   const { adminUser, logout, canAccess } = useAdminAuth();
 
   const getRoleDisplayName = (role?: string) => {
@@ -56,68 +90,117 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, onSelectTab }) => 
     }
   };
 
-  const accessibleItems = NAV_ITEMS.filter((item) => canAccess(item.id));
-
   return (
     <aside style={styles.sidebar}>
-      {/* Brand Header */}
+      {/* Brand & Federal Shield Header */}
       <div style={styles.brandBox}>
         <div style={styles.brandLogo}>
-          <Shield size={20} color="#DFB76C" />
+          <Shield size={22} color="#DFB76C" />
         </div>
         <div>
           <div style={styles.brandName}>DALEEL</div>
-          <div style={styles.brandSub}>MANAGEMENT PORTAL</div>
+          <div style={styles.brandSub}>FEDERAL PLATFORM</div>
         </div>
       </div>
 
-      {/* Staff Profile Strip */}
-      <div style={styles.profileStrip}>
-        <div style={styles.avatarCircle}>
-          {adminUser?.name ? adminUser.name.charAt(0).toUpperCase() : 'A'}
-        </div>
-        <div style={styles.profileMeta}>
-          <div style={styles.profileName} title={adminUser?.name}>
-            {adminUser?.name}
+      {/* Interactive Profile & Security Card */}
+      <div
+        style={styles.profileCard}
+        onClick={onOpenProfile}
+        role="button"
+        tabIndex={0}
+        title="Open Profile & Security Settings"
+      >
+        <div style={styles.profileCardHeader}>
+          <div style={styles.avatarCircle}>
+            {adminUser?.name ? adminUser.name.charAt(0).toUpperCase() : 'A'}
           </div>
-          <div style={styles.roleBadge}>{getRoleDisplayName(adminUser?.adminRole)}</div>
+          <div style={styles.profileMeta}>
+            <div style={styles.profileName} title={adminUser?.name}>
+              {adminUser?.name}
+            </div>
+            <div style={styles.roleBadge}>{getRoleDisplayName(adminUser?.adminRole)}</div>
+          </div>
+        </div>
+
+        <div style={styles.profileActionRow}>
+          <span style={styles.profileSecLink}>
+            <ShieldCheck size={13} color="#8C6A21" />
+            <span>Profile & Security</span>
+          </span>
+          <span style={styles.profileEditBadge}>Edit</span>
         </div>
       </div>
 
-      {/* Navigation Links */}
+      {/* Structured Categorized Navigation */}
       <nav style={styles.nav}>
-        <div style={styles.sectionHeader}>PLATFORM MODULES</div>
-        {accessibleItems.map((item) => {
-          const Icon = item.icon;
-          const isActive = currentTab === item.id;
+        {NAV_SECTIONS.map((section) => {
+          const visibleItems = section.items.filter((item) => canAccess(item.id));
+          if (visibleItems.length === 0) return null;
+
           return (
-            <button
-              key={item.id}
-              style={{
-                ...styles.navBtn,
-                ...(isActive ? styles.navBtnActive : styles.navBtnInactive),
-              }}
-              onClick={() => onSelectTab(item.id)}
-            >
-              <Icon size={18} color={isActive ? '#DFB76C' : '#5A687A'} />
-              <span
-                style={{
-                  ...styles.navLabel,
-                  color: isActive ? '#FFFFFF' : '#334155',
-                  fontWeight: isActive ? 700 : 600,
-                }}
-              >
-                {item.label}
-              </span>
-            </button>
+            <div key={section.title} style={styles.sectionBlock}>
+              <div style={styles.sectionHeader}>{section.title}</div>
+              <div style={styles.sectionList}>
+                {visibleItems.map((item) => {
+                  const Icon = item.icon;
+                  const isActive = currentTab === item.id;
+                  return (
+                    <button
+                      key={item.id}
+                      style={{
+                        ...styles.navBtn,
+                        ...(isActive ? styles.navBtnActive : styles.navBtnInactive),
+                      }}
+                      onClick={() => onSelectTab(item.id)}
+                    >
+                      <Icon size={17} color={isActive ? '#DFB76C' : '#64748B'} />
+                      <span
+                        style={{
+                          ...styles.navLabel,
+                          color: isActive ? '#FFFFFF' : '#1E293B',
+                          fontWeight: isActive ? 700 : 600,
+                        }}
+                      >
+                        {item.label}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
           );
         })}
+
+        {/* Live PostgreSQL Engine Telemetry Widget */}
+        <div style={styles.telemetryCard}>
+          <div style={styles.telemetryHeader}>
+            <div style={styles.telemetryTitleGroup}>
+              <Activity size={13} color="#10B981" />
+              <span style={styles.telemetryTitle}>PostgreSQL Gateway</span>
+            </div>
+            <div style={styles.telemetryPill}>
+              <span style={styles.pulseDot} />
+              <span>Live</span>
+            </div>
+          </div>
+          <div style={styles.telemetryMeta}>
+            <span>Port: 4000 (Express/Prisma)</span>
+            <span>Session: TLS Encrypted</span>
+          </div>
+        </div>
       </nav>
 
-      {/* Sign Out Footer */}
+      {/* Institutional Action Controls Footer */}
       <div style={styles.footer}>
+        {onOpenProfile && (
+          <button style={styles.profileBtn} onClick={onOpenProfile}>
+            <User size={15} color="#07152B" />
+            <span>Security & Profile</span>
+          </button>
+        )}
         <button style={styles.logoutBtn} onClick={logout}>
-          <LogOut size={16} color="#C53030" />
+          <LogOut size={15} color="#C53030" />
           <span>Sign Out</span>
         </button>
       </div>
@@ -137,69 +220,79 @@ const styles: { [key: string]: React.CSSProperties } = {
     left: 0,
     top: 0,
     zIndex: 100,
-    boxShadow: '1px 0 6px rgba(7, 21, 43, 0.03)',
+    boxShadow: '2px 0 10px rgba(7, 21, 43, 0.04)',
   },
   brandBox: {
-    padding: '22px 20px',
+    padding: '20px 20px',
     display: 'flex',
     alignItems: 'center',
     gap: '12px',
-    borderBottom: '1px solid #E4E9F0',
+    borderBottom: '1px solid #F1F4F9',
   },
   brandLogo: {
-    width: '38px',
-    height: '38px',
+    width: '40px',
+    height: '40px',
     borderRadius: '10px',
     backgroundColor: '#07152B',
     border: '1px solid #DFB76C',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    boxShadow: '0 2px 8px rgba(7, 21, 43, 0.15)',
+    boxShadow: '0 2px 8px rgba(7, 21, 43, 0.18)',
+    flexShrink: 0,
   },
   brandName: {
     fontFamily: "'DM Serif Display', Georgia, serif",
-    fontSize: '20px',
+    fontSize: '21px',
     fontWeight: 400,
     color: '#07152B',
     letterSpacing: '0.04em',
+    lineHeight: 1.1,
   },
   brandSub: {
     fontSize: '9.5px',
     fontWeight: 800,
     color: '#8C6A21',
     letterSpacing: '0.08em',
+    marginTop: '2px',
   },
-  profileStrip: {
-    margin: '16px 14px 10px 14px',
+  profileCard: {
+    margin: '14px 14px 6px 14px',
     padding: '12px 14px',
-    backgroundColor: '#F8F4EC',
-    border: '1px solid #E0C582',
+    backgroundColor: '#FBF9F4',
+    border: '1px solid #EADBB6',
     borderRadius: '12px',
+    cursor: 'pointer',
+    transition: 'all 0.18s ease',
+    boxShadow: '0 1px 3px rgba(7, 21, 43, 0.03)',
+  },
+  profileCardHeader: {
     display: 'flex',
     alignItems: 'center',
-    gap: '12px',
+    gap: '10px',
   },
   avatarCircle: {
-    width: '36px',
-    height: '36px',
+    width: '38px',
+    height: '38px',
     borderRadius: '50%',
     backgroundColor: '#07152B',
     color: '#DFB76C',
     fontWeight: 800,
-    fontSize: '14px',
+    fontSize: '15px',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
     border: '1px solid #DFB76C',
     flexShrink: 0,
+    boxShadow: '0 2px 6px rgba(7, 21, 43, 0.15)',
   },
   profileMeta: {
     overflow: 'hidden',
+    flex: 1,
   },
   profileName: {
     fontSize: '13px',
-    fontWeight: 700,
+    fontWeight: 750,
     color: '#07152B',
     whiteSpace: 'nowrap',
     overflow: 'hidden',
@@ -209,30 +302,68 @@ const styles: { [key: string]: React.CSSProperties } = {
     fontSize: '11px',
     fontWeight: 700,
     color: '#8C6A21',
-    marginTop: '1px',
+    marginTop: '2px',
+    whiteSpace: 'nowrap',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
   },
-  sectionHeader: {
-    fontSize: '10.5px',
-    fontWeight: 800,
-    letterSpacing: '0.08em',
-    color: '#5A687A',
-    padding: '8px 12px',
-    marginBottom: '2px',
+  profileActionRow: {
+    marginTop: '8px',
+    paddingTop: '8px',
+    borderTop: '1px solid #EFE4CD',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  profileSecLink: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '5px',
+    fontSize: '11px',
+    fontWeight: 650,
+    color: '#5A4310',
+  },
+  profileEditBadge: {
+    fontSize: '10px',
+    fontWeight: 750,
+    color: '#8C6A21',
+    backgroundColor: '#FFFFFF',
+    border: '1px solid #E0C582',
+    padding: '1px 7px',
+    borderRadius: '9999px',
   },
   nav: {
     flex: 1,
-    padding: '8px 12px',
+    padding: '10px 14px',
     display: 'flex',
     flexDirection: 'column',
-    gap: '4px',
+    gap: '12px',
     overflowY: 'auto',
+  },
+  sectionBlock: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '3px',
+  },
+  sectionHeader: {
+    fontSize: '10px',
+    fontWeight: 800,
+    letterSpacing: '0.08em',
+    color: '#718096',
+    padding: '4px 10px',
+    textTransform: 'uppercase',
+  },
+  sectionList: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '3px',
   },
   navBtn: {
     width: '100%',
     display: 'flex',
     alignItems: 'center',
-    gap: '12px',
-    padding: '11px 14px',
+    gap: '11px',
+    padding: '10px 12px',
     borderRadius: '10px',
     cursor: 'pointer',
     transition: 'all 0.15s ease',
@@ -249,11 +380,83 @@ const styles: { [key: string]: React.CSSProperties } = {
     color: '#334155',
   },
   navLabel: {
-    fontSize: '13.5px',
+    fontSize: '13px',
+    letterSpacing: '-0.01em',
+  },
+  telemetryCard: {
+    marginTop: 'auto',
+    backgroundColor: '#F8FAFC',
+    border: '1px solid #E2E8F0',
+    borderRadius: '10px',
+    padding: '11px 12px',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '6px',
+  },
+  telemetryHeader: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  telemetryTitleGroup: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '6px',
+  },
+  telemetryTitle: {
+    fontSize: '11px',
+    fontWeight: 700,
+    color: '#07152B',
+  },
+  telemetryPill: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '5px',
+    fontSize: '10.5px',
+    fontWeight: 750,
+    color: '#059669',
+    backgroundColor: '#ECFDF5',
+    border: '1px solid #A7F3D0',
+    padding: '1px 7px',
+    borderRadius: '9999px',
+  },
+  pulseDot: {
+    width: '6px',
+    height: '6px',
+    borderRadius: '50%',
+    backgroundColor: '#10B981',
+    boxShadow: '0 0 0 2px rgba(16, 185, 129, 0.2)',
+  },
+  telemetryMeta: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '2px',
+    fontSize: '10px',
+    color: '#64748B',
   },
   footer: {
-    padding: '14px 16px',
+    padding: '12px 14px',
     borderTop: '1px solid #E4E9F0',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '8px',
+    backgroundColor: '#FFFFFF',
+  },
+  profileBtn: {
+    width: '100%',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: '8px',
+    padding: '9px 12px',
+    borderRadius: '8px',
+    backgroundColor: '#F8FAFC',
+    border: '1px solid #CBD5E1',
+    color: '#07152B',
+    fontSize: '12.5px',
+    fontWeight: 700,
+    cursor: 'pointer',
+    transition: 'all 0.15s ease',
   },
   logoutBtn: {
     width: '100%',
@@ -261,7 +464,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     alignItems: 'center',
     justifyContent: 'center',
     gap: '8px',
-    padding: '10px 14px',
+    padding: '9px 12px',
     borderRadius: '8px',
     backgroundColor: '#FFF5F5',
     border: '1px solid #FED7D7',

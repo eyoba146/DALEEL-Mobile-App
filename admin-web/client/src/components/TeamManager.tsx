@@ -4,6 +4,7 @@ import type { AdminUser } from '../api';
 import { useAdminAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { Plus, Search, Trash2, ShieldCheck, Mail, Phone, RefreshCw, KeyRound, AlertCircle, ArrowLeft, Check, UserCheck } from 'lucide-react';
+import { ResetPasswordModal } from './ResetPasswordModal';
 
 const ROLE_OPTIONS: { value: string; label: string; desc: string }[] = [
   { value: 'SUPER_ADMIN', label: 'Full Administrator', desc: 'Complete management authority across all modules and staff' },
@@ -20,6 +21,7 @@ export const TeamManager: React.FC = () => {
   const [team, setTeam] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [resetTargetUser, setResetTargetUser] = useState<AdminUser | null>(null);
 
   // Dedicated In-Page Editor State (NO POPUPS)
   const [isEditorActive, setIsEditorActive] = useState(false);
@@ -377,19 +379,45 @@ export const TeamManager: React.FC = () => {
                       </span>
                     </td>
                     <td style={{ textAlign: 'right' }}>
-                      {member.id !== adminUser?.id ? (
-                        <button
-                          className="btn-icon"
-                          onClick={() => handleDelete(member.id, member.name)}
-                          title="Revoke Access"
-                        >
-                          <Trash2 size={15} color="#C53030" />
-                        </button>
-                      ) : (
-                        <span style={{ fontSize: '11.5px', color: '#8A9AA8', fontStyle: 'italic' }}>
-                          Current Session
-                        </span>
-                      )}
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '8px' }}>
+                        {adminUser?.adminRole === 'SUPER_ADMIN' && (
+                          <button
+                            type="button"
+                            onClick={() => setResetTargetUser(member)}
+                            title={`Reset & Assign Password for ${member.name}`}
+                            style={{
+                              backgroundColor: '#F8F4EC',
+                              border: '1px solid #E0C582',
+                              borderRadius: '7px',
+                              padding: '5px 9px',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '5px',
+                              color: '#8C6A21',
+                              fontSize: '11.5px',
+                              fontWeight: 700,
+                              cursor: 'pointer',
+                              transition: 'all 0.15s ease',
+                            }}
+                          >
+                            <KeyRound size={13} color="#8C6A21" />
+                            <span>Reset Key</span>
+                          </button>
+                        )}
+                        {member.id !== adminUser?.id ? (
+                          <button
+                            className="btn-icon"
+                            onClick={() => handleDelete(member.id, member.name)}
+                            title="Revoke Access"
+                          >
+                            <Trash2 size={15} color="#C53030" />
+                          </button>
+                        ) : (
+                          <span style={{ fontSize: '11.5px', color: '#8A9AA8', fontStyle: 'italic', paddingRight: '4px' }}>
+                            Current Session
+                          </span>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -398,6 +426,14 @@ export const TeamManager: React.FC = () => {
           </table>
         </div>
       </div>
+
+      {/* Super Administrator Master Credential Assignment Tool */}
+      <ResetPasswordModal
+        isOpen={!!resetTargetUser}
+        user={resetTargetUser}
+        onClose={() => setResetTargetUser(null)}
+        onSuccess={() => loadTeam()}
+      />
     </div>
   );
 };

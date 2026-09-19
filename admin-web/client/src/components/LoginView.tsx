@@ -1,9 +1,27 @@
 import React, { useState } from 'react';
 import { useAdminAuth } from '../context/AuthContext';
-import { Shield, Lock, Mail, Eye, EyeOff, ArrowRight } from 'lucide-react';
+import { adminApi } from '../api';
+import {
+  Shield,
+  Lock,
+  Mail,
+  Eye,
+  EyeOff,
+  ArrowRight,
+  ArrowLeft,
+  KeyRound,
+  CheckCircle2,
+  AlertCircle,
+  HelpCircle,
+} from 'lucide-react';
 
 export const LoginView: React.FC = () => {
   const { login } = useAdminAuth();
+
+  // Mode: 'login' | 'forgot'
+  const [mode, setMode] = useState<'login' | 'forgot'>('login');
+
+  // Sign in states
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -11,6 +29,12 @@ export const LoginView: React.FC = () => {
   const [errorMsg, setErrorMsg] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showCredentialsHelp, setShowCredentialsHelp] = useState(false);
+
+  // Recovery states
+  const [recoveryEmail, setRecoveryEmail] = useState('');
+  const [recoverySuccessMsg, setRecoverySuccessMsg] = useState('');
+  const [recoveryErrorMsg, setRecoveryErrorMsg] = useState('');
+  const [isRecovering, setIsRecovering] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -32,6 +56,30 @@ export const LoginView: React.FC = () => {
     setErrorMsg('');
   };
 
+  const handleRecoverySubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setRecoveryErrorMsg('');
+    setRecoverySuccessMsg('');
+
+    if (!recoveryEmail.trim()) {
+      setRecoveryErrorMsg('Please enter your official administrative email address.');
+      return;
+    }
+
+    setIsRecovering(true);
+    try {
+      const res = await adminApi.forgotPassword(recoveryEmail.trim());
+      setRecoverySuccessMsg(
+        res.message ||
+          'Recovery notification dispatched. The Super Administrator has been alerted to reset your credentials.'
+      );
+    } catch (err: any) {
+      setRecoveryErrorMsg(err.message || 'Failed to dispatch recovery request. Check your connection.');
+    } finally {
+      setIsRecovering(false);
+    }
+  };
+
   return (
     <div style={styles.pageRoot}>
       {/* Background Decor */}
@@ -41,128 +89,250 @@ export const LoginView: React.FC = () => {
         {/* Institutional Crest & Brand */}
         <div style={styles.header}>
           <div style={styles.crestCircle}>
-            <Shield size={28} color="#DFB76C" />
+            {mode === 'login' ? (
+              <Shield size={28} color="#DFB76C" />
+            ) : (
+              <KeyRound size={28} color="#DFB76C" />
+            )}
           </div>
           <h1 style={styles.brandTitle}>DALEEL</h1>
-          <div style={styles.portalTag}>MANAGEMENT PORTAL</div>
+          <div style={styles.portalTag}>
+            {mode === 'login' ? 'MANAGEMENT PORTAL' : 'CREDENTIAL RECOVERY'}
+          </div>
           <p style={styles.portalSub}>
-            Administrative portal for Ethiopian destinations, verified services, and diaspora investments.
+            {mode === 'login'
+              ? 'Administrative portal for Ethiopian destinations, verified services, and diaspora investments.'
+              : 'Federal administrative access keys are managed through cryptographic assignment by the Super Administrator.'}
           </p>
         </div>
 
-        {/* Error Alert */}
-        {errorMsg && (
-          <div style={styles.errorBanner}>
-            <span>{errorMsg}</span>
-          </div>
+        {/* Normal Login View */}
+        {mode === 'login' && (
+          <>
+            {/* Error Alert */}
+            {errorMsg && (
+              <div style={styles.errorBanner}>
+                <AlertCircle size={16} style={{ flexShrink: 0 }} />
+                <span>{errorMsg}</span>
+              </div>
+            )}
+
+            {/* Login Form */}
+            <form onSubmit={handleSubmit} style={styles.form}>
+              <div style={styles.formGroup}>
+                <label style={styles.label}>Email Address</label>
+                <div style={styles.inputWrap}>
+                  <Mail size={17} color="#8A9AA8" style={styles.fieldIcon} />
+                  <input
+                    type="email"
+                    required
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="superadmin@daleel.et"
+                    style={styles.inputField}
+                  />
+                </div>
+              </div>
+
+              <div style={styles.formGroup}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <label style={styles.label}>Password</label>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMode('forgot');
+                      setRecoveryEmail(email);
+                      setErrorMsg('');
+                    }}
+                    style={styles.forgotLink}
+                  >
+                    Forgot password?
+                  </button>
+                </div>
+                <div style={styles.inputWrap}>
+                  <Lock size={17} color="#8A9AA8" style={styles.fieldIcon} />
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    required
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="••••••••••••"
+                    style={styles.inputField}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    style={styles.eyeBtn}
+                    aria-label="Toggle password visibility"
+                  >
+                    {showPassword ? <EyeOff size={16} color="#8A9AA8" /> : <Eye size={16} color="#8A9AA8" />}
+                  </button>
+                </div>
+              </div>
+
+              <div style={styles.optionsRow}>
+                <label style={styles.checkboxLabel}>
+                  <input
+                    type="checkbox"
+                    checked={rememberMe}
+                    onChange={(e) => setRememberMe(e.target.checked)}
+                    style={styles.checkbox}
+                  />
+                  <span>Remember session</span>
+                </label>
+
+                <button
+                  type="button"
+                  style={styles.helpToggle}
+                  onClick={() => setShowCredentialsHelp(!showCredentialsHelp)}
+                >
+                  <HelpCircle size={13} color="#8C6A21" />
+                  <span>{showCredentialsHelp ? 'Hide directory' : 'Coordinator presets'}</span>
+                </button>
+              </div>
+
+              {/* Discreet Coordinator Accounts Drawer */}
+              {showCredentialsHelp && (
+                <div style={styles.helpDrawer}>
+                  <div style={styles.drawerTitle}>Active Coordinator Directory:</div>
+                  <div style={styles.accountsList}>
+                    {[
+                      { role: 'Super Admin', mail: 'superadmin@daleel.et' },
+                      { role: 'Destinations Lead', mail: 'destinations@daleel.et' },
+                      { role: 'Services Lead', mail: 'services@daleel.et' },
+                      { role: 'Events Lead', mail: 'events@daleel.et' },
+                      { role: 'Marketplace Lead', mail: 'marketplace@daleel.et' },
+                      { role: 'Investment Officer', mail: 'investments@daleel.et' },
+                    ].map((acc) => (
+                      <button
+                        key={acc.mail}
+                        type="button"
+                        style={styles.accountItem}
+                        onClick={() => handleApplyPreset(acc.mail)}
+                      >
+                        <span style={styles.accRole}>{acc.role}</span>
+                        <span style={styles.accMail}>{acc.mail}</span>
+                      </button>
+                    ))}
+                  </div>
+                  <div style={styles.drawerHint}>Default access key: Admin2026!</div>
+                </div>
+              )}
+
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                style={{
+                  ...styles.submitBtn,
+                  opacity: isSubmitting ? 0.7 : 1,
+                }}
+              >
+                {isSubmitting ? (
+                  <span>Authenticating...</span>
+                ) : (
+                  <>
+                    <span>Sign In to Management Portal</span>
+                    <ArrowRight size={17} color="#07152B" />
+                  </>
+                )}
+              </button>
+            </form>
+          </>
         )}
 
-        {/* Login Form */}
-        <form onSubmit={handleSubmit} style={styles.form}>
-          <div style={styles.formGroup}>
-            <label style={styles.label}>Email Address</label>
-            <div style={styles.inputWrap}>
-              <Mail size={17} color="#8A9AA8" style={styles.fieldIcon} />
-              <input
-                type="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="superadmin@daleel.et"
-                style={styles.inputField}
-              />
-            </div>
-          </div>
+        {/* Forgot Password Recovery Mode */}
+        {mode === 'forgot' && (
+          <form onSubmit={handleRecoverySubmit} style={styles.form}>
+            {recoveryErrorMsg && (
+              <div style={styles.errorBanner}>
+                <AlertCircle size={16} style={{ flexShrink: 0 }} />
+                <span>{recoveryErrorMsg}</span>
+              </div>
+            )}
 
-          <div style={styles.formGroup}>
-            <label style={styles.label}>Password</label>
-            <div style={styles.inputWrap}>
-              <Lock size={17} color="#8A9AA8" style={styles.fieldIcon} />
-              <input
-                type={showPassword ? 'text' : 'password'}
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••••••"
-                style={styles.inputField}
-              />
+            {recoverySuccessMsg ? (
+              <div style={styles.successBanner}>
+                <CheckCircle2 size={20} color="#059669" style={{ flexShrink: 0, marginTop: '2px' }} />
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontWeight: 750, color: '#065F46', fontSize: '13px', marginBottom: '4px' }}>
+                    Request Registered
+                  </div>
+                  <div style={{ fontSize: '12px', color: '#047857', lineHeight: 1.5 }}>
+                    {recoverySuccessMsg}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div style={styles.noticeBox}>
+                <KeyRound size={18} color="#C59B43" style={{ flexShrink: 0, marginTop: '2px' }} />
+                <div style={{ fontSize: '12px', color: '#5A4310', lineHeight: 1.5 }}>
+                  Submitting this request creates an elevated notification for the Super Administrator. Once reviewed, your administrator will generate a new secure password key for your account from the <strong>Administrative Team</strong> console.
+                </div>
+              </div>
+            )}
+
+            <div style={styles.formGroup}>
+              <label style={styles.label}>Official Administrative Email *</label>
+              <div style={styles.inputWrap}>
+                <Mail size={17} color="#8A9AA8" style={styles.fieldIcon} />
+                <input
+                  type="email"
+                  required
+                  value={recoveryEmail}
+                  onChange={(e) => setRecoveryEmail(e.target.value)}
+                  placeholder="e.g. rahel@daleel.et or superadmin@daleel.et"
+                  style={styles.inputField}
+                  disabled={!!recoverySuccessMsg}
+                />
+              </div>
+            </div>
+
+            {!recoverySuccessMsg ? (
+              <button
+                type="submit"
+                disabled={isRecovering || !recoveryEmail}
+                style={{
+                  ...styles.submitBtn,
+                  opacity: isRecovering || !recoveryEmail ? 0.7 : 1,
+                }}
+              >
+                {isRecovering ? (
+                  <span>Transmitting Request...</span>
+                ) : (
+                  <>
+                    <KeyRound size={16} color="#07152B" />
+                    <span>Dispatch Recovery Request</span>
+                  </>
+                )}
+              </button>
+            ) : (
               <button
                 type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                style={styles.eyeBtn}
-                aria-label="Toggle password visibility"
+                onClick={() => {
+                  setMode('login');
+                  setRecoverySuccessMsg('');
+                }}
+                style={styles.submitBtn}
               >
-                {showPassword ? <EyeOff size={16} color="#8A9AA8" /> : <Eye size={16} color="#8A9AA8" />}
+                <span>Return to Sign In</span>
+                <ArrowRight size={17} color="#07152B" />
               </button>
-            </div>
-          </div>
-
-          <div style={styles.optionsRow}>
-            <label style={styles.checkboxLabel}>
-              <input
-                type="checkbox"
-                checked={rememberMe}
-                onChange={(e) => setRememberMe(e.target.checked)}
-                style={styles.checkbox}
-              />
-              <span>Remember secure session</span>
-            </label>
+            )}
 
             <button
               type="button"
-              style={styles.helpToggle}
-              onClick={() => setShowCredentialsHelp(!showCredentialsHelp)}
+              style={styles.backToLoginBtn}
+              onClick={() => {
+                setMode('login');
+                setRecoveryErrorMsg('');
+                setRecoverySuccessMsg('');
+              }}
             >
-              {showCredentialsHelp ? 'Hide account directory' : 'Coordinator accounts'}
+              <ArrowLeft size={14} color="#5A687A" />
+              <span>Back to Sign In</span>
             </button>
-          </div>
-
-          {/* Discreet Coordinator Accounts Drawer */}
-          {showCredentialsHelp && (
-            <div style={styles.helpDrawer}>
-              <div style={styles.drawerTitle}>Active Coordinator Directory:</div>
-              <div style={styles.accountsList}>
-                {[
-                  { role: 'Super Admin', mail: 'superadmin@daleel.et' },
-                  { role: 'Destinations Lead', mail: 'destinations@daleel.et' },
-                  { role: 'Services Lead', mail: 'services@daleel.et' },
-                  { role: 'Events Lead', mail: 'events@daleel.et' },
-                  { role: 'Marketplace Lead', mail: 'marketplace@daleel.et' },
-                  { role: 'Investment Officer', mail: 'investments@daleel.et' },
-                ].map((acc) => (
-                  <button
-                    key={acc.mail}
-                    type="button"
-                    style={styles.accountItem}
-                    onClick={() => handleApplyPreset(acc.mail)}
-                  >
-                    <span style={styles.accRole}>{acc.role}</span>
-                    <span style={styles.accMail}>{acc.mail}</span>
-                  </button>
-                ))}
-              </div>
-              <div style={styles.drawerHint}>Default access key: Admin2026!</div>
-            </div>
-          )}
-
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            style={{
-              ...styles.submitBtn,
-              opacity: isSubmitting ? 0.7 : 1,
-            }}
-          >
-            {isSubmitting ? (
-              <span>Signing In...</span>
-            ) : (
-              <>
-                <span>Sign In to Management Portal</span>
-                <ArrowRight size={17} color="#07152B" />
-              </>
-            )}
-          </button>
-        </form>
+          </form>
+        )}
 
         {/* Institutional Trust Footer */}
         <div style={styles.footer}>
@@ -254,8 +424,28 @@ const styles: { [key: string]: React.CSSProperties } = {
     padding: '12px 14px',
     borderRadius: '8px',
     marginBottom: '20px',
-    textAlign: 'center',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '10px',
     fontWeight: 500,
+  },
+  successBanner: {
+    backgroundColor: '#ECFDF5',
+    border: '1px solid #A7F3D0',
+    padding: '14px 16px',
+    borderRadius: '10px',
+    display: 'flex',
+    alignItems: 'flex-start',
+    gap: '12px',
+  },
+  noticeBox: {
+    display: 'flex',
+    alignItems: 'flex-start',
+    gap: '10px',
+    padding: '12px 14px',
+    backgroundColor: '#FDF8E8',
+    border: '1px solid #EBD59B',
+    borderRadius: '10px',
   },
   form: {
     display: 'flex',
@@ -271,6 +461,16 @@ const styles: { [key: string]: React.CSSProperties } = {
     fontSize: '12px',
     fontWeight: 700,
     color: '#07152B',
+  },
+  forgotLink: {
+    background: 'none',
+    border: 'none',
+    color: '#8C6A21',
+    fontSize: '11.5px',
+    fontWeight: 700,
+    cursor: 'pointer',
+    padding: 0,
+    textDecoration: 'underline',
   },
   inputWrap: {
     position: 'relative',
@@ -326,10 +526,12 @@ const styles: { [key: string]: React.CSSProperties } = {
     background: 'none',
     border: 'none',
     color: '#8C6A21',
-    fontWeight: 600,
+    fontWeight: 650,
     cursor: 'pointer',
     fontSize: '12px',
-    textDecoration: 'underline',
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '4px',
   },
   helpDrawer: {
     backgroundColor: '#F8FAFC',
@@ -396,6 +598,20 @@ const styles: { [key: string]: React.CSSProperties } = {
     boxShadow: '0 4px 14px rgba(223, 183, 108, 0.35)',
     transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
   },
+  backToLoginBtn: {
+    background: 'none',
+    border: 'none',
+    color: '#5A687A',
+    fontSize: '12.5px',
+    fontWeight: 650,
+    cursor: 'pointer',
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: '6px',
+    padding: '6px',
+    marginTop: '4px',
+  },
   footer: {
     marginTop: '28px',
     paddingTop: '20px',
@@ -407,11 +623,6 @@ const styles: { [key: string]: React.CSSProperties } = {
     fontSize: '11px',
     color: '#8A9AA8',
     flexWrap: 'wrap',
-  },
-  footerItem: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '4px',
   },
   footerDivider: {
     color: '#CBD5E1',
