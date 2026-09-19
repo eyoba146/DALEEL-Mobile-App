@@ -281,21 +281,51 @@ export const EventCheckInDesk: React.FC<EventCheckInDeskProps> = ({
         throw new Error('Camera device API is not supported or has been disabled in this browser.');
       }
 
-      // 2. Discover available camera hardware
+      // 2. Direct getUserMedia test: triggers native permission dialog or detects block immediately
+      try {
+        const testStream = await navigator.mediaDevices.getUserMedia({ video: true });
+        testStream.getTracks().forEach((track) => track.stop());
+      } catch (streamErr: any) {
+        console.warn('getUserMedia permission check error:', streamErr);
+        if (
+          streamErr.name === 'NotAllowedError' ||
+          streamErr.name === 'PermissionDeniedError' ||
+          streamErr.message?.toLowerCase().includes('permission denied')
+        ) {
+          throw new Error('CAMERA_PERMISSION_DENIED');
+        }
+        if (
+          streamErr.name === 'NotFoundError' ||
+          streamErr.name === 'DevicesNotFoundError' ||
+          streamErr.message?.toLowerCase().includes('not found')
+        ) {
+          throw new Error('NO_CAMERA_DEVICE');
+        }
+        if (streamErr.name === 'NotReadableError' || streamErr.name === 'TrackStartError') {
+          throw new Error('CAMERA_IN_USE');
+        }
+      }
+
+      // 3. Discover available camera hardware
       let devices: { id: string; label: string }[] = [];
       try {
         devices = await Html5Qrcode.getCameras();
       } catch (camErr: any) {
         console.warn('Html5Qrcode.getCameras warning:', camErr);
+        if (
+          camErr.name === 'NotAllowedError' ||
+          camErr.name === 'PermissionDeniedError' ||
+          camErr.message?.toLowerCase().includes('permission denied')
+        ) {
+          throw new Error('CAMERA_PERMISSION_DENIED');
+        }
       }
 
       if (devices && devices.length > 0) {
         setAvailableCameras(devices);
       }
 
-      // Determine camera constraint:
-      // Desktop webcams reject facingMode: 'environment' before asking for permissions.
-      // We prioritize exact hardware ID or ideal environment for mobile back cameras.
+      // Determine camera constraint (valid in html5-qrcode: string deviceId or { facingMode: 'environment' | 'user' })
       let cameraConfig: any;
       if (selectedCameraId) {
         cameraConfig = selectedCameraId;
@@ -305,45 +335,87 @@ export const EventCheckInDesk: React.FC<EventCheckInDeskProps> = ({
         cameraConfig = chosen.id;
         setSelectedCameraId(chosen.id);
       } else {
-        cameraConfig = { facingMode: { ideal: 'environment' } };
+        cameraConfig = { facingMode: 'environment' };
       }
 
       const html5QrCode = new Html5Qrcode('gate-qr-reader');
       html5QrCodeRef.current = html5QrCode;
 
-      await html5QrCode.start(
-        cameraConfig,
-        {
-          fps: 10,
-          qrbox: { width: 250, height: 250 },
-          aspectRatio: 1.0,
-        },
-        (decodedText) => {
-          if (!isScanningRef.current) {
-            isScanningRef.current = true;
-            handleProcessCheckIn(decodedText);
-            setTimeout(() => {
-              isScanningRef.current = false;
-            }, 2500);
-          }
-        },
-        () => {}
-      );
+      try {
+        await html5QrCode.start(
+          cameraConfig,
+          {
+            fps: 10,
+            qrbox: { width: 250, height: 250 },
+            aspectRatio: 1.0,
+          },
+          (decodedText) => {
+            if (!isScanningRef.current) {
+              isScanningRef.current = true;
+              handleProcessCheckIn(decodedText);
+              setTimeout(() => {
+                isScanningRef.current = false;
+              }, 2500);
+            }
+          },
+          () => {}
+        );
+      } catch (startErr: any) {
+        // Fallback to user facing camera if environment failed
+        console.warn('Primary camera start failed, trying user camera fallback:', startErr);
+        await html5QrCode.start(
+          { facingMode: 'user' },
+          {
+            fps: 10,
+            qrbox: { width: 250, height: 250 },
+            aspectRatio: 1.0,
+          },
+          (decodedText) => {
+            if (!isScanningRef.current) {
+              isScanningRef.current = true;
+              handleProcessCheckIn(decodedText);
+              setTimeout(() => {
+                isScanningRef.current = false;
+              }, 2500);
+            }
+          },
+          () => {}
+        );
+      }
 
       setIsCameraActive(true);
     } catch (err: any) {
       console.error('Camera activation failed:', err);
       let humanMsg = err.message || 'Unable to access camera.';
-      if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
-        humanMsg = 'Camera permission was blocked. Click the lock/camera icon in your browser address bar and switch Camera to "Allow", then retry.';
-      } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError' || humanMsg.toLowerCase().includes('no camera') || humanMsg.toLowerCase().includes('not found')) {
-        humanMsg = 'No camera device detected on this computer. Please connect a webcam or use express pass search below.';
-      } else if (err.name === 'NotReadableError' || err.name === 'TrackStartError') {
-        humanMsg = 'Camera is in use by another program (e.g. Zoom, Teams, Skype). Please close the other program and retry.';
-      } else if (err.name === 'OverconstrainedError') {
-        humanMsg = 'The requested camera mode is not supported by your hardware.';
+
+      if (
+        err.message === 'CAMERA_PERMISSION_DENIED' ||
+        err.name === 'NotAllowedError' ||
+        err.name === 'PermissionDeniedError' ||
+        err.message?.toLowerCase().includes('permission denied')
+      ) {
+        humanMsg =
+          'Camera permission is blocked in your browser. Click the lock/camera icon next to http://localhost:5173 in the address bar, switch Camera to "Allow", and reload the page.';
+      } else if (
+        err.message === 'NO_CAMERA_DEVICE' ||
+        err.name === 'NotFoundError' ||
+        err.name === 'DevicesNotFoundError' ||
+        humanMsg.toLowerCase().includes('no camera') ||
+        humanMsg.toLowerCase().includes('not found')
+      ) {
+        humanMsg =
+          'No camera / webcam found on this computer. Please attach a USB webcam, or use express pass search / file upload below.';
+      } else if (
+        err.message === 'CAMERA_IN_USE' ||
+        err.name === 'NotReadableError' ||
+        err.name === 'TrackStartError'
+      ) {
+        humanMsg =
+          'Camera is in use by another program (e.g. Zoom, Teams, Skype). Please close the other program and retry.';
       }
+
       setCameraError(humanMsg);
+      toastError(humanMsg);
       setIsCameraActive(false);
     } finally {
       setIsStartingCamera(false);
@@ -634,7 +706,7 @@ export const EventCheckInDesk: React.FC<EventCheckInDeskProps> = ({
                 }}
               />
 
-              {!isCameraActive && (
+              {!isCameraActive && !cameraError && (
                 <div style={styles.cameraIdleOverlay}>
                   <div style={styles.cameraIdleIconCircle}>
                     <QrCode size={30} color="#DFB76C" />
