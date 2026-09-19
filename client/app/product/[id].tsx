@@ -405,7 +405,7 @@ export default function ProductDetailScreen() {
       </Animated.View>
 
       <Animated.ScrollView
-        contentContainerStyle={[styles.scrollContent, { paddingBottom: 110 + insets.bottom }]}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: 140 + insets.bottom }]}
         showsVerticalScrollIndicator={false}
         scrollEventThrottle={16}
         onScroll={Animated.event(
@@ -615,73 +615,98 @@ export default function ProductDetailScreen() {
       </Animated.ScrollView>
 
       {/* Sticky Bottom Ordering Bar */}
-      <View style={[styles.bottomBar, { paddingBottom: Math.max(insets.bottom, 14) }]}>
-        <View style={styles.bottomPriceCol}>
-          <Text style={styles.bottomPriceLabel}>
-            {hasActiveInquiry ? 'Your Inquiry Total' : 'Price per piece'}
-          </Text>
-          <Text style={styles.bottomPriceValue}>
-            {formatPrice(hasActiveInquiry ? product.price * activeInquiry.quantity : product.price, product.currency)}
-          </Text>
-        </View>
+      <View style={[styles.bottomBar, { paddingBottom: Math.max(insets.bottom, 12) }]}>
+        {/* Tier 1: Price & WhatsApp Link */}
+        <View style={styles.bottomInfoRow}>
+          <View style={styles.bottomPriceCol}>
+            <Text style={styles.bottomPriceLabel}>
+              {hasActiveInquiry ? 'Your Active Inquiry' : 'Artisan Direct Price'}
+            </Text>
+            <View style={styles.bottomPriceValueRow}>
+              <Text style={styles.bottomPriceValue}>
+                {formatPrice(hasActiveInquiry ? product.price * activeInquiry.quantity : product.price, product.currency)}
+              </Text>
+              <Text style={styles.bottomPriceUsd}>
+                {`≈ $${Math.round((hasActiveInquiry ? product.price * activeInquiry.quantity : product.price) / 125)} USD`}
+              </Text>
+            </View>
+          </View>
 
-        <View style={styles.bottomActionsRow}>
           {product.sellerWhatsapp && (
             <TouchableOpacity
-              style={styles.chatWhatsappBtn}
+              style={styles.chatWhatsappPill}
               onPress={() => handleWhatsAppSeller(activeInquiry?.id)}
               activeOpacity={0.85}
               accessibilityLabel="WhatsApp Merchant"
             >
-              <Ionicons name="logo-whatsapp" size={20} color="#25D366" />
+              <Ionicons name="logo-whatsapp" size={15} color="#25D366" style={{ marginRight: 5 }} />
+              <Text style={styles.chatWhatsappPillText}>Artisan Chat</Text>
             </TouchableOpacity>
           )}
+        </View>
 
-          {!hasActiveInquiry && (
+        {/* Tier 2: Action Buttons */}
+        <View style={styles.bottomButtonsRow}>
+          {!hasActiveInquiry ? (
+            <>
+              <TouchableOpacity
+                style={[styles.addToBagBtn, addedFeedback && styles.addToBagBtnSuccess]}
+                onPress={handleAddToCart}
+                activeOpacity={0.85}
+              >
+                <Ionicons
+                  name={addedFeedback ? 'checkmark-circle' : 'bag-add-outline'}
+                  size={18}
+                  color={addedFeedback ? '#166534' : colors.navy}
+                  style={{ marginRight: 6 }}
+                />
+                <Text style={[styles.addToBagBtnText, addedFeedback && styles.addToBagBtnTextSuccess]}>
+                  {addedFeedback ? 'Added to Bag!' : 'Add to Bag'}
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.directOrderBtn}
+                onPress={() => {
+                  setOrderSuccess(false);
+                  setIsEditMode(false);
+                  setCancelPromptVisible(false);
+                  setFormError(null);
+                  setOrderModalVisible(true);
+                }}
+                activeOpacity={0.88}
+              >
+                <Ionicons
+                  name="flash"
+                  size={17}
+                  color="#DFB76C"
+                  style={{ marginRight: 6 }}
+                />
+                <Text style={styles.directOrderBtnText}>Direct Order</Text>
+              </TouchableOpacity>
+            </>
+          ) : (
             <TouchableOpacity
-              style={[styles.addToCartBtn, addedFeedback && styles.addToCartBtnSuccess]}
-              onPress={handleAddToCart}
-              activeOpacity={0.85}
+              style={styles.manageOrderBtn}
+              onPress={() => {
+                setOrderSuccess(false);
+                setIsEditMode(false);
+                setCancelPromptVisible(false);
+                setFormError(null);
+                setOrderModalVisible(true);
+              }}
+              activeOpacity={0.88}
             >
               <Ionicons
-                name={addedFeedback ? 'checkmark-circle' : 'bag-add-outline'}
-                size={17}
-                color={addedFeedback ? '#166534' : colors.navy}
-                style={{ marginRight: 5 }}
+                name="clipboard-outline"
+                size={18}
+                color={colors.navy}
+                style={{ marginRight: 8 }}
               />
-              <Text
-                style={[styles.addToCartBtnText, addedFeedback && styles.addToCartBtnTextSuccess]}
-              >
-                {addedFeedback ? 'Added!' : 'Add to Bag'}
-              </Text>
+              <Text style={styles.manageOrderBtnText}>Manage Order Inquiry</Text>
+              <View style={styles.activeInquiryDot} />
             </TouchableOpacity>
           )}
-
-          <TouchableOpacity
-            style={[
-              styles.orderMainBtn,
-              hasActiveInquiry && styles.orderManageBtn,
-              !hasActiveInquiry && { flex: 1.1 },
-            ]}
-            onPress={() => {
-              setOrderSuccess(false);
-              setIsEditMode(false);
-              setCancelPromptVisible(false);
-              setFormError(null);
-              setOrderModalVisible(true);
-            }}
-            activeOpacity={0.88}
-          >
-            <Ionicons
-              name={hasActiveInquiry ? 'clipboard-outline' : 'flash-outline'}
-              size={18}
-              color="#FFFFFF"
-              style={{ marginRight: 6 }}
-            />
-            <Text style={styles.orderMainBtnText}>
-              {hasActiveInquiry ? 'Manage Order' : 'Direct Order'}
-            </Text>
-          </TouchableOpacity>
         </View>
       </View>
 
@@ -697,6 +722,15 @@ export default function ProductDetailScreen() {
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
           style={styles.modalOverlay}
         >
+          <TouchableOpacity
+            style={styles.modalBackdropTapArea}
+            activeOpacity={1}
+            onPress={() => {
+              setOrderModalVisible(false);
+              setIsEditMode(false);
+              setCancelPromptVisible(false);
+            }}
+          />
           <View style={styles.modalSheet}>
             {/* Modal Header */}
             <View style={styles.modalHeader}>
@@ -725,7 +759,7 @@ export default function ProductDetailScreen() {
 
             {/* View A: Success Receipt State */}
             {orderSuccess ? (
-              <ScrollView contentContainerStyle={styles.successContent}>
+              <ScrollView contentContainerStyle={styles.successContent} keyboardShouldPersistTaps="handled">
                 <View style={styles.successIconCircle}>
                   <Ionicons name="checkmark-done" size={42} color={colors.success} />
                 </View>
@@ -786,7 +820,7 @@ export default function ProductDetailScreen() {
               </ScrollView>
             ) : hasActiveInquiry && !isEditMode ? (
               /* View B: Active Order Management View (Status, Details, Edit & Cancel) */
-              <ScrollView contentContainerStyle={styles.manageContent} showsVerticalScrollIndicator={false}>
+              <ScrollView contentContainerStyle={styles.manageContent} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
                 {/* Live Status Card */}
                 <View style={styles.statusCard}>
                   <View style={styles.statusHeaderRow}>
@@ -934,6 +968,7 @@ export default function ProductDetailScreen() {
               <ScrollView
                 showsVerticalScrollIndicator={false}
                 contentContainerStyle={styles.formContent}
+                keyboardShouldPersistTaps="handled"
               >
                 {/* Inline Error Notice (No Alert.alert) */}
                 {formError ? (
@@ -1539,16 +1574,20 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderTopWidth: 1,
     borderTopColor: 'rgba(23, 25, 28, 0.08)',
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    elevation: 12,
+    zIndex: 100,
+  },
+  bottomInfoRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 18,
-    paddingTop: 12,
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: -3 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 8,
+    marginBottom: 8,
   },
   bottomPriceCol: {
     flex: 1,
@@ -1556,50 +1595,116 @@ const styles = StyleSheet.create({
   bottomPriceLabel: {
     fontSize: 10.5,
     fontFamily: fonts.body,
+    fontWeight: '600',
     color: colors.charcoalSub,
+    letterSpacing: 0.2,
+    marginBottom: 1,
+  },
+  bottomPriceValueRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: 6,
   },
   bottomPriceValue: {
-    fontSize: 16,
-    fontFamily: fonts.body,
+    fontSize: 17,
+    fontFamily: fonts.heading,
     fontWeight: '800',
     color: colors.navy,
   },
-  bottomActionsRow: {
+  bottomPriceUsd: {
+    fontSize: 11.5,
+    fontFamily: fonts.body,
+    fontWeight: '600',
+    color: colors.goldText,
+  },
+  chatWhatsappPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    backgroundColor: 'rgba(37, 211, 102, 0.1)',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: 'rgba(37, 211, 102, 0.25)',
   },
-  chatWhatsappBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: 'rgba(37, 211, 102, 0.12)',
+  chatWhatsappPillText: {
+    fontSize: 11.5,
+    fontFamily: fonts.body,
+    fontWeight: '700',
+    color: '#15803D',
+  },
+  bottomButtonsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  addToBagBtn: {
+    flex: 1,
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: colors.goldSoft,
+    height: 46,
+    borderRadius: radius.pill,
     borderWidth: 1,
-    borderColor: 'rgba(37, 211, 102, 0.3)',
+    borderColor: colors.goldBorder,
   },
-  orderMainBtn: {
+  addToBagBtnSuccess: {
+    backgroundColor: '#DCFCE7',
+    borderColor: '#86EFAC',
+  },
+  addToBagBtnText: {
+    fontSize: 13,
+    fontFamily: fonts.body,
+    fontWeight: '700',
+    color: colors.navy,
+  },
+  addToBagBtnTextSuccess: {
+    color: '#166534',
+  },
+  directOrderBtn: {
+    flex: 1.15,
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     backgroundColor: colors.navy,
-    paddingHorizontal: 20,
-    paddingVertical: 12,
+    height: 46,
     borderRadius: radius.pill,
     shadowColor: colors.navy,
     shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.25,
+    shadowOpacity: 0.2,
     shadowRadius: 6,
     elevation: 4,
   },
-  orderManageBtn: {
-    backgroundColor: colors.goldRich,
-  },
-  orderMainBtnText: {
-    fontSize: 13.5,
+  directOrderBtnText: {
+    fontSize: 13,
     fontFamily: fonts.body,
     fontWeight: '700',
     color: '#FFFFFF',
+  },
+  manageOrderBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.goldSoft,
+    height: 46,
+    borderRadius: radius.pill,
+    borderWidth: 1.5,
+    borderColor: colors.gold,
+  },
+  manageOrderBtnText: {
+    fontSize: 13.5,
+    fontFamily: fonts.body,
+    fontWeight: '700',
+    color: colors.navy,
+  },
+  activeInquiryDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
+    backgroundColor: colors.gold,
+    marginLeft: 8,
   },
 
   // Modal Sheet (True Fullscreen dark overlay with statusBarTranslucent)
@@ -1608,11 +1713,14 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.65)',
     justifyContent: 'flex-end',
   },
+  modalBackdropTapArea: {
+    flex: 1,
+  },
   modalSheet: {
     backgroundColor: '#FFFFFF',
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
-    maxHeight: '92%',
+    maxHeight: '90%',
     paddingBottom: 24,
   },
   modalHeader: {
@@ -2085,30 +2193,5 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: colors.navy,
   },
-  addToCartBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.goldSoft,
-    paddingVertical: 13,
-    paddingHorizontal: 12,
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    borderColor: 'rgba(223, 183, 108, 0.4)',
-    marginRight: 8,
-  },
-  addToCartBtnSuccess: {
-    backgroundColor: '#DCFCE7',
-    borderColor: '#86EFAC',
-  },
-  addToCartBtnText: {
-    fontSize: 13,
-    fontFamily: fonts.body,
-    fontWeight: '700',
-    color: colors.navy,
-  },
-  addToCartBtnTextSuccess: {
-    color: '#166534',
-  },
 });
+
