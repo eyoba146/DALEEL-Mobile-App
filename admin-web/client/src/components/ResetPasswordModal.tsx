@@ -91,7 +91,7 @@ export const ResetPasswordModal: React.FC<ResetPasswordModalProps> = ({
             <div>
               <h3 style={styles.headerTitle}>Reset Coordinator Password</h3>
               <p style={styles.headerSubtitle}>
-                Super Administrator Cryptographic Access Delegation
+                Super Administrator Credential Authority
               </p>
             </div>
           </div>
@@ -118,7 +118,7 @@ export const ResetPasswordModal: React.FC<ResetPasswordModalProps> = ({
           {/* Password Input & Generation Controls */}
           <div>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
-              <label style={styles.label}>New Master Password *</label>
+              <label style={styles.label}>New Temporary Password *</label>
               <button
                 type="button"
                 style={styles.generateBtn}
@@ -168,7 +168,7 @@ export const ResetPasswordModal: React.FC<ResetPasswordModalProps> = ({
           <div style={styles.warningBox}>
             <ShieldAlert size={18} color="#C59B43" style={{ flexShrink: 0, marginTop: '2px' }} />
             <div style={{ fontSize: '12px', color: '#5A4310', lineHeight: 1.5 }}>
-              This operation immediately overwrites the coordinator's stored hash in the database. Ensure you convey the new temporary password through a secure administrative channel.
+              This action immediately updates the coordinator's account password. Please share this new password securely with the team member through an authorized channel.
             </div>
           </div>
 

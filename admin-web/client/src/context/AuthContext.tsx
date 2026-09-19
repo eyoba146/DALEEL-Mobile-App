@@ -9,7 +9,8 @@ export type AppModule =
   | 'events'
   | 'marketplace'
   | 'investments'
-  | 'team';
+  | 'team'
+  | 'profile';
 
 interface AuthContextType {
   adminUser: AdminUser | null;
@@ -18,6 +19,7 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<void>;
   logout: () => void;
   canAccess: (module: AppModule) => boolean;
+  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -26,6 +28,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [adminUser, setAdminUser] = useState<AdminUser | null>(null);
   const [token, setToken] = useState<string | null>(() => localStorage.getItem('daleel_admin_token'));
   const [isLoading, setIsLoading] = useState<boolean>(true);
+
+  const refreshUser = async () => {
+    try {
+      const user = await adminApi.getMe();
+      setAdminUser(user);
+    } catch (error) {
+      console.warn('Failed to refresh admin session:', error);
+    }
+  };
 
   useEffect(() => {
     async function verifySession() {
@@ -66,6 +77,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const canAccess = (module: AppModule): boolean => {
     if (!adminUser) return false;
+    // Every authenticated administrator can access their own profile
+    if (module === 'profile') return true;
     if (adminUser.adminRole === 'SUPER_ADMIN') return true;
 
     switch (module) {
@@ -89,7 +102,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   return (
-    <AuthContext.Provider value={{ adminUser, token, isLoading, login, logout, canAccess }}>
+    <AuthContext.Provider value={{ adminUser, token, isLoading, login, logout, canAccess, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );

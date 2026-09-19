@@ -9,7 +9,7 @@ import { EventsManager } from './EventsManager';
 import { MarketplaceManager } from './MarketplaceManager';
 import { InvestmentsManager } from './InvestmentsManager';
 import { TeamManager } from './TeamManager';
-import { ProfileSecurityModal } from './ProfileSecurityModal';
+import { ProfileSecurityView } from './ProfileSecurityView';
 
 const VALID_MODULES: AppModule[] = [
   'dashboard',
@@ -19,6 +19,7 @@ const VALID_MODULES: AppModule[] = [
   'marketplace',
   'investments',
   'team',
+  'profile',
 ];
 
 const getInitialTab = (): AppModule => {
@@ -37,7 +38,6 @@ const getInitialTab = (): AppModule => {
 
 export const Layout: React.FC = () => {
   const [currentTab, setCurrentTab] = useState<AppModule>(getInitialTab);
-  const [isProfileOpen, setIsProfileOpen] = useState(false);
 
   React.useEffect(() => {
     const handleHashChange = () => {
@@ -76,6 +76,8 @@ export const Layout: React.FC = () => {
         return <InvestmentsManager />;
       case 'team':
         return <TeamManager />;
+      case 'profile':
+        return <ProfileSecurityView />;
       default:
         return <DashboardView onNavigate={handleSelectTab} />;
     }
@@ -86,24 +88,17 @@ export const Layout: React.FC = () => {
       <Sidebar
         currentTab={currentTab}
         onSelectTab={handleSelectTab}
-        onOpenProfile={() => setIsProfileOpen(true)}
       />
 
       <div style={styles.mainWrapper}>
         <Header
           currentTab={currentTab}
-          onOpenProfile={() => setIsProfileOpen(true)}
+          onSelectTab={handleSelectTab}
         />
         <main style={styles.contentArea}>
           {renderModule()}
         </main>
       </div>
-
-      {/* Global Administrator Profile & Security Modal */}
-      <ProfileSecurityModal
-        isOpen={isProfileOpen}
-        onClose={() => setIsProfileOpen(false)}
-      />
     </div>
   );
 };

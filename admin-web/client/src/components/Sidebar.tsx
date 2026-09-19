@@ -19,7 +19,6 @@ import {
 interface SidebarProps {
   currentTab: AppModule;
   onSelectTab: (tab: AppModule) => void;
-  onOpenProfile?: () => void;
 }
 
 interface NavItem {
@@ -57,9 +56,10 @@ const NAV_SECTIONS: NavSection[] = [
     ],
   },
   {
-    title: 'GOVERNANCE & AUDIT',
+    title: 'GOVERNANCE & ACCOUNT',
     items: [
       { id: 'team', label: 'Administrative Team', icon: Users },
+      { id: 'profile', label: 'Security & Profile', icon: ShieldCheck },
     ],
   },
 ];
@@ -67,7 +67,6 @@ const NAV_SECTIONS: NavSection[] = [
 export const Sidebar: React.FC<SidebarProps> = ({
   currentTab,
   onSelectTab,
-  onOpenProfile,
 }) => {
   const { adminUser, logout, canAccess } = useAdminAuth();
 
@@ -90,26 +89,31 @@ export const Sidebar: React.FC<SidebarProps> = ({
     }
   };
 
+  const isProfileActive = currentTab === 'profile';
+
   return (
     <aside style={styles.sidebar}>
-      {/* Brand & Federal Shield Header */}
+      {/* Brand & Crest Header */}
       <div style={styles.brandBox}>
         <div style={styles.brandLogo}>
           <Shield size={22} color="#DFB76C" />
         </div>
         <div>
           <div style={styles.brandName}>DALEEL</div>
-          <div style={styles.brandSub}>FEDERAL PLATFORM</div>
+          <div style={styles.brandSub}>MANAGEMENT PORTAL</div>
         </div>
       </div>
 
-      {/* Interactive Profile & Security Card */}
+      {/* Interactive Profile & Security Card (Navigates directly to in-page workspace, NO POPUP) */}
       <div
-        style={styles.profileCard}
-        onClick={onOpenProfile}
+        style={{
+          ...styles.profileCard,
+          ...(isProfileActive ? styles.profileCardActive : {}),
+        }}
+        onClick={() => onSelectTab('profile')}
         role="button"
         tabIndex={0}
-        title="Open Profile & Security Settings"
+        title="Open Security & Profile Settings"
       >
         <div style={styles.profileCardHeader}>
           <div style={styles.avatarCircle}>
@@ -126,9 +130,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
         <div style={styles.profileActionRow}>
           <span style={styles.profileSecLink}>
             <ShieldCheck size={13} color="#8C6A21" />
-            <span>Profile & Security</span>
+            <span>Security & Profile</span>
           </span>
-          <span style={styles.profileEditBadge}>Edit</span>
+          <span style={styles.profileEditBadge}>Manage</span>
         </div>
       </div>
 
@@ -172,33 +176,37 @@ export const Sidebar: React.FC<SidebarProps> = ({
           );
         })}
 
-        {/* Live PostgreSQL Engine Telemetry Widget */}
+        {/* Professional Institutional System Status Widget (NO DEVELOPER JARGON) */}
         <div style={styles.telemetryCard}>
           <div style={styles.telemetryHeader}>
             <div style={styles.telemetryTitleGroup}>
               <Activity size={13} color="#10B981" />
-              <span style={styles.telemetryTitle}>PostgreSQL Gateway</span>
+              <span style={styles.telemetryTitle}>Platform Status</span>
             </div>
             <div style={styles.telemetryPill}>
               <span style={styles.pulseDot} />
-              <span>Live</span>
+              <span>Operational</span>
             </div>
           </div>
           <div style={styles.telemetryMeta}>
-            <span>Port: 4000 (Express/Prisma)</span>
-            <span>Session: TLS Encrypted</span>
+            <span>All Services Online</span>
+            <span>Encrypted Session Active</span>
           </div>
         </div>
       </nav>
 
-      {/* Institutional Action Controls Footer */}
+      {/* Action Controls Footer */}
       <div style={styles.footer}>
-        {onOpenProfile && (
-          <button style={styles.profileBtn} onClick={onOpenProfile}>
-            <User size={15} color="#07152B" />
-            <span>Security & Profile</span>
-          </button>
-        )}
+        <button
+          style={{
+            ...styles.profileBtn,
+            ...(isProfileActive ? styles.profileBtnActive : {}),
+          }}
+          onClick={() => onSelectTab('profile')}
+        >
+          <User size={15} color={isProfileActive ? '#DFB76C' : '#07152B'} />
+          <span>Security & Profile</span>
+        </button>
         <button style={styles.logoutBtn} onClick={logout}>
           <LogOut size={15} color="#C53030" />
           <span>Sign Out</span>
@@ -265,6 +273,11 @@ const styles: { [key: string]: React.CSSProperties } = {
     cursor: 'pointer',
     transition: 'all 0.18s ease',
     boxShadow: '0 1px 3px rgba(7, 21, 43, 0.03)',
+  },
+  profileCardActive: {
+    backgroundColor: '#F4ECE0',
+    borderColor: '#DFB76C',
+    boxShadow: '0 2px 8px rgba(223, 183, 108, 0.25)',
   },
   profileCardHeader: {
     display: 'flex',
@@ -431,7 +444,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     display: 'flex',
     flexDirection: 'column',
     gap: '2px',
-    fontSize: '10px',
+    fontSize: '10.5px',
     color: '#64748B',
   },
   footer: {
@@ -457,6 +470,11 @@ const styles: { [key: string]: React.CSSProperties } = {
     fontWeight: 700,
     cursor: 'pointer',
     transition: 'all 0.15s ease',
+  },
+  profileBtnActive: {
+    backgroundColor: '#07152B',
+    borderColor: '#07152B',
+    color: '#DFB76C',
   },
   logoutBtn: {
     width: '100%',

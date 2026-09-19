@@ -5,7 +5,7 @@ import { CalendarDays, ShieldCheck } from 'lucide-react';
 
 interface HeaderProps {
   currentTab: AppModule;
-  onOpenProfile?: () => void;
+  onSelectTab: (tab: AppModule) => void;
 }
 
 const TAB_TITLES: Record<AppModule, { title: string; subtitle: string }> = {
@@ -37,9 +37,13 @@ const TAB_TITLES: Record<AppModule, { title: string; subtitle: string }> = {
     title: 'Administrative Team',
     subtitle: 'Manage coordinator permissions and delegate module responsibilities',
   },
+  profile: {
+    title: 'Security & Profile',
+    subtitle: 'Manage your administrator details, security credentials, and access permissions',
+  },
 };
 
-export const Header: React.FC<HeaderProps> = ({ currentTab, onOpenProfile }) => {
+export const Header: React.FC<HeaderProps> = ({ currentTab, onSelectTab }) => {
   const { adminUser } = useAdminAuth();
 
   const formattedDate = new Intl.DateTimeFormat('en-US', {
@@ -50,6 +54,7 @@ export const Header: React.FC<HeaderProps> = ({ currentTab, onOpenProfile }) => 
   }).format(new Date());
 
   const meta = TAB_TITLES[currentTab] || { title: 'DALEEL Management', subtitle: 'Platform Administration' };
+  const isProfileActive = currentTab === 'profile';
 
   return (
     <header style={styles.header}>
@@ -67,13 +72,16 @@ export const Header: React.FC<HeaderProps> = ({ currentTab, onOpenProfile }) => 
           <span style={styles.dateText}>{formattedDate}</span>
         </div>
 
-        {/* User Profile & Security Pill */}
+        {/* User Profile & Security Pill (Navigates directly in-page, NO POPUP) */}
         <div
-          style={styles.userPill}
-          onClick={onOpenProfile}
+          style={{
+            ...styles.userPill,
+            ...(isProfileActive ? styles.userPillActive : {}),
+          }}
+          onClick={() => onSelectTab('profile')}
           role="button"
           tabIndex={0}
-          title="Click to manage profile, credentials, and permissions"
+          title="Click to view Security & Profile"
         >
           <div style={styles.userAvatar}>
             {adminUser?.name?.charAt(0).toUpperCase() || 'A'}
@@ -85,7 +93,7 @@ export const Header: React.FC<HeaderProps> = ({ currentTab, onOpenProfile }) => 
             </span>
           </div>
           <div style={styles.securityIcon}>
-            <ShieldCheck size={16} color="#8C6A21" />
+            <ShieldCheck size={16} color={isProfileActive ? '#07152B' : '#8C6A21'} />
           </div>
         </div>
       </div>
@@ -147,6 +155,11 @@ const styles: { [key: string]: React.CSSProperties } = {
     borderRadius: '9999px',
     cursor: 'pointer',
     transition: 'all 0.18s ease',
+  },
+  userPillActive: {
+    backgroundColor: '#F8F4EC',
+    borderColor: '#DFB76C',
+    boxShadow: '0 2px 8px rgba(223, 183, 108, 0.25)',
   },
   userAvatar: {
     width: '32px',

@@ -102,7 +102,7 @@ export const LoginView: React.FC = () => {
           <p style={styles.portalSub}>
             {mode === 'login'
               ? 'Administrative portal for Ethiopian destinations, verified services, and diaspora investments.'
-              : 'Federal administrative access keys are managed through cryptographic assignment by the Super Administrator.'}
+              : 'Federal administrative access keys are managed and issued by the Super Administrator.'}
           </p>
         </div>
 
