@@ -185,6 +185,7 @@ export const EventCheckInDesk: React.FC<EventCheckInDeskProps> = ({
   const isScanningRef = useRef(false);
   const lastScannedCodeRef = useRef<string>('');
   const lastScannedAtRef = useRef<number>(0);
+  const lastScanStartTimeRef = useRef<number>(0);
 
   // Scan Result Banner
   const [scanResult, setScanResult] = useState<ScanResult | null>(null);
@@ -363,6 +364,9 @@ export const EventCheckInDesk: React.FC<EventCheckInDeskProps> = ({
       applyScanOutcome(err, cleanCode, now);
     } finally {
       setIsSubmittingCheckIn(false);
+      setTimeout(() => {
+        isScanningRef.current = false;
+      }, 350);
     }
   };
 
@@ -451,44 +455,44 @@ export const EventCheckInDesk: React.FC<EventCheckInDeskProps> = ({
         cameraConfig = { facingMode: 'environment' };
       }
 
-      const html5QrCode = new Html5Qrcode('gate-qr-reader', {
-        experimentalFeatures: {
-          useBarCodeDetectorIfSupported: true,
-        },
-      } as any);
+      const html5QrCode = new Html5Qrcode('gate-qr-reader');
       html5QrCodeRef.current = html5QrCode;
 
       const onScanSuccess = (decodedText: string) => {
-        if (!decodedText || isScanningRef.current) return;
+        if (!decodedText) return;
         const clean = decodedText.trim();
         const now = Date.now();
 
-        // If scanning the exact same pass code, require a brief 1.5s cooldown
-        // If scanning a DIFFERENT pass code (next attendee in line), allow instant scan (400ms cooldown)
-        const isSameCode = clean === lastScannedCodeRef.current;
-        const minCooldown = isSameCode ? 1500 : 400;
+        // Safety auto-unlock: if locked for > 1500ms, force-release lock
+        if (isScanningRef.current) {
+          if (now - lastScanStartTimeRef.current > 1500) {
+            isScanningRef.current = false;
+          } else {
+            return;
+          }
+        }
 
-        if (now - lastScannedAtRef.current < minCooldown) {
+        // If scanning the exact same pass code, require a brief 1.2s cooldown
+        // If scanning a DIFFERENT pass code, scan immediately with zero wait
+        const isSameCode = clean === lastScannedCodeRef.current;
+        if (isSameCode && now - lastScannedAtRef.current < 1200) {
           return;
         }
 
         lastScannedCodeRef.current = clean;
         lastScannedAtRef.current = now;
+        lastScanStartTimeRef.current = now;
         isScanningRef.current = true;
 
-        handleProcessCheckIn(clean).finally(() => {
-          setTimeout(() => {
-            isScanningRef.current = false;
-          }, 350);
-        });
+        handleProcessCheckIn(clean);
       };
 
       try {
         await html5QrCode.start(
           cameraConfig,
           {
-            fps: 24,
-            qrbox: { width: 260, height: 260 },
+            fps: 15,
+            qrbox: { width: 250, height: 250 },
             aspectRatio: 1.0,
           },
           onScanSuccess,
@@ -500,8 +504,8 @@ export const EventCheckInDesk: React.FC<EventCheckInDeskProps> = ({
         await html5QrCode.start(
           { facingMode: 'user' },
           {
-            fps: 24,
-            qrbox: { width: 260, height: 260 },
+            fps: 15,
+            qrbox: { width: 250, height: 250 },
             aspectRatio: 1.0,
           },
           onScanSuccess,
@@ -822,22 +826,29 @@ export const EventCheckInDesk: React.FC<EventCheckInDeskProps> = ({
         {/* Left Column: Camera Scanner & Quick Input */}
         <div style={styles.leftCol}>
           <div style={styles.scannerCard}>
-            <div style={styles.scannerHeaderRow}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Camera size={18} color="#8C6A21" />
-                <h3 style={styles.sectionHeading}>QR Camera Scanner</h3>
+            {/* Header Block: Title Row & Controls Row */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              {/* Row 1: Title & Live Readiness Status */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
+                  <Camera size={18} color="#8C6A21" style={{ flexShrink: 0 }} />
+                  <h3 style={{ ...styles.sectionHeading, whiteSpace: 'nowrap', margin: 0 }}>
+                    QR Camera Scanner
+                  </h3>
+                </div>
                 {isCameraActive && (
                   <span
                     style={{
                       fontSize: '11px',
                       fontWeight: 700,
-                      padding: '2px 8px',
+                      padding: '3px 9px',
                       borderRadius: '999px',
                       backgroundColor: isSubmittingCheckIn ? '#FEF3C7' : '#DCFCE7',
                       color: isSubmittingCheckIn ? '#B45309' : '#166534',
                       display: 'inline-flex',
                       alignItems: 'center',
-                      gap: '4px',
+                      gap: '5px',
+                      flexShrink: 0,
                     }}
                   >
                     <span
@@ -852,8 +863,10 @@ export const EventCheckInDesk: React.FC<EventCheckInDeskProps> = ({
                   </span>
                 )}
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                {availableCameras.length > 1 && (
+
+              {/* Row 2: Camera Selector & Launch / Stop Action Button */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%' }}>
+                {availableCameras.length > 1 ? (
                   <select
                     value={selectedCameraId}
                     onChange={(e) => {
@@ -862,7 +875,12 @@ export const EventCheckInDesk: React.FC<EventCheckInDeskProps> = ({
                         stopCamera().then(() => startCamera());
                       }
                     }}
-                    style={styles.cameraSelect}
+                    style={{
+                      ...styles.cameraSelect,
+                      flex: 1,
+                      minWidth: 0,
+                      maxWidth: 'none',
+                    }}
                     title="Switch Camera Device"
                   >
                     {availableCameras.map((cam) => (
@@ -871,10 +889,17 @@ export const EventCheckInDesk: React.FC<EventCheckInDeskProps> = ({
                       </option>
                     ))}
                   </select>
+                ) : (
+                  <div style={{ flex: 1, minWidth: 0 }} />
                 )}
+
                 <button
                   onClick={isCameraActive ? stopCamera : startCamera}
-                  style={isCameraActive ? styles.stopCameraBtn : styles.startCameraBtn}
+                  style={{
+                    ...(isCameraActive ? styles.stopCameraBtn : styles.startCameraBtn),
+                    whiteSpace: 'nowrap',
+                    flexShrink: 0,
+                  }}
                 >
                   {isCameraActive ? (
                     <>
