@@ -21,6 +21,7 @@ import {
 import { useDynamicCategories } from '../utils/categories';
 import { CategoryFilterBar } from './CategoryFilterBar';
 import { DynamicCategorySelect } from './DynamicCategorySelect';
+import { useToast } from '../context/ToastContext';
 
 interface ServiceItem {
   id: string;
@@ -63,6 +64,7 @@ const DEFAULT_SERVICE_CATEGORIES = [
 ];
 
 export const ServicesManager: React.FC = () => {
+  const { success, error: toastError } = useToast();
   const [activeSubTab, setActiveSubTab] = useState<'directory' | 'inquiries'>('directory');
   const [services, setServices] = useState<ServiceItem[]>([]);
   const [inquiries, setInquiries] = useState<ServiceInquiryItem[]>([]);
@@ -175,19 +177,24 @@ export const ServicesManager: React.FC = () => {
     if (!window.confirm(`Are you sure you wish to remove "${name}"?`)) return;
     try {
       await adminApi.deleteService(id);
+      success(`Service partner "${name}" removed.`, 'Partner Deleted');
       loadData();
       if (editingItem?.id === id) {
         handleCloseEditor();
       }
     } catch (err: any) {
-      setErrorMessage(err.message || 'Failed to remove service');
+      const msg = err.message || 'Failed to remove service';
+      setErrorMessage(msg);
+      toastError(msg);
     }
   };
 
   const handleSave = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!formData.name.trim()) {
-      setErrorMessage('Business name is required.');
+      const msg = 'Business name is required.';
+      setErrorMessage(msg);
+      toastError(msg);
       return;
     }
     setIsSaving(true);
@@ -196,13 +203,17 @@ export const ServicesManager: React.FC = () => {
     try {
       if (editingItem) {
         await adminApi.updateService(editingItem.id, formData);
+        success(`"${formData.name}" updated successfully.`, 'Partner Saved');
       } else {
         await adminApi.createService(formData);
+        success(`"${formData.name}" published to directory.`, 'Partner Created');
       }
       setIsEditorActive(false);
       loadData();
     } catch (err: any) {
-      setErrorMessage(err.message || 'Failed to save service partner');
+      const msg = err.message || 'Failed to save service partner';
+      setErrorMessage(msg);
+      toastError(msg);
     } finally {
       setIsSaving(false);
     }
@@ -211,9 +222,12 @@ export const ServicesManager: React.FC = () => {
   const handleUpdateInquiryStatus = async (id: string, status: string) => {
     try {
       await adminApi.updateServiceInquiryStatus(id, status);
+      success(`Inquiry status updated to "${status}".`, 'Status Updated');
       loadData();
     } catch (err: any) {
+      const msg = 'Failed to update status';
       console.error('Failed to update status:', err);
+      toastError(msg);
     }
   };
 
@@ -524,9 +538,9 @@ export const ServicesManager: React.FC = () => {
 
                   {/* Showcase Main Content */}
                   <div className="showcase-main">
-                    <div>
+                    <div style={{ width: '100%', textAlign: 'left' }}>
                       <div className="showcase-kicker">
-                        <MapPin size={11} color="#C59B43" />
+                        <MapPin size={12} color="#C59B43" />
                         <span>{svc.location.toUpperCase()} • VERIFIED PARTNER</span>
                       </div>
                       <div className="showcase-header">

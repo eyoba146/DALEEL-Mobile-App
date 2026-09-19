@@ -1,5 +1,6 @@
 import React from 'react';
 import { AuthProvider, useAdminAuth } from './context/AuthContext';
+import { ToastProvider } from './context/ToastContext';
 import { LoginView } from './components/LoginView';
 import { Layout } from './components/Layout';
 import { Shield } from 'lucide-react';
@@ -28,7 +29,9 @@ const AppContent: React.FC = () => {
 export default function App() {
   return (
     <AuthProvider>
-      <AppContent />
+      <ToastProvider>
+        <AppContent />
+      </ToastProvider>
     </AuthProvider>
   );
 }

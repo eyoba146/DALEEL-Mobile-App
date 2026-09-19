@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { adminApi } from '../api';
 import type { AdminUser } from '../api';
 import { useAdminAuth } from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
 import { Plus, Search, Trash2, ShieldCheck, Mail, Phone, RefreshCw, KeyRound, AlertCircle, ArrowLeft, Check, UserCheck } from 'lucide-react';
 
 const ROLE_OPTIONS: { value: string; label: string; desc: string }[] = [
@@ -15,6 +16,7 @@ const ROLE_OPTIONS: { value: string; label: string; desc: string }[] = [
 
 export const TeamManager: React.FC = () => {
   const { adminUser } = useAdminAuth();
+  const { success, error: toastError } = useToast();
   const [team, setTeam] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -68,23 +70,30 @@ export const TeamManager: React.FC = () => {
 
   const handleDelete = async (id: string, name: string) => {
     if (id === adminUser?.id) {
-      setErrorMessage('You cannot remove your own active administrative account.');
+      const msg = 'You cannot remove your own active administrative account.';
+      setErrorMessage(msg);
+      toastError(msg);
       return;
     }
     if (!window.confirm(`Revoke administrative access for ${name}?`)) return;
 
     try {
       await adminApi.deleteTeamMember(id);
+      success(`Access revoked for ${name}.`, 'Coordinator Removed');
       loadTeam();
     } catch (err: any) {
-      setErrorMessage(err.message || 'Failed to remove coordinator');
+      const msg = err.message || 'Failed to remove coordinator';
+      setErrorMessage(msg);
+      toastError(msg);
     }
   };
 
   const handleSave = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!formData.name.trim() || !formData.email.trim() || !formData.password.trim()) {
-      setErrorMessage('Full name, email, and initial password are required.');
+      const msg = 'Full name, email, and initial password are required.';
+      setErrorMessage(msg);
+      toastError(msg);
       return;
     }
     setIsSaving(true);
@@ -92,10 +101,13 @@ export const TeamManager: React.FC = () => {
 
     try {
       await adminApi.createTeamMember(formData);
+      success(`Coordinator "${formData.name}" onboarded successfully.`, 'Coordinator Added');
       setIsEditorActive(false);
       loadTeam();
     } catch (err: any) {
-      setErrorMessage(err.message || 'Failed to onboard coordinator');
+      const msg = err.message || 'Failed to onboard coordinator';
+      setErrorMessage(msg);
+      toastError(msg);
     } finally {
       setIsSaving(false);
     }

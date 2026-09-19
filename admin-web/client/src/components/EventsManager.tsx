@@ -21,6 +21,7 @@ import {
 import { useDynamicCategories } from '../utils/categories';
 import { CategoryFilterBar } from './CategoryFilterBar';
 import { DynamicCategorySelect } from './DynamicCategorySelect';
+import { useToast } from '../context/ToastContext';
 
 interface EventItemData {
   id: string;
@@ -64,6 +65,7 @@ const DEFAULT_EVENT_CATEGORIES = [
 ];
 
 export const EventsManager: React.FC = () => {
+  const { success, error: toastError } = useToast();
   const [activeSubTab, setActiveSubTab] = useState<'events' | 'rsvps'>('events');
   const [events, setEvents] = useState<EventItemData[]>([]);
   const [rsvps, setRsvps] = useState<EventRsvpItem[]>([]);
@@ -179,19 +181,24 @@ export const EventsManager: React.FC = () => {
     if (!window.confirm(`Are you sure you wish to delete "${title}"?`)) return;
     try {
       await adminApi.deleteEvent(id);
+      success(`Event "${title}" deleted successfully.`, 'Event Removed');
       loadData();
       if (editingItem?.id === id) {
         handleCloseEditor();
       }
     } catch (err: any) {
-      setErrorMessage(err.message || 'Failed to remove event');
+      const msg = err.message || 'Failed to remove event';
+      setErrorMessage(msg);
+      toastError(msg);
     }
   };
 
   const handleSave = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!formData.title.trim()) {
-      setErrorMessage('Event title is required.');
+      const msg = 'Event title is required.';
+      setErrorMessage(msg);
+      toastError(msg);
       return;
     }
     setIsSaving(true);
@@ -200,13 +207,17 @@ export const EventsManager: React.FC = () => {
     try {
       if (editingItem) {
         await adminApi.updateEvent(editingItem.id, formData);
+        success(`"${formData.title}" updated successfully.`, 'Event Saved');
       } else {
         await adminApi.createEvent(formData);
+        success(`"${formData.title}" scheduled successfully.`, 'Event Created');
       }
       setIsEditorActive(false);
       loadData();
     } catch (err: any) {
-      setErrorMessage(err.message || 'Failed to save event');
+      const msg = err.message || 'Failed to save event';
+      setErrorMessage(msg);
+      toastError(msg);
     } finally {
       setIsSaving(false);
     }
@@ -215,9 +226,12 @@ export const EventsManager: React.FC = () => {
   const handleUpdateRsvpStatus = async (id: string, status: string) => {
     try {
       await adminApi.updateEventRsvpStatus(id, status);
+      success(`RSVP status updated to "${status}".`, 'RSVP Updated');
       loadData();
     } catch (err: any) {
-      console.error('Failed to update RSVP status:', err);
+      const msg = 'Failed to update RSVP status';
+      console.error(msg, err);
+      toastError(msg);
     }
   };
 
@@ -550,9 +564,9 @@ export const EventsManager: React.FC = () => {
 
                   {/* Showcase Main Content */}
                   <div className="showcase-main">
-                    <div>
+                    <div style={{ width: '100%', textAlign: 'left' }}>
                       <div className="showcase-kicker">
-                        <MapPin size={11} color="#C59B43" />
+                        <MapPin size={12} color="#C59B43" />
                         <span>
                           {ev.city.toUpperCase()} • {ev.venue || 'VENUE TBA'}
                         </span>
@@ -568,7 +582,7 @@ export const EventsManager: React.FC = () => {
                       </div>
                     </div>
 
-                    <p className="showcase-blurb">{ev.description || ev.agenda}</p>
+                    <p className="showcase-blurb">{ev.description || ev.agenda || 'Join diaspora leaders and cultural pioneers for this premier gathering.'}</p>
 
                     <div className="showcase-meta-row">
                       <span className="editorial-chip" title="Date">

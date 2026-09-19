@@ -22,6 +22,7 @@ import {
 import { useDynamicCategories } from '../utils/categories';
 import { CategoryFilterBar } from './CategoryFilterBar';
 import { DynamicCategorySelect } from './DynamicCategorySelect';
+import { useToast } from '../context/ToastContext';
 
 interface DestinationItem {
   id: string;
@@ -53,6 +54,7 @@ const DEFAULT_REGIONS = [
 ];
 
 export const DestinationsManager: React.FC = () => {
+  const { success, error: toastError } = useToast();
   const [destinations, setDestinations] = useState<DestinationItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -153,23 +155,30 @@ export const DestinationsManager: React.FC = () => {
     if (!window.confirm(`Are you sure you wish to delete "${name}"?`)) return;
     try {
       await adminApi.deleteDestination(id);
+      success(`Destination "${name}" removed successfully.`, 'Destination Deleted');
       loadDestinations();
       if (editingItem?.id === id) {
         handleCloseEditor();
       }
     } catch (err: any) {
-      setErrorMessage(err.message || 'Failed to remove destination');
+      const msg = err.message || 'Failed to remove destination';
+      setErrorMessage(msg);
+      toastError(msg);
     }
   };
 
   const handleSave = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!formData.name.trim()) {
-      setErrorMessage('Destination name is required.');
+      const msg = 'Destination name is required.';
+      setErrorMessage(msg);
+      toastError(msg);
       return;
     }
     if (!formData.blurb.trim()) {
-      setErrorMessage('A short summary blurb is required.');
+      const msg = 'A short summary blurb is required.';
+      setErrorMessage(msg);
+      toastError(msg);
       return;
     }
 
@@ -179,13 +188,17 @@ export const DestinationsManager: React.FC = () => {
     try {
       if (editingItem) {
         await adminApi.updateDestination(editingItem.id, formData);
+        success(`"${formData.name}" updated successfully.`, 'Destination Saved');
       } else {
         await adminApi.createDestination(formData);
+        success(`"${formData.name}" published to catalog.`, 'Destination Created');
       }
       setIsEditorActive(false);
       loadDestinations();
     } catch (err: any) {
-      setErrorMessage(err.message || 'Failed to save destination');
+      const msg = err.message || 'Failed to save destination';
+      setErrorMessage(msg);
+      toastError(msg);
     } finally {
       setIsSaving(false);
     }
@@ -484,22 +497,22 @@ export const DestinationsManager: React.FC = () => {
 
               {/* Showcase Main Record */}
               <div className="showcase-main">
-                <div>
+                <div style={{ width: '100%', textAlign: 'left' }}>
                   <div className="showcase-kicker">
-                    <MapPin size={11} color="#C59B43" />
+                    <MapPin size={12} color="#C59B43" />
                     <span>{item.region.toUpperCase()} • ETHIOPIA</span>
                   </div>
 
                   <div className="showcase-header">
                     <h3 className="showcase-title">{item.name}</h3>
                     <div className="showcase-rating-pill">
-                      <Star size={11} fill="#DFB76C" color="#DFB76C" />
+                      <Star size={12} fill="#DFB76C" color="#DFB76C" />
                       <span>{item.rating ? item.rating.toFixed(1) : '4.9'}</span>
                     </div>
                   </div>
                 </div>
 
-                <p className="showcase-blurb">{item.blurb}</p>
+                <p className="showcase-blurb">{item.description || item.blurb}</p>
 
                 {/* Metadata Micro-Chips Row */}
                 <div className="showcase-meta-row">

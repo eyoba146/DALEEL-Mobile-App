@@ -17,6 +17,7 @@ import {
 import { useDynamicCategories } from '../utils/categories';
 import { CategoryFilterBar } from './CategoryFilterBar';
 import { DynamicCategorySelect } from './DynamicCategorySelect';
+import { useToast } from '../context/ToastContext';
 
 interface ProductItem {
   id: string;
@@ -69,6 +70,7 @@ const DEFAULT_PRODUCT_CATEGORIES = [
 ];
 
 export const MarketplaceManager: React.FC = () => {
+  const { success, error: toastError } = useToast();
   const [activeSubTab, setActiveSubTab] = useState<'products' | 'orders'>('products');
   const [products, setProducts] = useState<ProductItem[]>([]);
   const [orders, setOrders] = useState<OrderInquiryItem[]>([]);
@@ -187,19 +189,24 @@ export const MarketplaceManager: React.FC = () => {
     if (!window.confirm(`Are you sure you wish to delete "${title}"?`)) return;
     try {
       await adminApi.deleteProduct(id);
+      success(`Product "${title}" removed from catalog.`, 'Product Deleted');
       loadData();
       if (editingItem?.id === id) {
         handleCloseEditor();
       }
     } catch (err: any) {
-      setErrorMessage(err.message || 'Failed to delete product');
+      const msg = err.message || 'Failed to delete product';
+      setErrorMessage(msg);
+      toastError(msg);
     }
   };
 
   const handleSave = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!formData.title.trim()) {
-      setErrorMessage('Product title is required.');
+      const msg = 'Product title is required.';
+      setErrorMessage(msg);
+      toastError(msg);
       return;
     }
     setIsSaving(true);
@@ -208,13 +215,17 @@ export const MarketplaceManager: React.FC = () => {
     try {
       if (editingItem) {
         await adminApi.updateProduct(editingItem.id, formData);
+        success(`"${formData.title}" updated successfully.`, 'Product Saved');
       } else {
         await adminApi.createProduct(formData);
+        success(`"${formData.title}" added to artisan catalog.`, 'Product Added');
       }
       setIsEditorActive(false);
       loadData();
     } catch (err: any) {
-      setErrorMessage(err.message || 'Failed to save product');
+      const msg = err.message || 'Failed to save product';
+      setErrorMessage(msg);
+      toastError(msg);
     } finally {
       setIsSaving(false);
     }
@@ -223,9 +234,12 @@ export const MarketplaceManager: React.FC = () => {
   const handleUpdateOrderStatus = async (id: string, status: string) => {
     try {
       await adminApi.updateOrderStatus(id, status);
+      success(`Order status updated to "${status}".`, 'Order Updated');
       loadData();
     } catch (err: any) {
-      console.error('Failed to update status:', err);
+      const msg = 'Failed to update order status';
+      console.error(msg, err);
+      toastError(msg);
     }
   };
 
@@ -571,9 +585,9 @@ export const MarketplaceManager: React.FC = () => {
 
                   {/* Showcase Main Content */}
                   <div className="showcase-main">
-                    <div>
+                    <div style={{ width: '100%', textAlign: 'left' }}>
                       <div className="showcase-kicker">
-                        <Sparkles size={11} color="#C59B43" />
+                        <Sparkles size={12} color="#C59B43" />
                         <span>
                           {prod.sellerName.toUpperCase()} •{' '}
                           {prod.sellerLocation || prod.origin || 'ETHIOPIA'}
@@ -590,7 +604,7 @@ export const MarketplaceManager: React.FC = () => {
                       </div>
                     </div>
 
-                    <p className="showcase-blurb">{prod.blurb || prod.description}</p>
+                    <p className="showcase-blurb">{prod.description || prod.blurb}</p>
 
                     <div className="showcase-meta-row">
                       {prod.materials && (

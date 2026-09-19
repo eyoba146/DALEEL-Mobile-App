@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Plus, Check, X, Tag } from 'lucide-react';
+import { useToast } from '../context/ToastContext';
 
 interface CategoryFilterBarProps {
   categories: string[];
@@ -18,6 +19,7 @@ export const CategoryFilterBar: React.FC<CategoryFilterBarProps> = ({
   label = 'Category',
   allLabel = 'All',
 }) => {
+  const { success } = useToast();
   const [isAdding, setIsAdding] = useState(false);
   const [newCatName, setNewCatName] = useState('');
 
@@ -29,6 +31,7 @@ export const CategoryFilterBar: React.FC<CategoryFilterBarProps> = ({
     }
     onAddCategory(trimmed);
     onSelectCategory(trimmed);
+    success(`"${trimmed}" added to ${label.toLowerCase()} filters.`, `${label} Created`);
     setNewCatName('');
     setIsAdding(false);
   };

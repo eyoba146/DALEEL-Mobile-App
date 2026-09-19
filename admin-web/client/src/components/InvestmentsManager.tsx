@@ -4,6 +4,7 @@ import { ImageUploader } from './ImageUploader';
 import { useDynamicCategories } from '../utils/categories';
 import { CategoryFilterBar } from './CategoryFilterBar';
 import { DynamicCategorySelect } from './DynamicCategorySelect';
+import { useToast } from '../context/ToastContext';
 import {
   Plus,
   Search,
@@ -62,6 +63,7 @@ const DEFAULT_INVESTMENT_SECTORS = [
 ];
 
 export const InvestmentsManager: React.FC = () => {
+  const { success, error: toastError } = useToast();
   const [activeSubTab, setActiveSubTab] = useState<'deals' | 'inquiries'>('deals');
   const [investments, setInvestments] = useState<InvestmentItem[]>([]);
   const [inquiries, setInquiries] = useState<InvestmentInquiryItem[]>([]);
@@ -168,19 +170,24 @@ export const InvestmentsManager: React.FC = () => {
     if (!window.confirm(`Are you sure you wish to delete "${title}"?`)) return;
     try {
       await adminApi.deleteInvestment(id);
+      success(`Investment deal "${title}" removed.`, 'Deal Deleted');
       loadData();
       if (editingItem?.id === id) {
         handleCloseEditor();
       }
     } catch (err: any) {
-      setErrorMessage(err.message || 'Failed to delete investment deal');
+      const msg = err.message || 'Failed to delete investment deal';
+      setErrorMessage(msg);
+      toastError(msg);
     }
   };
 
   const handleSave = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!formData.title.trim()) {
-      setErrorMessage('Opportunity title is required.');
+      const msg = 'Opportunity title is required.';
+      setErrorMessage(msg);
+      toastError(msg);
       return;
     }
     setIsSaving(true);
@@ -189,13 +196,17 @@ export const InvestmentsManager: React.FC = () => {
     try {
       if (editingItem) {
         await adminApi.updateInvestment(editingItem.id, formData);
+        success(`"${formData.title}" updated successfully.`, 'Deal Saved');
       } else {
         await adminApi.createInvestment(formData);
+        success(`"${formData.title}" posted to opportunities.`, 'Deal Created');
       }
       setIsEditorActive(false);
       loadData();
     } catch (err: any) {
-      setErrorMessage(err.message || 'Failed to save investment deal');
+      const msg = err.message || 'Failed to save investment deal';
+      setErrorMessage(msg);
+      toastError(msg);
     } finally {
       setIsSaving(false);
     }
@@ -204,9 +215,12 @@ export const InvestmentsManager: React.FC = () => {
   const handleUpdateInquiryStatus = async (id: string, status: string) => {
     try {
       await adminApi.updateInvestmentInquiryStatus(id, status);
+      success(`Prospectus inquiry updated to "${status}".`, 'Status Updated');
       loadData();
     } catch (err: any) {
-      console.error('Failed to update inquiry status:', err);
+      const msg = 'Failed to update inquiry status';
+      console.error(msg, err);
+      toastError(msg);
     }
   };
 
@@ -526,9 +540,9 @@ export const InvestmentsManager: React.FC = () => {
 
                   {/* Showcase Main Content */}
                   <div className="showcase-main">
-                    <div>
+                    <div style={{ width: '100%', textAlign: 'left' }}>
                       <div className="showcase-kicker">
-                        <TrendingUp size={11} color="#C59B43" />
+                        <TrendingUp size={12} color="#C59B43" />
                         <span>
                           {inv.expectedReturn || 'TARGET IRR'} •{' '}
                           {inv.timeline ? `HORIZON: ${inv.timeline.toUpperCase()}` : '3 - 5 YEARS'}
@@ -536,9 +550,9 @@ export const InvestmentsManager: React.FC = () => {
                       </div>
 
                       <h3 className="showcase-title">{inv.title}</h3>
-
-                      <p className="showcase-blurb">{inv.blurb}</p>
                     </div>
+
+                    <p className="showcase-blurb">{inv.description || inv.blurb}</p>
 
                     {/* Metadata Pills */}
                     <div className="showcase-meta-row">

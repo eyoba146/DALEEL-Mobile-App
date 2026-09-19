@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Plus, Check, X, Tag } from 'lucide-react';
+import { useToast } from '../context/ToastContext';
 
 interface DynamicCategorySelectProps {
   value: string;
@@ -18,6 +19,7 @@ export const DynamicCategorySelect: React.FC<DynamicCategorySelectProps> = ({
   label = 'Category',
   style,
 }) => {
+  const { success } = useToast();
   const [isCreatingNew, setIsCreatingNew] = useState(false);
   const [customName, setCustomName] = useState('');
 
@@ -29,6 +31,7 @@ export const DynamicCategorySelect: React.FC<DynamicCategorySelectProps> = ({
     }
     const created = onAddNewCategory(trimmed);
     onChange(created || trimmed);
+    success(`"${trimmed}" created and selected.`, `${label} Created`);
     setCustomName('');
     setIsCreatingNew(false);
   };
