@@ -58,9 +58,14 @@ interface AttendeeItem {
 interface ScanResult {
   status: 'success' | 'warning' | 'error';
   title: string;
+  badge?: string;
   message: string;
+  details?: string;
   rsvp?: any;
   timestamp: string;
+  reason?: string;
+  scannedCode?: string;
+  targetEventTitle?: string;
 }
 
 // Synthesized audio feedback via Web Audio API (no external file dependencies)
@@ -93,27 +98,49 @@ function playFeedbackAudio(type: 'success' | 'warning' | 'error') {
       osc2.start(ctx.currentTime + 0.12);
       osc2.stop(ctx.currentTime + 0.35);
     } else if (type === 'warning') {
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.type = 'triangle';
-      osc.frequency.setValueAtTime(440, ctx.currentTime);
-      gain.gain.setValueAtTime(0.25, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.start();
-      osc.stop(ctx.currentTime + 0.3);
+      const osc1 = ctx.createOscillator();
+      const gain1 = ctx.createGain();
+      osc1.type = 'triangle';
+      osc1.frequency.setValueAtTime(440, ctx.currentTime);
+      gain1.gain.setValueAtTime(0.25, ctx.currentTime);
+      gain1.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.18);
+      osc1.connect(gain1);
+      gain1.connect(ctx.destination);
+      osc1.start();
+      osc1.stop(ctx.currentTime + 0.18);
+
+      const osc2 = ctx.createOscillator();
+      const gain2 = ctx.createGain();
+      osc2.type = 'triangle';
+      osc2.frequency.setValueAtTime(392, ctx.currentTime + 0.15);
+      gain2.gain.setValueAtTime(0.25, ctx.currentTime + 0.15);
+      gain2.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.35);
+      osc2.connect(gain2);
+      gain2.connect(ctx.destination);
+      osc2.start(ctx.currentTime + 0.15);
+      osc2.stop(ctx.currentTime + 0.35);
     } else {
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.type = 'sawtooth';
-      osc.frequency.setValueAtTime(180, ctx.currentTime);
-      gain.gain.setValueAtTime(0.3, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.35);
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.start();
-      osc.stop(ctx.currentTime + 0.35);
+      const osc1 = ctx.createOscillator();
+      const gain1 = ctx.createGain();
+      osc1.type = 'sawtooth';
+      osc1.frequency.setValueAtTime(220, ctx.currentTime);
+      gain1.gain.setValueAtTime(0.3, ctx.currentTime);
+      gain1.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.16);
+      osc1.connect(gain1);
+      gain1.connect(ctx.destination);
+      osc1.start();
+      osc1.stop(ctx.currentTime + 0.16);
+
+      const osc2 = ctx.createOscillator();
+      const gain2 = ctx.createGain();
+      osc2.type = 'sawtooth';
+      osc2.frequency.setValueAtTime(165, ctx.currentTime + 0.14);
+      gain2.gain.setValueAtTime(0.35, ctx.currentTime + 0.14);
+      gain2.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.38);
+      osc2.connect(gain2);
+      gain2.connect(ctx.destination);
+      osc2.start(ctx.currentTime + 0.14);
+      osc2.stop(ctx.currentTime + 0.38);
     }
   } catch {
     // Ignore audio context autoplay restrictions
@@ -219,6 +246,7 @@ export const EventCheckInDesk: React.FC<EventCheckInDeskProps> = ({
   // Handle Pass Verification (Used by both camera & manual input)
   const handleProcessCheckIn = async (codeToVerify: string) => {
     if (!codeToVerify.trim()) return;
+    const cleanCode = codeToVerify.trim();
     setIsSubmittingCheckIn(true);
     const now = new Date().toLocaleTimeString('en-US', {
       hour: 'numeric',
@@ -227,41 +255,102 @@ export const EventCheckInDesk: React.FC<EventCheckInDeskProps> = ({
     });
 
     try {
-      const res = await adminApi.checkInEventPass(codeToVerify.trim(), selectedEventId);
+      const res = await adminApi.checkInEventPass(cleanCode, selectedEventId);
       if (res && res.success) {
         playFeedbackAudio('success');
+        const tickets = res.rsvp?.ticketsCount || 1;
         setScanResult({
           status: 'success',
           title: 'ADMISSION GRANTED • PASS VERIFIED',
-          message: `${res.rsvp?.fullName || 'Guest'} (${res.rsvp?.ticketsCount || 1} Tickets)`,
+          badge: 'ADMITTED',
+          message: `${res.rsvp?.fullName || 'Guest'} (${tickets} Ticket${tickets > 1 ? 's' : ''})`,
+          details: 'Pass successfully verified at gate. Attendee admitted.',
           rsvp: res.rsvp,
           timestamp: now,
+          scannedCode: res.rsvp?.passCode || cleanCode,
         });
-        toastSuccess(`Checked in: ${res.rsvp?.fullName} (${res.rsvp?.ticketsCount || 1} tickets)`);
+        toastSuccess(`Checked in: ${res.rsvp?.fullName} (${tickets} ticket${tickets > 1 ? 's' : ''})`);
         setManualCode('');
         fetchAttendance();
       }
     } catch (err: any) {
       console.error('Check-in error response:', err);
-      const message = err.message || 'Check-in failed';
+      const reason = err.reason || err.data?.reason || '';
+      const rsvp = err.rsvp || err.data?.rsvp;
+      const targetEventTitle = err.targetEventTitle || err.data?.targetEventTitle;
+      const backendMessage = err.message || err.data?.message || err.data?.error || '';
 
-      if (message.toLowerCase().includes('already checked in')) {
+      if (reason === 'ALREADY_CHECKED_IN' || backendMessage.toLowerCase().includes('already checked in')) {
         playFeedbackAudio('warning');
+        const guestName = rsvp?.fullName || 'Guest';
+        const tickets = rsvp?.ticketsCount || 1;
         setScanResult({
           status: 'warning',
-          title: 'ALREADY ADMITTED • DUPLICATE ENTRY',
-          message: message,
-          rsvp: err.rsvp,
+          title: 'ALREADY ADMITTED • DUPLICATE SCAN',
+          badge: 'DUPLICATE SCAN',
+          message: `${guestName} (${tickets} Ticket${tickets > 1 ? 's' : ''})`,
+          details: 'This attendee pass was already scanned and admitted earlier. Duplicate entry rejected.',
+          rsvp: rsvp,
           timestamp: now,
+          reason: 'ALREADY_CHECKED_IN',
+          scannedCode: rsvp?.passCode || cleanCode,
         });
+        toastError(`Already Admitted: ${guestName} was previously admitted.`);
+      } else if (reason === 'WRONG_EVENT') {
+        playFeedbackAudio('error');
+        setScanResult({
+          status: 'error',
+          title: 'WRONG VENUE • PASS REGISTERED FOR OTHER EVENT',
+          badge: 'WRONG VENUE',
+          message: targetEventTitle ? `Pass issued for "${targetEventTitle}"` : 'Pass belongs to another event',
+          details: backendMessage || 'This pass is not registered for the currently active event desk. Please direct the attendee to their correct event venue.',
+          timestamp: now,
+          reason: 'WRONG_EVENT',
+          scannedCode: cleanCode,
+          targetEventTitle: targetEventTitle,
+        });
+        toastError(targetEventTitle ? `Wrong Event: Pass is valid for "${targetEventTitle}"` : 'Pass belongs to another event venue.');
+      } else if (reason === 'CANCELLED') {
+        playFeedbackAudio('error');
+        const guestName = rsvp?.fullName || 'Guest';
+        const tickets = rsvp?.ticketsCount || 1;
+        setScanResult({
+          status: 'error',
+          title: 'ADMISSION DENIED • RESERVATION REVOKED',
+          badge: 'REVOKED PASS',
+          message: `${guestName} (${tickets} Ticket${tickets > 1 ? 's' : ''})`,
+          details: backendMessage || 'This pass reservation was cancelled and is not valid for entry.',
+          rsvp: rsvp,
+          timestamp: now,
+          reason: 'CANCELLED',
+          scannedCode: rsvp?.passCode || cleanCode,
+        });
+        toastError(`Admission Denied: Pass for ${guestName} has been revoked.`);
+      } else if (reason === 'NOT_FOUND' || backendMessage.toLowerCase().includes('not found') || err.status === 404) {
+        playFeedbackAudio('error');
+        setScanResult({
+          status: 'error',
+          title: 'ADMISSION REJECTED • UNRECOGNIZED PASS',
+          badge: 'NOT FOUND',
+          message: `No reservation matching "${cleanCode}"`,
+          details: 'This code was not found in the registration system for this event. Check for typos or search the attendee’s name in the live roster.',
+          timestamp: now,
+          reason: 'NOT_FOUND',
+          scannedCode: cleanCode,
+        });
+        toastError(`Unrecognized pass code: "${cleanCode}". Not found in roster.`);
       } else {
         playFeedbackAudio('error');
         setScanResult({
           status: 'error',
-          title: 'ADMISSION REJECTED',
-          message: message,
+          title: 'ADMISSION REJECTED • VERIFICATION FAILED',
+          badge: 'VERIFY FAILED',
+          message: backendMessage || 'Verification error encountered',
+          details: 'The system could not verify this ticket pass. Please check your connection and retry.',
           timestamp: now,
+          scannedCode: cleanCode,
         });
+        toastError(backendMessage || 'Verification failed. Please retry.');
       }
     } finally {
       setIsSubmittingCheckIn(false);
@@ -907,7 +996,7 @@ export const EventCheckInDesk: React.FC<EventCheckInDeskProps> = ({
               }}
             >
               <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '14px' }}>
-                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', flex: 1, minWidth: 0 }}>
                   <div
                     style={{
                       ...styles.resultIconCircle,
@@ -924,34 +1013,92 @@ export const EventCheckInDesk: React.FC<EventCheckInDeskProps> = ({
                     {scanResult.status === 'error' && <XCircle size={22} color="#FFFFFF" />}
                   </div>
 
-                  <div>
-                    <h4 style={styles.resultTitle}>{scanResult.title}</h4>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                      <h4 style={styles.resultTitle}>{scanResult.title}</h4>
+                      {scanResult.badge && (
+                        <span
+                          style={{
+                            fontSize: '10px',
+                            fontWeight: 800,
+                            letterSpacing: '0.04em',
+                            padding: '2px 7px',
+                            borderRadius: '5px',
+                            backgroundColor:
+                              scanResult.status === 'warning'
+                                ? 'rgba(245, 158, 11, 0.2)'
+                                : scanResult.status === 'success'
+                                ? 'rgba(16, 185, 129, 0.2)'
+                                : 'rgba(239, 68, 68, 0.2)',
+                            color: 'inherit',
+                          }}
+                        >
+                          {scanResult.badge}
+                        </span>
+                      )}
+                    </div>
+
                     <p style={styles.resultMessage}>{scanResult.message}</p>
-                    {scanResult.rsvp && (
-                      <div style={styles.resultMetaRow}>
-                        <span style={styles.resultPassPill}>
-                          {scanResult.rsvp.passCode || `DAL-EVT-${scanResult.rsvp.id.slice(0, 8).toUpperCase()}`}
-                        </span>
-                        <span style={{ fontSize: '11.5px', color: 'inherit', opacity: 0.8 }}>
-                          Scanned at {scanResult.timestamp}
-                        </span>
-                      </div>
+
+                    {scanResult.details && (
+                      <p
+                        style={{
+                          fontSize: '12.5px',
+                          margin: '4px 0 0 0',
+                          opacity: 0.9,
+                          lineHeight: '17px',
+                          fontWeight: 500,
+                        }}
+                      >
+                        {scanResult.details}
+                      </p>
                     )}
+
+                    <div style={styles.resultMetaRow}>
+                      <span style={styles.resultPassPill}>
+                        {scanResult.scannedCode ||
+                          scanResult.rsvp?.passCode ||
+                          (scanResult.rsvp?.id ? `DAL-EVT-${scanResult.rsvp.id.slice(0, 8).toUpperCase()}` : 'UNKNOWN')}
+                      </span>
+                      <span style={{ fontSize: '11.5px', color: 'inherit', opacity: 0.8 }}>
+                        Scanned at {scanResult.timestamp}
+                      </span>
+                    </div>
                   </div>
                 </div>
 
-                {scanResult.rsvp && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+                  {scanResult.rsvp && scanResult.status !== 'error' && (
+                    <button
+                      onClick={() =>
+                        handleUndoCheckIn(scanResult.rsvp.id, scanResult.rsvp.fullName || 'Guest')
+                      }
+                      style={styles.resultUndoBtn}
+                      title="Undo Check-In"
+                    >
+                      <Undo2 size={13} />
+                      <span>Undo</span>
+                    </button>
+                  )}
                   <button
-                    onClick={() =>
-                      handleUndoCheckIn(scanResult.rsvp.id, scanResult.rsvp.fullName || 'Guest')
-                    }
-                    style={styles.resultUndoBtn}
-                    title="Undo Check-In"
+                    onClick={() => setScanResult(null)}
+                    style={{
+                      backgroundColor: 'transparent',
+                      border: 'none',
+                      cursor: 'pointer',
+                      color: 'inherit',
+                      opacity: 0.6,
+                      padding: '4px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      borderRadius: '6px',
+                    }}
+                    title="Dismiss Notification"
                   >
-                    <Undo2 size={13} />
-                    <span>Undo</span>
+                    <X size={16} />
                   </button>
-                )}
+                </div>
               </div>
             </div>
           )}

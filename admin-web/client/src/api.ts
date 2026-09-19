@@ -120,7 +120,15 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
     if (response.status === 401) {
       setStoredToken(null);
     }
-    throw new Error(data.error || `Request failed with status ${response.status}`);
+    const message = data.message || data.error || `Request failed with status ${response.status}`;
+    const err: any = new Error(message);
+    err.status = response.status;
+    err.data = data;
+    err.reason = data.reason;
+    err.rsvp = data.rsvp;
+    err.scannedCode = data.scannedCode;
+    err.targetEventTitle = data.targetEventTitle;
+    throw err;
   }
 
   return data as T;

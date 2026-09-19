@@ -1576,17 +1576,24 @@ adminRouter.post(
             include: { event: { select: { title: true } } },
           });
           if (otherEventPass) {
+            const wrongMsg = `This pass is valid for "${otherEventPass.event.title}", not the currently selected event!`;
             return res.status(400).json({
               success: false,
               reason: 'WRONG_EVENT',
-              message: `This pass is valid for "${otherEventPass.event.title}", not the currently selected event!`,
+              message: wrongMsg,
+              error: wrongMsg,
+              targetEventTitle: otherEventPass.event.title,
+              scannedCode: cleanCode,
             });
           }
         }
+        const notFoundMsg = `No reservation pass found matching "${cleanCode}".`;
         return res.status(404).json({
           success: false,
           reason: 'NOT_FOUND',
-          message: `No reservation pass found matching "${cleanCode}".`,
+          message: notFoundMsg,
+          error: notFoundMsg,
+          scannedCode: cleanCode,
         });
       }
 
@@ -1594,10 +1601,13 @@ adminRouter.post(
       const currentStatus = rsvp.status.toLowerCase();
 
       if (currentStatus === 'checked_in') {
+        const alreadyMsg = `Already Checked In! Guest was previously admitted.`;
         return res.status(409).json({
           success: false,
           reason: 'ALREADY_CHECKED_IN',
-          message: 'Already Checked In! Guest was previously admitted.',
+          message: alreadyMsg,
+          error: alreadyMsg,
+          scannedCode: `DAL-EVT-${rsvp.id.slice(0, 8).toUpperCase()}`,
           rsvp: {
             ...rsvp,
             passCode: `DAL-EVT-${rsvp.id.slice(0, 8).toUpperCase()}`,
@@ -1606,10 +1616,13 @@ adminRouter.post(
       }
 
       if (currentStatus === 'cancelled' || currentStatus === 'rejected') {
+        const cancelMsg = `Admission Denied. This pass was ${rsvp.status.toUpperCase()}.`;
         return res.status(400).json({
           success: false,
           reason: 'CANCELLED',
-          message: `Admission Denied. This pass was ${rsvp.status.toUpperCase()}.`,
+          message: cancelMsg,
+          error: cancelMsg,
+          scannedCode: `DAL-EVT-${rsvp.id.slice(0, 8).toUpperCase()}`,
           rsvp: {
             ...rsvp,
             passCode: `DAL-EVT-${rsvp.id.slice(0, 8).toUpperCase()}`,
