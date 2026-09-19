@@ -15,6 +15,7 @@ import {
   Check,
   Undo2,
   Sparkles,
+  Upload,
 } from 'lucide-react';
 import { Html5Qrcode } from 'html5-qrcode';
 import { adminApi } from '../api';
@@ -146,6 +147,9 @@ export const EventCheckInDesk: React.FC<EventCheckInDeskProps> = ({
   // Scanner State
   const [isCameraActive, setIsCameraActive] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
+  const [isStartingCamera, setIsStartingCamera] = useState(false);
+  const [availableCameras, setAvailableCameras] = useState<{ id: string; label: string }[]>([]);
+  const [selectedCameraId, setSelectedCameraId] = useState<string>('');
   const html5QrCodeRef = useRef<Html5Qrcode | null>(null);
   const isScanningRef = useRef(false);
 
@@ -252,15 +256,67 @@ export const EventCheckInDesk: React.FC<EventCheckInDeskProps> = ({
   // Camera Scanner Lifecycle
   const startCamera = async () => {
     setCameraError(null);
+    setIsStartingCamera(true);
+
+    // Clean up any lingering previous scanner instance safely
+    if (html5QrCodeRef.current) {
+      try {
+        if (html5QrCodeRef.current.isScanning) {
+          await html5QrCodeRef.current.stop();
+        }
+        html5QrCodeRef.current.clear();
+      } catch (e) {
+        console.warn('Cleanup error:', e);
+      }
+      html5QrCodeRef.current = null;
+    }
+
     try {
+      // 1. Verify Browser Support & Secure Context
+      if (!window.isSecureContext && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+        throw new Error('Camera access requires a Secure Context (HTTPS or http://localhost). If you are accessing via an IP address, please navigate to http://localhost:5173.');
+      }
+
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        throw new Error('Camera device API is not supported or has been disabled in this browser.');
+      }
+
+      // 2. Discover available camera hardware
+      let devices: { id: string; label: string }[] = [];
+      try {
+        devices = await Html5Qrcode.getCameras();
+      } catch (camErr: any) {
+        console.warn('Html5Qrcode.getCameras warning:', camErr);
+      }
+
+      if (devices && devices.length > 0) {
+        setAvailableCameras(devices);
+      }
+
+      // Determine camera constraint:
+      // Desktop webcams reject facingMode: 'environment' before asking for permissions.
+      // We prioritize exact hardware ID or ideal environment for mobile back cameras.
+      let cameraConfig: any;
+      if (selectedCameraId) {
+        cameraConfig = selectedCameraId;
+      } else if (devices && devices.length > 0) {
+        const rear = devices.find((d) => /back|rear|environment/i.test(d.label));
+        const chosen = rear || devices[0];
+        cameraConfig = chosen.id;
+        setSelectedCameraId(chosen.id);
+      } else {
+        cameraConfig = { facingMode: { ideal: 'environment' } };
+      }
+
       const html5QrCode = new Html5Qrcode('gate-qr-reader');
       html5QrCodeRef.current = html5QrCode;
 
       await html5QrCode.start(
-        { facingMode: 'environment' },
+        cameraConfig,
         {
           fps: 10,
           qrbox: { width: 250, height: 250 },
+          aspectRatio: 1.0,
         },
         (decodedText) => {
           if (!isScanningRef.current) {
@@ -276,21 +332,60 @@ export const EventCheckInDesk: React.FC<EventCheckInDeskProps> = ({
 
       setIsCameraActive(true);
     } catch (err: any) {
-      console.error('Failed to start camera:', err);
-      setCameraError('Unable to access camera. Please allow camera permissions or use manual search.');
+      console.error('Camera activation failed:', err);
+      let humanMsg = err.message || 'Unable to access camera.';
+      if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+        humanMsg = 'Camera permission was blocked. Click the lock/camera icon in your browser address bar and switch Camera to "Allow", then retry.';
+      } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError' || humanMsg.toLowerCase().includes('no camera') || humanMsg.toLowerCase().includes('not found')) {
+        humanMsg = 'No camera device detected on this computer. Please connect a webcam or use express pass search below.';
+      } else if (err.name === 'NotReadableError' || err.name === 'TrackStartError') {
+        humanMsg = 'Camera is in use by another program (e.g. Zoom, Teams, Skype). Please close the other program and retry.';
+      } else if (err.name === 'OverconstrainedError') {
+        humanMsg = 'The requested camera mode is not supported by your hardware.';
+      }
+      setCameraError(humanMsg);
       setIsCameraActive(false);
+    } finally {
+      setIsStartingCamera(false);
     }
   };
 
   const stopCamera = async () => {
-    if (html5QrCodeRef.current && isCameraActive) {
+    if (html5QrCodeRef.current) {
       try {
-        await html5QrCodeRef.current.stop();
+        if (html5QrCodeRef.current.isScanning) {
+          await html5QrCodeRef.current.stop();
+        }
         html5QrCodeRef.current.clear();
       } catch (err) {
         console.error('Error stopping camera:', err);
       }
+      html5QrCodeRef.current = null;
       setIsCameraActive(false);
+    }
+  };
+
+  // Upload and scan QR image file directly
+  const handleScanFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      let scanner = html5QrCodeRef.current;
+      if (!scanner) {
+        scanner = new Html5Qrcode('gate-qr-reader');
+        html5QrCodeRef.current = scanner;
+      }
+      const decodedText = await scanner.scanFile(file, false);
+      if (decodedText) {
+        setCameraError(null);
+        handleProcessCheckIn(decodedText);
+      }
+    } catch (err: any) {
+      console.error('File scan error:', err);
+      toastError('No valid QR pass code found in that image. Try entering the code manually.');
+    } finally {
+      e.target.value = '';
     }
   };
 
@@ -489,22 +584,43 @@ export const EventCheckInDesk: React.FC<EventCheckInDeskProps> = ({
                 <Camera size={18} color="#8C6A21" />
                 <h3 style={styles.sectionHeading}>QR Camera Scanner</h3>
               </div>
-              <button
-                onClick={isCameraActive ? stopCamera : startCamera}
-                style={isCameraActive ? styles.stopCameraBtn : styles.startCameraBtn}
-              >
-                {isCameraActive ? (
-                  <>
-                    <CameraOff size={14} />
-                    <span>Stop Camera</span>
-                  </>
-                ) : (
-                  <>
-                    <Camera size={14} />
-                    <span>Launch Camera</span>
-                  </>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                {availableCameras.length > 1 && (
+                  <select
+                    value={selectedCameraId}
+                    onChange={(e) => {
+                      setSelectedCameraId(e.target.value);
+                      if (isCameraActive) {
+                        stopCamera().then(() => startCamera());
+                      }
+                    }}
+                    style={styles.cameraSelect}
+                    title="Switch Camera Device"
+                  >
+                    {availableCameras.map((cam) => (
+                      <option key={cam.id} value={cam.id}>
+                        {cam.label || `Camera ${cam.id.slice(0, 6)}`}
+                      </option>
+                    ))}
+                  </select>
                 )}
-              </button>
+                <button
+                  onClick={isCameraActive ? stopCamera : startCamera}
+                  style={isCameraActive ? styles.stopCameraBtn : styles.startCameraBtn}
+                >
+                  {isCameraActive ? (
+                    <>
+                      <CameraOff size={14} />
+                      <span>Stop Camera</span>
+                    </>
+                  ) : (
+                    <>
+                      <Camera size={14} />
+                      <span>Launch Camera</span>
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
 
             {/* Camera Viewport */}
@@ -513,39 +629,70 @@ export const EventCheckInDesk: React.FC<EventCheckInDeskProps> = ({
                 id="gate-qr-reader"
                 style={{
                   width: '100%',
-                  height: '100%',
-                  display: isCameraActive ? 'block' : 'none',
+                  minHeight: '270px',
+                  display: 'block',
                 }}
               />
 
               {!isCameraActive && (
-                <div style={styles.cameraIdleContent}>
+                <div style={styles.cameraIdleOverlay}>
                   <div style={styles.cameraIdleIconCircle}>
-                    <QrCode size={32} color="#DFB76C" />
+                    <QrCode size={30} color="#DFB76C" />
                   </div>
                   <div style={{ textAlign: 'center' }}>
                     <p style={{ color: '#FFFFFF', fontWeight: 700, fontSize: '14px', margin: '0 0 4px 0' }}>
                       Camera Scanner Idle
                     </p>
-                    <p style={{ color: '#94A3B8', fontSize: '12px', margin: 0, maxWidth: '280px', lineHeight: '16px' }}>
-                      Click "Launch Camera" to scan attendee mobile passes via your device webcam or tablet camera
+                    <p style={{ color: '#94A3B8', fontSize: '12px', margin: 0, maxWidth: '290px', lineHeight: '16px' }}>
+                      Click "Start Camera" to scan attendee mobile passes via your device webcam or tablet camera
                     </p>
                   </div>
-                  <button onClick={startCamera} style={styles.primaryGoldBtn}>
-                    Start Camera
+                  <button
+                    onClick={startCamera}
+                    disabled={isStartingCamera}
+                    style={{
+                      ...styles.primaryGoldBtn,
+                      opacity: isStartingCamera ? 0.7 : 1,
+                      cursor: isStartingCamera ? 'wait' : 'pointer',
+                    }}
+                  >
+                    {isStartingCamera ? 'Connecting Camera...' : 'Start Camera'}
                   </button>
+
+                  <label style={styles.uploadPassBtn}>
+                    <Upload size={13} style={{ marginRight: 5 }} />
+                    <span>Or Select QR Image File</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      style={{ display: 'none' }}
+                      onChange={handleScanFile}
+                    />
+                  </label>
                 </div>
               )}
 
               {cameraError && (
                 <div style={styles.cameraErrorOverlay}>
                   <AlertTriangle size={24} color="#F87171" />
-                  <p style={{ color: '#FECACA', fontSize: '12px', fontWeight: 600, margin: '6px 0 0 0', textAlign: 'center' }}>
+                  <p style={{ color: '#FECACA', fontSize: '12px', fontWeight: 600, margin: '6px 0 0 0', textAlign: 'center', lineHeight: '17px', maxWidth: '320px' }}>
                     {cameraError}
                   </p>
-                  <button onClick={startCamera} style={styles.retryBtn}>
-                    Retry
-                  </button>
+                  <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
+                    <button onClick={startCamera} style={styles.retryBtn}>
+                      Retry Camera
+                    </button>
+                    <label style={styles.errorUploadBtn}>
+                      <Upload size={12} style={{ marginRight: 4 }} />
+                      <span>Upload QR File</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        style={{ display: 'none' }}
+                        onChange={handleScanFile}
+                      />
+                    </label>
+                  </div>
                 </div>
               )}
             </div>
@@ -1027,6 +1174,17 @@ const styles: { [key: string]: React.CSSProperties } = {
     color: '#07152B',
     margin: 0,
   },
+  cameraSelect: {
+    backgroundColor: '#F8FAFC',
+    border: '1px solid #E4E9F0',
+    borderRadius: '8px',
+    padding: '6px 10px',
+    fontSize: '11.5px',
+    fontWeight: 650,
+    color: '#07152B',
+    outline: 'none',
+    maxWidth: '170px',
+  },
   startCameraBtn: {
     display: 'inline-flex',
     alignItems: 'center',
@@ -1064,12 +1222,50 @@ const styles: { [key: string]: React.CSSProperties } = {
     alignItems: 'center',
     justifyContent: 'center',
   },
+  cameraIdleOverlay: {
+    position: 'absolute',
+    inset: 0,
+    backgroundColor: '#07152B',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: '10px',
+    padding: '20px',
+    zIndex: 2,
+  },
   cameraIdleContent: {
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
     gap: '12px',
     padding: '24px',
+  },
+  uploadPassBtn: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    color: '#E2E8F0',
+    border: '1px solid rgba(255, 255, 255, 0.15)',
+    borderRadius: '8px',
+    padding: '6px 14px',
+    fontSize: '11.5px',
+    fontWeight: 600,
+    cursor: 'pointer',
+    marginTop: '4px',
+    transition: 'background-color 0.2s',
+  },
+  errorUploadBtn: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    color: '#FFFFFF',
+    border: '1px solid rgba(255, 255, 255, 0.3)',
+    borderRadius: '8px',
+    padding: '6px 12px',
+    fontSize: '11.5px',
+    fontWeight: 600,
+    cursor: 'pointer',
   },
   cameraIdleIconCircle: {
     width: '56px',

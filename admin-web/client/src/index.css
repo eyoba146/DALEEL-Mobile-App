@@ -916,3 +916,21 @@ input::placeholder, textarea::placeholder {
   transform: translateY(-1px);
   box-shadow: 0 3px 8px rgba(7, 21, 43, 0.25) !important;
 }
+
+/* QR Scanner Video Viewport Rules */
+#gate-qr-reader {
+  border: none !important;
+}
+#gate-qr-reader video {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+  border-radius: 12px;
+}
+#gate-qr-reader img {
+  display: none !important;
+}
+#gate-qr-reader__dashboard_section_csr {
+  display: none !important;
+}
+
