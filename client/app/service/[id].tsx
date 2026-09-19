@@ -28,6 +28,19 @@ import { colors, fonts, radius, spacing } from '../../theme/tokens';
 
 const TIMEFRAMES = ['Urgent (<48h)', 'Next 2 Weeks', 'Within 1-3 Months', 'General Inquiry'];
 
+const APPOINTMENT_SLOTS = [
+  { id: 'Morning (09:00 - 12:00 EAT)', label: 'Morning', time: '09:00 – 12:00', icon: 'sunny-outline' as const },
+  { id: 'Afternoon (14:00 - 17:00 EAT)', label: 'Afternoon', time: '14:00 – 17:00', icon: 'partly-sunny-outline' as const },
+  { id: 'Evening (17:00 - 20:00 EAT)', label: 'Evening', time: '17:00 – 20:00', icon: 'moon-outline' as const },
+];
+
+const CONSULTATION_CHANNELS = [
+  { id: 'WhatsApp Voice/Video', label: 'WhatsApp', icon: 'logo-whatsapp' as const },
+  { id: 'Direct Phone Dial', label: 'Phone Call', icon: 'call-outline' as const },
+  { id: 'In-Person Office', label: 'In-Person', icon: 'business-outline' as const },
+  { id: 'Virtual Video Meet', label: 'Virtual Meet', icon: 'videocam-outline' as const },
+];
+
 export default function ServiceDetailScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -49,6 +62,8 @@ export default function ServiceDetailScreen() {
   const [contactPhone, setContactPhone] = useState(user?.phone ?? '');
   const [contactWhatsapp, setContactWhatsapp] = useState(user?.phone ?? '');
   const [selectedTimeframe, setSelectedTimeframe] = useState(TIMEFRAMES[1]);
+  const [selectedSlot, setSelectedSlot] = useState(APPOINTMENT_SLOTS[0].id);
+  const [selectedChannel, setSelectedChannel] = useState(CONSULTATION_CHANNELS[0].id);
   const [message, setMessage] = useState('');
   const [submittingInquiry, setSubmittingInquiry] = useState(false);
   const [inquirySuccess, setInquirySuccess] = useState(false);
@@ -92,8 +107,24 @@ export default function ServiceDetailScreen() {
         setContactEmail(inq.contactEmail || user?.email || '');
         if (inq.contactPhone) setContactPhone(inq.contactPhone);
         if (inq.contactWhatsapp) setContactWhatsapp(inq.contactWhatsapp);
-        if (inq.timeframe) setSelectedTimeframe(inq.timeframe);
-        if (inq.message) setMessage(inq.message);
+        if (inq.timeframe) {
+          if (inq.timeframe.includes('•')) {
+            const parts = inq.timeframe.split('•').map((p) => p.trim());
+            if (parts[0]) setSelectedTimeframe(parts[0]);
+            if (parts[1]) setSelectedSlot(parts[1]);
+          } else {
+            setSelectedTimeframe(inq.timeframe);
+          }
+        }
+        if (inq.message) {
+          const match = inq.message.match(/^\[Channel:\s*([^\]]+)\]\s*/i);
+          if (match) {
+            setSelectedChannel(match[1].trim());
+            setMessage(inq.message.slice(match[0].length).trim());
+          } else {
+            setMessage(inq.message);
+          }
+        }
       } else {
         setExistingInquiry(null);
       }
@@ -133,18 +164,27 @@ export default function ServiceDetailScreen() {
   };
 
   const handleCall = () => {
-    const rawNumber = service?.phone || '+251911234567';
+    const rawNumber = service?.phone || service?.whatsapp || '+251911234567';
     const cleaned = rawNumber.replace(/[^0-9+]/g, '');
     Linking.openURL(`tel:${cleaned}`).catch(() => {});
   };
 
   const handleWhatsApp = () => {
-    const rawNumber = service?.whatsapp || '+251911234567';
-    const cleaned = rawNumber.replace(/[^0-9]/g, '');
+    const rawNumber = service?.whatsapp || service?.phone || '+251911234567';
+    const cleaned = rawNumber.replace(/[^0-9+]/g, '');
     const defaultText = encodeURIComponent(
-      `Hello ${service?.name}, I found your listing on the DALEEL Diaspora App and would like to inquire about your ${service?.category} services.`
+      `Hello ${service?.name}, I found your service on DALEEL Diaspora Concierge and would like to schedule a consultation / appointment.`
     );
-    Linking.openURL(`https://wa.me/${cleaned}?text=${defaultText}`).catch(() => {});
+    const appUrl = `whatsapp://send?phone=${cleaned}&text=${defaultText}`;
+    Linking.canOpenURL(appUrl).then((supported) => {
+      if (supported) {
+        Linking.openURL(appUrl);
+      } else {
+        Linking.openURL(`https://wa.me/${cleaned.replace('+', '')}?text=${defaultText}`);
+      }
+    }).catch(() => {
+      Linking.openURL(`https://wa.me/${cleaned.replace('+', '')}?text=${defaultText}`);
+    });
   };
 
   const handleSubmitInquiry = async () => {
@@ -158,13 +198,15 @@ export default function ServiceDetailScreen() {
     setInquiryError(null);
     setSubmittingInquiry(true);
     try {
+      const fullTimeframe = `${selectedTimeframe} • ${selectedSlot}`;
+      const fullMessage = `[Channel: ${selectedChannel}]\n\n${message.trim()}`;
       const payload: ServiceInquiryPayload = {
         fullName: fullName.trim(),
         contactEmail: contactEmail.trim().toLowerCase(),
         contactPhone: contactPhone.trim() || undefined,
         contactWhatsapp: contactWhatsapp.trim() || undefined,
-        timeframe: selectedTimeframe,
-        message: message.trim(),
+        timeframe: fullTimeframe,
+        message: fullMessage,
       };
 
       if (existingInquiry) {
@@ -375,7 +417,7 @@ export default function ServiceDetailScreen() {
                 <Ionicons name="logo-whatsapp" size={20} color="#25D366" />
               </View>
               <Text style={styles.quickActionLabel}>WhatsApp</Text>
-              <Text style={styles.quickActionSub}>Direct Chat</Text>
+              <Text style={styles.quickActionSub}>Instant Chat</Text>
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.quickActionCard} onPress={handleCall} activeOpacity={0.85}>
@@ -383,7 +425,7 @@ export default function ServiceDetailScreen() {
                 <Ionicons name="call" size={19} color={colors.navy} />
               </View>
               <Text style={styles.quickActionLabel}>Call Partner</Text>
-              <Text style={styles.quickActionSub}>Phone Line</Text>
+              <Text style={styles.quickActionSub}>{service.phone ? 'Direct Dial' : 'Phone Line'}</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -392,10 +434,10 @@ export default function ServiceDetailScreen() {
               activeOpacity={0.85}
             >
               <View style={[styles.quickActionIconCircle, { backgroundColor: 'rgba(223, 183, 108, 0.18)' }]}>
-                <Ionicons name="mail-unread" size={19} color={colors.goldRich} />
+                <Ionicons name="calendar" size={19} color={colors.goldRich} />
               </View>
-              <Text style={styles.quickActionLabel}>Send Inquiry</Text>
-              <Text style={styles.quickActionSub}>Request Quote</Text>
+              <Text style={styles.quickActionLabel}>Appointment</Text>
+              <Text style={styles.quickActionSub}>Book Time Slot</Text>
             </TouchableOpacity>
           </View>
 
@@ -484,11 +526,16 @@ export default function ServiceDetailScreen() {
         </View>
       </ScrollView>
 
-      {/* Sticky Bottom Bar */}
-      <View style={styles.bottomBar}>
+      {/* Sticky Bottom Action Bar with WhatsApp, Call, and Appointment Booking */}
+      <View style={[styles.bottomBar, { paddingBottom: Math.max(insets.bottom, 12) }]}>
         <TouchableOpacity style={styles.whatsAppBottomBtn} onPress={handleWhatsApp} activeOpacity={0.85}>
-          <Ionicons name="logo-whatsapp" size={18} color="#FFFFFF" style={{ marginRight: 6 }} />
+          <Ionicons name="logo-whatsapp" size={17} color="#FFFFFF" style={{ marginRight: 4 }} />
           <Text style={styles.whatsAppBottomText}>WhatsApp</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.callBottomBtn} onPress={handleCall} activeOpacity={0.85}>
+          <Ionicons name="call" size={16} color={colors.navy} style={{ marginRight: 4 }} />
+          <Text style={styles.callBottomText}>Call</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -497,13 +544,13 @@ export default function ServiceDetailScreen() {
           activeOpacity={0.85}
         >
           <Ionicons
-            name={existingInquiry ? 'create-outline' : 'paper-plane-outline'}
+            name={existingInquiry ? 'create-outline' : 'calendar-outline'}
             size={16}
             color={colors.navy}
-            style={{ marginRight: 6 }}
+            style={{ marginRight: 5 }}
           />
           <Text style={styles.inquiryBottomText}>
-            {existingInquiry ? 'Edit Your Inquiry' : 'Submit Formal Inquiry'}
+            {existingInquiry ? 'Edit Booking' : 'Book Appointment'}
           </Text>
         </TouchableOpacity>
       </View>
@@ -524,12 +571,12 @@ export default function ServiceDetailScreen() {
             <View style={styles.modalHeaderRow}>
               <View>
                 <Text style={styles.modalTitle}>
-                  {existingInquiry ? 'Edit Consultation Inquiry' : 'Request Partner Inquiry'}
+                  {existingInquiry ? 'Edit Appointment Booking' : 'Appointment & Concierge Booking'}
                 </Text>
                 <Text style={styles.modalSub}>
                   {existingInquiry
                     ? `Status: ${existingInquiry.status.toUpperCase()} • Update your details`
-                    : service.name}
+                    : `Coordinate directly with ${service.name}`}
                 </Text>
               </View>
               <TouchableOpacity
@@ -547,22 +594,96 @@ export default function ServiceDetailScreen() {
                   <Ionicons name="checkmark-done" size={32} color={colors.gold} />
                 </View>
                 <Text style={styles.successStateTitle}>
-                  {existingInquiry ? 'Inquiry Updated!' : 'Inquiry Dispatched!'}
+                  {existingInquiry ? 'Booking Request Updated!' : 'Appointment Request Dispatched!'}
                 </Text>
                 <Text style={styles.successStateSub}>
                   {existingInquiry
-                    ? 'Your changes have been saved and dispatched to the concierge team.'
-                    : `Your request has been forwarded directly to ${service.name}. Their diaspora concierge team will reply within 24 hours.`}
+                    ? 'Your changes have been saved and dispatched to the concierge triage desk.'
+                    : `Your appointment request has been forwarded directly to ${service.name} and the DALEEL concierge desk. You will receive confirmation within 24 hours.`}
                 </Text>
               </View>
             ) : (
-              <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: 480 }}>
+              <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: 520 }}>
                 {inquiryError && (
                   <View style={styles.errorNoticeBox}>
                     <Ionicons name="alert-circle-outline" size={16} color="#DC2626" style={{ marginRight: 8 }} />
                     <Text style={styles.errorNoticeText}>{inquiryError}</Text>
                   </View>
                 )}
+
+                {/* Preferred Consultation Channel */}
+                <Text style={styles.inputLabel}>Preferred Consultation Channel</Text>
+                <View style={styles.channelGrid}>
+                  {CONSULTATION_CHANNELS.map((ch) => {
+                    const active = selectedChannel === ch.id;
+                    return (
+                      <TouchableOpacity
+                        key={ch.id}
+                        style={[styles.channelCard, active && styles.channelCardActive]}
+                        onPress={() => setSelectedChannel(ch.id)}
+                        activeOpacity={0.8}
+                      >
+                        <Ionicons
+                          name={ch.icon}
+                          size={15}
+                          color={active ? colors.goldRich : colors.charcoalSub}
+                          style={{ marginRight: 5 }}
+                        />
+                        <Text style={[styles.channelCardText, active && styles.channelCardTextActive]}>
+                          {ch.label}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+
+                {/* Preferred Appointment Slot */}
+                <Text style={styles.inputLabel}>Preferred Time Slot (Ethiopia EAT)</Text>
+                <View style={styles.slotGrid}>
+                  {APPOINTMENT_SLOTS.map((slot) => {
+                    const active = selectedSlot === slot.id;
+                    return (
+                      <TouchableOpacity
+                        key={slot.id}
+                        style={[styles.slotCard, active && styles.slotCardActive]}
+                        onPress={() => setSelectedSlot(slot.id)}
+                        activeOpacity={0.8}
+                      >
+                        <Ionicons
+                          name={slot.icon}
+                          size={14}
+                          color={active ? colors.goldRich : colors.charcoalSub}
+                          style={{ marginRight: 5 }}
+                        />
+                        <View style={{ flex: 1 }}>
+                          <Text style={[styles.slotCardLabel, active && styles.slotCardLabelActive]}>
+                            {slot.label}
+                          </Text>
+                          <Text style={styles.slotCardTime}>{slot.time}</Text>
+                        </View>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+
+                {/* Timeframe selector */}
+                <Text style={styles.inputLabel}>Required Timeframe</Text>
+                <View style={styles.timeframeGrid}>
+                  {TIMEFRAMES.map((tf) => {
+                    const active = selectedTimeframe === tf;
+                    return (
+                      <TouchableOpacity
+                        key={tf}
+                        style={[styles.timeframePill, active && styles.timeframePillActive]}
+                        onPress={() => setSelectedTimeframe(tf)}
+                      >
+                        <Text style={[styles.timeframeText, active && styles.timeframeTextActive]}>
+                          {tf}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
 
                 {/* Full Name */}
                 <Text style={styles.inputLabel}>Full Legal Name *</Text>
@@ -613,30 +734,11 @@ export default function ServiceDetailScreen() {
                   </View>
                 </View>
 
-                {/* Timeframe selector */}
-                <Text style={styles.inputLabel}>Required Timeframe</Text>
-                <View style={styles.timeframeGrid}>
-                  {TIMEFRAMES.map((tf) => {
-                    const active = selectedTimeframe === tf;
-                    return (
-                      <TouchableOpacity
-                        key={tf}
-                        style={[styles.timeframePill, active && styles.timeframePillActive]}
-                        onPress={() => setSelectedTimeframe(tf)}
-                      >
-                        <Text style={[styles.timeframeText, active && styles.timeframeTextActive]}>
-                          {tf}
-                        </Text>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </View>
-
                 {/* Requirements Message */}
                 <Text style={styles.inputLabel}>Inquiry Details / Scope of Need *</Text>
                 <TextInput
                   style={[styles.inputField, styles.textAreaField]}
-                  placeholder="Explain your situation, required dates, or specific assistance needed in Ethiopia…"
+                  placeholder="Explain your situation, specific documents, dates, or assistance needed in Ethiopia…"
                   placeholderTextColor={colors.charcoalLight}
                   multiline
                   numberOfLines={4}
@@ -656,11 +758,11 @@ export default function ServiceDetailScreen() {
                   ) : (
                     <>
                       <Text style={styles.submitInquiryText}>
-                        {existingInquiry ? 'Save & Update Inquiry' : 'Send Inquiry to Partner'}
+                        {existingInquiry ? 'Save Updated Booking' : 'Confirm Appointment Request'}
                       </Text>
                       <Ionicons
-                        name={existingInquiry ? 'checkmark-circle' : 'send'}
-                        size={15}
+                        name={existingInquiry ? 'checkmark-circle' : 'calendar'}
+                        size={16}
                         color={colors.navy}
                         style={{ marginLeft: 8 }}
                       />
@@ -1036,11 +1138,11 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: spacing.lg,
-    paddingVertical: 14,
+    paddingHorizontal: 12,
+    paddingTop: 12,
     borderTopWidth: 1,
     borderTopColor: 'rgba(0,0,0,0.06)',
-    gap: 12,
+    gap: 8,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -3 },
     shadowOpacity: 0.05,
@@ -1048,26 +1150,42 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
   whatsAppBottomBtn: {
-    flex: 1,
+    flex: 1.1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#25D366',
-    paddingVertical: 14,
+    paddingVertical: 12,
     borderRadius: radius.xl,
   },
   whatsAppBottomText: {
     fontFamily: fonts.sansBold,
-    fontSize: 13,
+    fontSize: 12.5,
     color: '#FFFFFF',
   },
+  callBottomBtn: {
+    flex: 0.9,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F1F5F9',
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+    paddingVertical: 12,
+    borderRadius: radius.xl,
+  },
+  callBottomText: {
+    fontFamily: fonts.sansBold,
+    fontSize: 12.5,
+    color: colors.navy,
+  },
   inquiryBottomBtn: {
-    flex: 1.4,
+    flex: 1.8,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: colors.gold,
-    paddingVertical: 14,
+    paddingVertical: 12,
     borderRadius: radius.xl,
     shadowColor: colors.gold,
     shadowOffset: { width: 0, height: 3 },
@@ -1077,8 +1195,74 @@ const styles = StyleSheet.create({
   },
   inquiryBottomText: {
     fontFamily: fonts.sansBold,
-    fontSize: 14,
+    fontSize: 13,
     color: colors.navy,
+  },
+
+  // Consultation Channel & Slot Grids
+  channelGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 6,
+  },
+  channelCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: radius.md,
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  channelCardActive: {
+    backgroundColor: '#FEF9EE',
+    borderColor: colors.gold,
+  },
+  channelCardText: {
+    fontSize: 12,
+    fontFamily: fonts.sansMedium,
+    color: colors.charcoalSub,
+  },
+  channelCardTextActive: {
+    fontFamily: fonts.sansSemiBold,
+    color: colors.navy,
+  },
+
+  slotGrid: {
+    flexDirection: 'row',
+    gap: 6,
+    marginBottom: 6,
+  },
+  slotCard: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 8,
+    borderRadius: radius.md,
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  slotCardActive: {
+    backgroundColor: '#FEF9EE',
+    borderColor: colors.gold,
+  },
+  slotCardLabel: {
+    fontSize: 11,
+    fontFamily: fonts.sansSemiBold,
+    color: colors.charcoal,
+  },
+  slotCardLabelActive: {
+    color: colors.navy,
+  },
+  slotCardTime: {
+    fontSize: 9.5,
+    fontFamily: fonts.sansRegular,
+    color: colors.charcoalSub,
+    marginTop: 1,
   },
 
   // Modal Styles

@@ -15,20 +15,19 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { CurrencySelector } from '../components/CurrencySelector';
 import ScreenHeader from '../components/ScreenHeader';
 import { useAuth } from '../lib/auth-context';
 import { useCart } from '../lib/cart-context';
+import { useCurrency } from '../lib/currency-context';
 import { getCurrentUserLocation } from '../lib/location';
 import { colors, fonts, radius, spacing } from '../theme/tokens';
-
-function formatPrice(price: number, currency: string = 'ETB') {
-  return `${price.toLocaleString('en-US')} ${currency}`;
-}
 
 export default function CartScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
+  const { currency, formatPrice } = useCurrency();
   const {
     items,
     itemCount,
@@ -155,7 +154,7 @@ export default function CartScreen() {
             <View style={styles.successSummaryBox}>
               <View style={styles.successLine}>
                 <Text style={styles.successLabel}>Total Amount:</Text>
-                <Text style={styles.successValBold}>{formatPrice(submittedTotal)}</Text>
+                <Text style={styles.successValBold}>{formatPrice(submittedTotal, true)}</Text>
               </View>
               <View style={styles.successLine}>
                 <Text style={styles.successLabel}>Delivery Destination:</Text>
@@ -236,13 +235,16 @@ export default function CartScreen() {
         subtitle={`${itemCount} item(s) • ${formatPrice(subtotalETB)}`}
         showBack
         rightElement={
-          <TouchableOpacity
-            style={styles.clearHeaderBtn}
-            onPress={handleConfirmClear}
-            activeOpacity={0.75}
-          >
-            <Text style={styles.clearHeaderText}>Clear</Text>
-          </TouchableOpacity>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <CurrencySelector compact />
+            <TouchableOpacity
+              style={styles.clearHeaderBtn}
+              onPress={handleConfirmClear}
+              activeOpacity={0.75}
+            >
+              <Text style={styles.clearHeaderText}>Clear</Text>
+            </TouchableOpacity>
+          </View>
         }
       />
 
@@ -288,9 +290,16 @@ export default function CartScreen() {
                   </Text>
 
                   <View style={styles.cardBottomRow}>
-                    <Text style={styles.unitPriceText}>
-                      {formatPrice(itemTotal)}
-                    </Text>
+                    <View>
+                      <Text style={styles.unitPriceText}>
+                        {formatPrice(itemTotal)}
+                      </Text>
+                      {currency !== 'ETB' && (
+                        <Text style={styles.unitPriceSubText}>
+                          ~{itemTotal.toLocaleString('en-US')} ETB
+                        </Text>
+                      )}
+                    </View>
 
                     {/* Quantity Stepper */}
                     <View style={styles.stepperWrap}>
@@ -445,10 +454,12 @@ export default function CartScreen() {
               <Text style={styles.summaryValue}>{formatPrice(subtotalETB)}</Text>
             </View>
 
-            <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>Diaspora Peg Est.</Text>
-              <Text style={styles.summaryValueUSD}>≈ ${subtotalUSD.toLocaleString()} USD</Text>
-            </View>
+            {currency !== 'ETB' && (
+              <View style={styles.summaryRow}>
+                <Text style={styles.summaryLabel}>Base Currency Equivalent</Text>
+                <Text style={styles.summaryValueUSD}>{subtotalETB.toLocaleString('en-US')} ETB</Text>
+              </View>
+            )}
 
             <View style={styles.summaryRow}>
               <Text style={styles.summaryLabel}>Artisan Coordination</Text>
@@ -458,7 +469,12 @@ export default function CartScreen() {
             <View style={styles.summaryDivider} />
 
             <View style={styles.summaryRowTotal}>
-              <Text style={styles.totalLabel}>Total Order</Text>
+              <View>
+                <Text style={styles.totalLabel}>Total Order</Text>
+                {currency !== 'ETB' && (
+                  <Text style={styles.totalSubLabel}>Base: {subtotalETB.toLocaleString('en-US')} ETB</Text>
+                )}
+              </View>
               <Text style={styles.totalValue}>{formatPrice(subtotalETB)}</Text>
             </View>
 
@@ -477,6 +493,9 @@ export default function CartScreen() {
         <View style={styles.bottomPriceCol}>
           <Text style={styles.bottomTotalLabel}>Total ({itemCount} items)</Text>
           <Text style={styles.bottomTotalVal}>{formatPrice(subtotalETB)}</Text>
+          {currency !== 'ETB' && (
+            <Text style={styles.bottomTotalSubVal}>~ {subtotalETB.toLocaleString('en-US')} ETB</Text>
+          )}
         </View>
 
         <TouchableOpacity
@@ -588,6 +607,13 @@ const styles = StyleSheet.create({
     fontFamily: fonts.body,
     fontWeight: '800',
     color: colors.navy,
+  },
+  unitPriceSubText: {
+    fontSize: 10.5,
+    fontFamily: fonts.body,
+    fontWeight: '600',
+    color: colors.charcoalSub,
+    marginTop: 1,
   },
   stepperWrap: {
     flexDirection: 'row',
@@ -756,6 +782,12 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: colors.navy,
   },
+  totalSubLabel: {
+    fontSize: 11,
+    fontFamily: fonts.body,
+    color: colors.charcoalSub,
+    marginTop: 2,
+  },
   totalValue: {
     fontSize: 18,
     fontFamily: fonts.heading,
@@ -809,6 +841,13 @@ const styles = StyleSheet.create({
     fontFamily: fonts.heading,
     fontWeight: '800',
     color: colors.navy,
+  },
+  bottomTotalSubVal: {
+    fontSize: 10,
+    fontFamily: fonts.body,
+    fontWeight: '600',
+    color: colors.charcoalSub,
+    marginTop: 1,
   },
   checkoutBtn: {
     flexDirection: 'row',

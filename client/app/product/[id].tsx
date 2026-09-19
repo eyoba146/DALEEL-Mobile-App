@@ -21,16 +21,14 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { products as sampleProducts } from '../../assets/data/sample';
+import { CurrencySelector } from '../../components/CurrencySelector';
 import { contentApi, Product, ProductOrderInquiry, ProductOrderInquiryPayload } from '../../lib/api';
 import { useAuth } from '../../lib/auth-context';
 import { useCart } from '../../lib/cart-context';
+import { useCurrency } from '../../lib/currency-context';
 import { useFavorites } from '../../lib/favorites-context';
 import { getCurrentUserLocation } from '../../lib/location';
 import { colors, fonts, radius, spacing } from '../../theme/tokens';
-
-function formatPrice(price: number, currency: string = 'ETB') {
-  return `${price.toLocaleString('en-US')} ${currency}`;
-}
 
 export default function ProductDetailScreen() {
   const router = useRouter();
@@ -39,6 +37,7 @@ export default function ProductDetailScreen() {
   const { isFavorite, toggleFavorite } = useFavorites();
   const { user, token } = useAuth();
   const { items, addToCart, removeFromCart, updateQuantity, itemCount } = useCart();
+  const { currency, formatPrice, formatDualPrice } = useCurrency();
   const [localQty, setLocalQty] = useState(1);
   const [addedFeedback, setAddedFeedback] = useState(false);
 
@@ -389,6 +388,7 @@ export default function ProductDetailScreen() {
         </TouchableOpacity>
 
         <View style={styles.navRightActions}>
+          <CurrencySelector compact />
           <TouchableOpacity
             style={styles.navCircleBtn}
             onPress={handleShare}
@@ -446,7 +446,10 @@ export default function ProductDetailScreen() {
 
           {/* Floating Price Pill */}
           <View style={styles.heroPriceBadge}>
-            <Text style={styles.heroPriceText}>{formatPrice(product.price, product.currency)}</Text>
+            <Text style={styles.heroPriceText}>{formatPrice(product.price)}</Text>
+            {currency !== 'ETB' && (
+              <Text style={styles.heroPriceSubText}>~{product.price.toLocaleString('en-US')} ETB</Text>
+            )}
           </View>
 
           {/* Category Chip */}
@@ -645,14 +648,18 @@ export default function ProductDetailScreen() {
             <Text style={styles.bottomPriceLabel}>
               {inBagQty > 0 ? `Subtotal in Bag (${inBagQty} pcs)` : 'Artisan Direct Price'}
             </Text>
-            <View style={styles.bottomPriceValueRow}>
-              <Text style={styles.bottomPriceValue}>
-                {formatPrice(inBagQty > 0 ? product.price * inBagQty : product.price * localQty, product.currency)}
-              </Text>
-              <Text style={styles.bottomPriceUsd}>
-                {`≈ $${Math.round((inBagQty > 0 ? product.price * inBagQty : product.price * localQty) / 125)} USD`}
-              </Text>
-            </View>
+            {(() => {
+              const currentTotal = inBagQty > 0 ? product.price * inBagQty : product.price * localQty;
+              const dual = formatDualPrice(currentTotal);
+              return (
+                <View style={styles.bottomPriceValueRow}>
+                  <Text style={styles.bottomPriceValue}>{dual.primary}</Text>
+                  {dual.secondary && (
+                    <Text style={styles.bottomPriceUsd}>{`~ ${dual.secondary}`}</Text>
+                  )}
+                </View>
+              );
+            })()}
           </View>
 
           {product.sellerWhatsapp && (
@@ -764,7 +771,7 @@ export default function ProductDetailScreen() {
                   style={{ marginRight: 6 }}
                 />
                 <Text style={[styles.addToBagMainBtnText, addedFeedback && styles.addToBagMainBtnTextSuccess]}>
-                  {addedFeedback ? 'Added to Bag!' : `Add to Bag • ${formatPrice(product.price * localQty, product.currency)}`}
+                  {addedFeedback ? 'Added to Bag!' : `Add to Bag • ${formatPrice(product.price * localQty)}`}
                 </Text>
               </TouchableOpacity>
             </>
@@ -840,7 +847,7 @@ export default function ProductDetailScreen() {
                   <View style={styles.summaryLine}>
                     <Text style={styles.summaryLabel}>Total Estimated Price:</Text>
                     <Text style={styles.summaryVal}>
-                      {formatPrice(totalPrice, product.currency)} ({quantity} pcs)
+                      {formatPrice(totalPrice, true)} ({quantity} pcs)
                     </Text>
                   </View>
                   <View style={styles.summaryLine}>
@@ -929,7 +936,7 @@ export default function ProductDetailScreen() {
                   <View style={styles.summaryLine}>
                     <Text style={styles.summaryLabel}>Estimated Total:</Text>
                     <Text style={styles.summaryVal}>
-                      {formatPrice(product.price * activeInquiry.quantity, product.currency)}
+                      {formatPrice(product.price * activeInquiry.quantity, true)}
                     </Text>
                   </View>
                   <View style={styles.summaryLine}>
@@ -1045,7 +1052,7 @@ export default function ProductDetailScreen() {
                   <View>
                     <Text style={styles.quantityLabel}>Select Quantity</Text>
                     <Text style={styles.quantitySub}>
-                      Subtotal: {formatPrice(totalPrice, product.currency)}
+                      Subtotal: {formatPrice(totalPrice, true)}
                     </Text>
                   </View>
                   <View style={styles.stepperWrap}>
@@ -1200,8 +1207,8 @@ export default function ProductDetailScreen() {
                     <>
                       <Text style={styles.submitOrderBtnText}>
                         {isEditMode
-                          ? `Save Updated Inquiry (${formatPrice(totalPrice, product.currency)})`
-                          : `Submit Inquiry (${formatPrice(totalPrice, product.currency)})`}
+                          ? `Save Updated Inquiry (${formatPrice(totalPrice, true)})`
+                          : `Submit Inquiry (${formatPrice(totalPrice, true)})`}
                       </Text>
                       <Ionicons name="arrow-forward" size={16} color="#FFFFFF" style={{ marginLeft: 6 }} />
                     </>
@@ -1328,6 +1335,13 @@ const styles = StyleSheet.create({
     fontFamily: fonts.body,
     fontWeight: '800',
     color: colors.gold,
+  },
+  heroPriceSubText: {
+    fontSize: 11,
+    fontFamily: fonts.body,
+    fontWeight: '600',
+    color: 'rgba(255, 255, 255, 0.75)',
+    marginTop: 2,
   },
   heroCategoryBadge: {
     position: 'absolute',

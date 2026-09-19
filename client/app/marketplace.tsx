@@ -14,9 +14,11 @@ import {
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { products as sampleProducts } from '../assets/data/sample';
+import { CurrencySelector } from '../components/CurrencySelector';
 import ScreenHeader from '../components/ScreenHeader';
 import { contentApi, Product, categoriesApi, CategoryItem } from '../lib/api';
 import { useCart } from '../lib/cart-context';
+import { useCurrency } from '../lib/currency-context';
 import { useFavorites } from '../lib/favorites-context';
 import { colors, fonts, radius, spacing } from '../theme/tokens';
 
@@ -28,10 +30,6 @@ function resolveProductIcon(name: string): keyof typeof Ionicons.glyphMap {
   if (n.includes('craft') || n.includes('pottery') || n.includes('art') || n.includes('wood') || n.includes('sculpt')) return 'color-palette-outline';
   if (n.includes('jewel') || n.includes('gold') || n.includes('silver') || n.includes('cross') || n.includes('ring') || n.includes('diamond')) return 'diamond-outline';
   return 'pricetag-outline';
-}
-
-function formatPrice(price: number, currency: string = 'ETB') {
-  return `${price.toLocaleString('en-US')} ${currency}`;
 }
 
 const AnimatedProductCard = React.memo(function AnimatedProductCard({
@@ -50,6 +48,7 @@ const AnimatedProductCard = React.memo(function AnimatedProductCard({
   onPress: () => void;
 }) {
   const animValue = useRef(new Animated.Value(0)).current;
+  const { formatPrice, currency } = useCurrency();
 
   useEffect(() => {
     animValue.setValue(0);
@@ -84,7 +83,10 @@ const AnimatedProductCard = React.memo(function AnimatedProductCard({
 
           {/* Price Badge */}
           <View style={styles.priceBadge}>
-            <Text style={styles.priceBadgeText}>{formatPrice(item.price, item.currency)}</Text>
+            <Text style={styles.priceBadgeText}>{formatPrice(item.price)}</Text>
+            {currency !== 'ETB' && (
+              <Text style={styles.priceBadgeSubText}>~{item.price.toLocaleString('en-US')} ETB</Text>
+            )}
           </View>
 
           {/* Category Pill */}
@@ -184,6 +186,7 @@ export default function MarketplaceScreen() {
   const insets = useSafeAreaInsets();
   const { isFavorite, toggleFavorite } = useFavorites();
   const { itemCount, subtotalETB } = useCart();
+  const { formatPrice } = useCurrency();
 
   const [products, setProducts] = useState<Product[]>(sampleProducts);
   const [dbCategories, setDbCategories] = useState<CategoryItem[]>([]);
@@ -295,21 +298,24 @@ export default function MarketplaceScreen() {
         subtitle="Handcrafted Ethiopian treasures, textiles & specialty coffee"
         showBack
         rightElement={
-          <TouchableOpacity
-            style={styles.headerCartBtn}
-            onPress={() => router.push('/cart')}
-            activeOpacity={0.8}
-            accessibilityLabel="Artisan Bag"
-          >
-            <Ionicons name="bag-handle-outline" size={19} color="#FFFFFF" />
-            {itemCount > 0 && (
-              <View style={styles.headerCartBadge}>
-                <Text style={styles.headerCartBadgeText}>
-                  {itemCount > 9 ? '9+' : itemCount}
-                </Text>
-              </View>
-            )}
-          </TouchableOpacity>
+          <View style={styles.headerRightActions}>
+            <CurrencySelector compact />
+            <TouchableOpacity
+              style={styles.headerCartBtn}
+              onPress={() => router.push('/cart')}
+              activeOpacity={0.8}
+              accessibilityLabel="Artisan Bag"
+            >
+              <Ionicons name="bag-handle-outline" size={19} color="#FFFFFF" />
+              {itemCount > 0 && (
+                <View style={styles.headerCartBadge}>
+                  <Text style={styles.headerCartBadgeText}>
+                    {itemCount > 9 ? '9+' : itemCount}
+                  </Text>
+                </View>
+              )}
+            </TouchableOpacity>
+          </View>
         }
       />
 
@@ -703,6 +709,18 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: colors.gold,
     letterSpacing: 0.3,
+  },
+  priceBadgeSubText: {
+    fontSize: 10,
+    fontFamily: fonts.body,
+    fontWeight: '600',
+    color: 'rgba(255, 255, 255, 0.75)',
+    marginTop: 1,
+  },
+  headerRightActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   categoryPillOverImage: {
     position: 'absolute',

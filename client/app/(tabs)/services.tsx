@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Animated,
   Image,
+  Linking,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -30,6 +31,26 @@ function resolveCategoryIcon(name: string): keyof typeof Ionicons.glyphMap {
   if (n.includes('health') || n.includes('medic') || n.includes('care')) return 'medkit-outline';
   if (n.includes('consult') || n.includes('advisor') || n.includes('business')) return 'briefcase-outline';
   return 'pricetag-outline';
+}
+
+function handleWhatsAppDirect(phone: string, serviceName: string) {
+  const cleanPhone = phone.replace(/[^0-9+]/g, '');
+  const text = `Hello ${serviceName}, I found your service on DALEEL Diaspora Concierge and would like to inquire about booking/consultation.`;
+  const url = `whatsapp://send?phone=${cleanPhone}&text=${encodeURIComponent(text)}`;
+  Linking.canOpenURL(url).then((supported) => {
+    if (supported) {
+      Linking.openURL(url);
+    } else {
+      Linking.openURL(`https://wa.me/${cleanPhone.replace('+', '')}?text=${encodeURIComponent(text)}`);
+    }
+  }).catch(() => {
+    Linking.openURL(`https://wa.me/${cleanPhone.replace('+', '')}?text=${encodeURIComponent(text)}`);
+  });
+}
+
+function handleCallDirect(phone: string) {
+  const cleanPhone = phone.replace(/[^0-9+]/g, '');
+  Linking.openURL(`tel:${cleanPhone}`);
 }
 
 const AnimatedServiceCard = React.memo(function AnimatedServiceCard({
@@ -130,16 +151,43 @@ const AnimatedServiceCard = React.memo(function AnimatedServiceCard({
 
           <Text style={styles.blurbText}>{service.blurb}</Text>
 
-          {/* Card Action Footer */}
+          {/* Card Action Footer with Direct Contact */}
           <View style={styles.cardFooter}>
-            <View style={styles.trustIndicator}>
-              <Ionicons name="ribbon-outline" size={14} color={colors.charcoalSub} />
-              <Text style={styles.trustText}>DALEEL Guaranteed Partner</Text>
+            <View style={styles.partnerActionGroup}>
+              {service.whatsapp ? (
+                <TouchableOpacity
+                  style={styles.quickWhatsappBtn}
+                  onPress={(e) => {
+                    e.stopPropagation?.();
+                    handleWhatsAppDirect(service.whatsapp!, service.name);
+                  }}
+                  activeOpacity={0.82}
+                  hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                >
+                  <Ionicons name="logo-whatsapp" size={14} color="#FFFFFF" style={{ marginRight: 4 }} />
+                  <Text style={styles.quickWhatsappText}>WhatsApp</Text>
+                </TouchableOpacity>
+              ) : null}
+
+              {service.phone ? (
+                <TouchableOpacity
+                  style={styles.quickCallBtn}
+                  onPress={(e) => {
+                    e.stopPropagation?.();
+                    handleCallDirect(service.phone!);
+                  }}
+                  activeOpacity={0.82}
+                  hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                >
+                  <Ionicons name="call" size={13} color={colors.navy} style={{ marginRight: 4 }} />
+                  <Text style={styles.quickCallText}>Call</Text>
+                </TouchableOpacity>
+              ) : null}
             </View>
 
             <View style={styles.connectBtn}>
-              <Text style={styles.connectBtnText}>Connect & Inquire</Text>
-              <Ionicons name="arrow-forward" size={14} color={colors.navy} />
+              <Text style={styles.connectBtnText}>Details</Text>
+              <Ionicons name="arrow-forward" size={13} color={colors.navy} />
             </View>
           </View>
         </View>
@@ -697,6 +745,46 @@ const styles = StyleSheet.create({
     paddingTop: 14,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: colors.border,
+  },
+  partnerActionGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  quickWhatsappBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#25D366',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 12,
+    shadowColor: '#25D366',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  quickWhatsappText: {
+    fontFamily: fonts.bodySemiBold,
+    fontSize: 11.5,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  quickCallBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F1F5F9',
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+    paddingHorizontal: 9,
+    paddingVertical: 5,
+    borderRadius: 12,
+  },
+  quickCallText: {
+    fontFamily: fonts.bodySemiBold,
+    fontSize: 11.5,
+    fontWeight: '700',
+    color: colors.navy,
   },
   trustIndicator: {
     flexDirection: 'row',
