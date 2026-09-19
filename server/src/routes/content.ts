@@ -322,6 +322,11 @@ contentRouter.patch('/events/rsvps/:id', async (req: Request, res: Response) => 
     if (existing.userId && userId && existing.userId !== userId) {
       return res.status(403).json({ error: 'Unauthorized to edit this reservation' });
     }
+    if (existing.status === 'confirmed' || existing.status === 'checked_in') {
+      return res.status(400).json({
+        error: 'This admission pass has already been confirmed and locked. Confirmed passes cannot be modified. Please contact the event organizer.',
+      });
+    }
 
     const { ticketsCount, notes, phone, fullName } = req.body;
     const updated = await prisma.eventRsvp.update({

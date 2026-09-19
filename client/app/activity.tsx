@@ -148,6 +148,9 @@ export default function ActivityScreen() {
 
   const renderEventPassCard = (item: UnifiedActivityItem) => {
     const isConfirmed = item.status.toLowerCase() === 'confirmed';
+    const isCheckedIn = item.status.toLowerCase() === 'checked_in';
+    const hasActivePass = isConfirmed || isCheckedIn;
+
     return (
       <View key={item.id} style={styles.ticketCardWrapper}>
         {/* Ticket Header Bar */}
@@ -202,8 +205,10 @@ export default function ActivityScreen() {
               <Text style={styles.ticketCodeMono}>{item.meta.passCode || 'DAL-EVT-PASS'}</Text>
             </View>
             <View style={styles.ticketDetailCol}>
-              <Text style={styles.ticketDetailLabel}>TYPE</Text>
-              <Text style={styles.ticketDetailValue}>General VIP</Text>
+              <Text style={styles.ticketDetailLabel}>STATUS</Text>
+              <Text style={[styles.ticketDetailValue, { color: isConfirmed ? '#16803C' : colors.navy }]}>
+                {isCheckedIn ? 'Admitted' : isConfirmed ? 'Confirmed' : 'In Review'}
+              </Text>
             </View>
           </View>
         </View>
@@ -217,41 +222,65 @@ export default function ActivityScreen() {
 
         {/* Ticket Stub / QR Verification Section */}
         <View style={styles.ticketStub}>
-          <View style={styles.qrVisualBlock}>
-            {/* High-fidelity digital pass barcode frame */}
-            <View style={styles.qrGridFrame}>
-              {isConfirmed && item.meta.passCode ? (
+          {hasActivePass && item.meta.passCode ? (
+            /* Prominent, Large Scannable Digital QR Pass Card */
+            <View style={styles.qrConfirmedCard}>
+              <View style={styles.qrConfirmedHeader}>
+                <Ionicons
+                  name={isCheckedIn ? 'shield-checkmark' : 'qr-code'}
+                  size={16}
+                  color={colors.gold}
+                />
+                <Text style={styles.qrConfirmedTitle}>
+                  {isCheckedIn ? 'PASS ADMITTED AT VENUE' : 'OFFICIAL DIGITAL GATE PASS'}
+                </Text>
+              </View>
+
+              <View style={styles.qrImageLargeContainer}>
                 <Image
                   source={{
-                    uri: `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(
+                    uri: `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(
                       item.meta.passCode
                     )}&color=07152B`,
                   }}
-                  style={{ width: 56, height: 56, borderRadius: 4 }}
+                  style={styles.qrLargeImage}
                   resizeMode="contain"
                 />
-              ) : (
-                <Ionicons name="qr-code-outline" size={46} color={colors.navy} />
-              )}
-            </View>
-            <View style={styles.qrTextCol}>
-              <Text style={styles.qrTitle}>
-                {isConfirmed ? 'OFFICIAL CHECK-IN PASS' : 'VERIFICATION PENDING'}
-              </Text>
-              <Text style={styles.qrSubtitle}>
-                {isConfirmed
-                  ? 'Present this QR code at the gate scanner for admission.'
-                  : 'Coordinator is reviewing capacity. Pass activates upon confirmation.'}
+              </View>
+
+              <View style={styles.qrCodeBadge}>
+                <Text style={styles.qrCodeBadgeText}>{item.meta.passCode}</Text>
+              </View>
+
+              <Text style={styles.qrPromptText}>
+                {isCheckedIn
+                  ? 'Attendance verified at gate. Welcome to the event!'
+                  : 'Present this QR code to the entrance coordinator scanner.'}
               </Text>
             </View>
-          </View>
+          ) : (
+            /* Pending Verification Card */
+            <View style={styles.qrVisualBlock}>
+              <View style={styles.qrGridFrame}>
+                <Ionicons name="time-outline" size={32} color={colors.goldText} />
+              </View>
+              <View style={styles.qrTextCol}>
+                <Text style={styles.qrTitle}>RESERVATION IN REVIEW</Text>
+                <Text style={styles.qrSubtitle}>
+                  Coordinator is verifying venue capacity. Your official scannable QR pass activates upon confirmation.
+                </Text>
+              </View>
+            </View>
+          )}
 
           <TouchableOpacity
             style={styles.ticketActionBtn}
             onPress={() => handleNavigateToTarget(item)}
             activeOpacity={0.8}
           >
-            <Text style={styles.ticketActionBtnText}>Manage Reservation</Text>
+            <Text style={styles.ticketActionBtnText}>
+              {hasActivePass ? 'View Event Details & Schedule' : 'Review Pending Reservation'}
+            </Text>
             <Ionicons name="arrow-forward" size={15} color={colors.navy} />
           </TouchableOpacity>
         </View>
@@ -853,6 +882,68 @@ const styles = StyleSheet.create({
     backgroundColor: '#FAF7F2',
     borderBottomLeftRadius: radius.xl,
     borderBottomRightRadius: radius.xl,
+  },
+  qrConfirmedCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: radius.lg,
+    padding: spacing.md,
+    alignItems: 'center',
+    borderWidth: 1.5,
+    borderColor: '#E2E8F0',
+    shadowColor: '#07152B',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  qrConfirmedHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: spacing.xs + 4,
+  },
+  qrConfirmedTitle: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 11,
+    color: colors.navy,
+    letterSpacing: 0.8,
+  },
+  qrImageLargeContainer: {
+    backgroundColor: '#FFFFFF',
+    padding: 10,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  qrLargeImage: {
+    width: 170,
+    height: 170,
+  },
+  qrCodeBadge: {
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+    borderRadius: radius.sm,
+    paddingHorizontal: 14,
+    paddingVertical: 5,
+    marginTop: spacing.xs + 4,
+  },
+  qrCodeBadgeText: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 13,
+    color: colors.navy,
+    letterSpacing: 1.2,
+  },
+  qrPromptText: {
+    fontFamily: fonts.body,
+    fontSize: 11.5,
+    color: colors.charcoalLight,
+    marginTop: spacing.xs + 2,
+    textAlign: 'center',
+    lineHeight: 16,
+    maxWidth: 260,
   },
   qrVisualBlock: {
     flexDirection: 'row',

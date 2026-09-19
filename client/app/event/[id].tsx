@@ -133,6 +133,13 @@ export default function EventDetailScreen() {
   };
 
   const handleOpenRsvpModal = () => {
+    if (existingRsvp && (existingRsvp.status === 'confirmed' || existingRsvp.status === 'checked_in')) {
+      Alert.alert(
+        'Pass Officially Confirmed',
+        `Your admission pass (${existingRsvp.passCode}) is officially confirmed and locked. Confirmed tickets cannot be modified. Please present your digital QR pass at the entrance gate.`
+      );
+      return;
+    }
     if (existingRsvp) {
       setFullName(existingRsvp.fullName || user?.name || '');
       setEmail(existingRsvp.email || user?.email || '');
@@ -152,6 +159,10 @@ export default function EventDetailScreen() {
   };
 
   const handleSubmitRsvp = async () => {
+    if (existingRsvp && (existingRsvp.status === 'confirmed' || existingRsvp.status === 'checked_in')) {
+      setRsvpError('This reservation is already confirmed and cannot be modified.');
+      return;
+    }
     if (!fullName.trim() || !email.trim()) {
       setRsvpError('Please provide your full name and email address to confirm your pass.');
       return;
@@ -294,55 +305,104 @@ export default function EventDetailScreen() {
         <View style={styles.bodyContainer}>
           {/* Active Reservation Pass Card */}
           {existingRsvp && (
-            <TouchableOpacity
-              style={styles.activeRsvpBanner}
-              onPress={handleOpenRsvpModal}
-              activeOpacity={0.88}
-            >
-              <View style={styles.activeRsvpIconCircle}>
-                <Ionicons name="ticket" size={20} color={colors.gold} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <View style={styles.activeRsvpHeaderRow}>
-                  <Text style={styles.activeRsvpTitle}>Your Reservation Pass</Text>
-                  <View
-                    style={[
-                      styles.statusPill,
-                      existingRsvp.status === 'confirmed'
-                        ? styles.statusPillConfirmed
-                        : existingRsvp.status === 'cancelled'
-                        ? styles.statusPillCancelled
-                        : styles.statusPillPending,
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.statusPillText,
-                        existingRsvp.status === 'confirmed'
-                          ? styles.statusPillTextConfirmed
-                          : existingRsvp.status === 'cancelled'
-                          ? styles.statusPillTextCancelled
-                          : styles.statusPillTextPending,
-                      ]}
-                    >
-                      {existingRsvp.status === 'confirmed'
-                        ? 'CONFIRMED PASS'
-                        : existingRsvp.status === 'cancelled'
-                        ? 'RESERVATION CANCELLED'
-                        : 'PENDING VERIFICATION'}
+            existingRsvp.status === 'confirmed' || existingRsvp.status === 'checked_in' ? (
+              <View style={styles.confirmedPassHeroCard}>
+                <View style={styles.confirmedPassTopRow}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <Ionicons name="sparkles" size={15} color={colors.gold} />
+                    <Text style={styles.confirmedPassBranding}>DALEEL ADMISSION PASS</Text>
+                  </View>
+                  <View style={[styles.statusPill, styles.statusPillConfirmed]}>
+                    <Text style={[styles.statusPillText, styles.statusPillTextConfirmed]}>
+                      {existingRsvp.status === 'checked_in' ? 'ADMITTED' : 'CONFIRMED PASS'}
                     </Text>
                   </View>
                 </View>
-                <Text style={styles.activeRsvpSub}>
-                  {existingRsvp.ticketsCount} pass(es) reserved for {existingRsvp.fullName}
-                  {existingRsvp.notes ? ` • Note: ${existingRsvp.notes}` : ''}
-                </Text>
-                <View style={styles.activeRsvpActionRow}>
-                  <Text style={styles.activeRsvpActionLink}>Tap to modify ticket count or attendee details</Text>
-                  <Ionicons name="pencil" size={13} color={colors.goldRich} />
+
+                {/* Prominent Large QR Code Card */}
+                {existingRsvp.passCode && (
+                  <View style={styles.eventPageQrWrap}>
+                    <View style={styles.eventPageQrBox}>
+                      <Image
+                        source={{
+                          uri: `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(
+                            existingRsvp.passCode
+                          )}&color=07152B`,
+                        }}
+                        style={{ width: 160, height: 160 }}
+                        resizeMode="contain"
+                      />
+                    </View>
+                    <View style={styles.eventPageCodePill}>
+                      <Text style={styles.eventPageCodeText}>{existingRsvp.passCode}</Text>
+                    </View>
+                    <Text style={styles.eventPageQrHint}>
+                      {existingRsvp.status === 'checked_in'
+                        ? 'Admission confirmed at entrance gate • Verified'
+                        : 'Present this official QR code at the entrance gate scanner'}
+                    </Text>
+                  </View>
+                )}
+
+                <View style={styles.confirmedPassMetaRow}>
+                  <View>
+                    <Text style={styles.confirmedPassMetaLabel}>ATTENDEE</Text>
+                    <Text style={styles.confirmedPassMetaVal}>{existingRsvp.fullName}</Text>
+                  </View>
+                  <View style={{ alignItems: 'flex-end' }}>
+                    <Text style={styles.confirmedPassMetaLabel}>ADMISSION</Text>
+                    <Text style={styles.confirmedPassMetaVal}>
+                      {existingRsvp.ticketsCount} {existingRsvp.ticketsCount > 1 ? 'Passes' : 'Pass'}
+                    </Text>
+                  </View>
                 </View>
               </View>
-            </TouchableOpacity>
+            ) : (
+              <TouchableOpacity
+                style={styles.activeRsvpBanner}
+                onPress={handleOpenRsvpModal}
+                activeOpacity={0.88}
+              >
+                <View style={styles.activeRsvpIconCircle}>
+                  <Ionicons name="time" size={20} color={colors.gold} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <View style={styles.activeRsvpHeaderRow}>
+                    <Text style={styles.activeRsvpTitle}>Pending Reservation Request</Text>
+                    <View
+                      style={[
+                        styles.statusPill,
+                        existingRsvp.status === 'cancelled'
+                          ? styles.statusPillCancelled
+                          : styles.statusPillPending,
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.statusPillText,
+                          existingRsvp.status === 'cancelled'
+                            ? styles.statusPillTextCancelled
+                            : styles.statusPillTextPending,
+                        ]}
+                      >
+                        {existingRsvp.status === 'cancelled'
+                          ? 'RESERVATION CANCELLED'
+                          : 'PENDING VERIFICATION'}
+                      </Text>
+                    </View>
+                  </View>
+                  <Text style={styles.activeRsvpSub}>
+                    {existingRsvp.ticketsCount} pass(es) requested for {existingRsvp.fullName}
+                  </Text>
+                  {existingRsvp.status !== 'cancelled' && (
+                    <View style={styles.activeRsvpActionRow}>
+                      <Text style={styles.activeRsvpActionLink}>Tap to modify request before confirmation</Text>
+                      <Ionicons name="pencil" size={13} color={colors.goldRich} />
+                    </View>
+                  )}
+                </View>
+              </TouchableOpacity>
+            )
           )}
 
           {/* Title and Organizer */}
@@ -472,21 +532,42 @@ export default function EventDetailScreen() {
           </Text>
         </View>
 
-        <TouchableOpacity
-          style={[styles.rsvpMainBtn, existingRsvp && styles.rsvpMainBtnEdit]}
-          onPress={handleOpenRsvpModal}
-          activeOpacity={0.88}
-        >
-          <Ionicons
-            name={existingRsvp ? 'create-outline' : 'ticket'}
-            size={18}
-            color={colors.navy}
-            style={{ marginRight: 8 }}
-          />
-          <Text style={styles.rsvpMainBtnText}>
-            {existingRsvp ? 'Update Reservation' : 'RSVP / Get Pass'}
-          </Text>
-        </TouchableOpacity>
+        {existingRsvp && (existingRsvp.status === 'confirmed' || existingRsvp.status === 'checked_in') ? (
+          <View style={styles.confirmedBottomPill}>
+            <Ionicons
+              name={existingRsvp.status === 'checked_in' ? 'shield-checkmark' : 'checkmark-circle'}
+              size={18}
+              color={existingRsvp.status === 'checked_in' ? '#16803C' : '#07152B'}
+              style={{ marginRight: 6 }}
+            />
+            <Text
+              style={[
+                styles.confirmedBottomPillText,
+                existingRsvp.status === 'checked_in' && { color: '#16803C' },
+              ]}
+            >
+              {existingRsvp.status === 'checked_in'
+                ? 'Admitted at Venue Gate'
+                : `Pass Confirmed (${existingRsvp.ticketsCount} Pax)`}
+            </Text>
+          </View>
+        ) : (
+          <TouchableOpacity
+            style={[styles.rsvpMainBtn, existingRsvp && styles.rsvpMainBtnEdit]}
+            onPress={handleOpenRsvpModal}
+            activeOpacity={0.88}
+          >
+            <Ionicons
+              name={existingRsvp ? 'create-outline' : 'ticket'}
+              size={18}
+              color={colors.navy}
+              style={{ marginRight: 8 }}
+            />
+            <Text style={styles.rsvpMainBtnText}>
+              {existingRsvp ? 'Modify Pending Request' : 'RSVP / Get Pass'}
+            </Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       {/* Interactive RSVP Bottom Sheet Modal */}
@@ -1289,5 +1370,108 @@ const styles = StyleSheet.create({
     backgroundColor: '#DFB76C',
     borderWidth: 1,
     borderColor: '#B8860B',
+  },
+  confirmedPassHeroCard: {
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1.5,
+    borderColor: '#DFB76C',
+    borderRadius: radius.xl,
+    padding: 16,
+    marginBottom: spacing.md,
+    shadowColor: colors.gold,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  confirmedPassTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  confirmedPassBranding: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 11.5,
+    color: colors.goldText,
+    letterSpacing: 0.8,
+  },
+  eventPageQrWrap: {
+    alignItems: 'center',
+    backgroundColor: '#F8F4EC',
+    borderRadius: radius.lg,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(223, 183, 108, 0.4)',
+    marginVertical: 4,
+  },
+  eventPageQrBox: {
+    backgroundColor: '#FFFFFF',
+    padding: 10,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  eventPageCodePill: {
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#DFB76C',
+    borderRadius: radius.sm,
+    paddingHorizontal: 14,
+    paddingVertical: 5,
+    marginTop: 10,
+  },
+  eventPageCodeText: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 13,
+    color: colors.navy,
+    letterSpacing: 1.2,
+  },
+  eventPageQrHint: {
+    fontFamily: fonts.body,
+    fontSize: 11,
+    color: colors.charcoalSub,
+    marginTop: 8,
+    textAlign: 'center',
+    lineHeight: 15,
+    maxWidth: 260,
+  },
+  confirmedPassMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 12,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#F1F5F9',
+  },
+  confirmedPassMetaLabel: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 9.5,
+    color: colors.charcoalLight,
+    letterSpacing: 0.8,
+    marginBottom: 2,
+  },
+  confirmedPassMetaVal: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 13.5,
+    color: colors.navy,
+  },
+  confirmedBottomPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.gold,
+    paddingHorizontal: 18,
+    paddingVertical: 13,
+    borderRadius: 16,
+  },
+  confirmedBottomPillText: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 13,
+    color: colors.navy,
+    letterSpacing: 0.3,
   },
 });
