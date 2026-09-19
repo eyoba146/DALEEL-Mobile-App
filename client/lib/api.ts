@@ -90,6 +90,20 @@ export const authApi = {
   changePendingEmail: (token: string, newEmail: string) =>
     apiRequest<{ message: string; email: string }>('/auth/change-pending-email', { method: 'PATCH', body: { newEmail }, token }),
 
+  requestEmailChange: (token: string, newEmail: string) =>
+    apiRequest<{ message: string; remainingSeconds?: number }>('/auth/request-email-change', {
+      method: 'POST',
+      body: { newEmail },
+      token,
+    }),
+
+  confirmEmailChange: (token: string, newEmail: string, code: string) =>
+    apiRequest<{ message: string; user: AuthUser }>('/auth/confirm-email-change', {
+      method: 'POST',
+      body: { newEmail, code },
+      token,
+    }),
+
   forgotPassword: (data: { email: string }) =>
     apiRequest<{ message: string }>('/auth/forgot-password', { method: 'POST', body: data }),
 

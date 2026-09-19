@@ -25,7 +25,7 @@ import { colors, fonts, radius, shadow, spacing } from '../../theme/tokens';
 
 export default function ProfileScreen() {
   const router = useRouter();
-  const { user, token, updateUser, uploadAvatar, changePassword, logout } = useAuth();
+  const { user, token, updateUser, uploadAvatar, changePassword, logout, requestEmailChange, confirmEmailChange } = useAuth();
   const { language, setLanguage, languages, t } = useLanguage();
   const [localAvatarUri, setLocalAvatarUri] = useState<string | null>(null);
   const avatarUri = localAvatarUri || resolveMediaUrl(user?.avatarUrl);
@@ -38,6 +38,24 @@ export default function ProfileScreen() {
 
   // Avatar upload loading state
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+
+  // Email verification re-authentication states
+  const [emailChangeStep, setEmailChangeStep] = useState<'input' | 'verify'>('input');
+  const [pendingEmail, setPendingEmail] = useState('');
+  const [emailVerificationCode, setEmailVerificationCode] = useState('');
+  const [emailCooldown, setEmailCooldown] = useState(0);
+  const emailCooldownTimerRef = useRef<any>(null);
+
+  useEffect(() => {
+    if (emailCooldown > 0) {
+      emailCooldownTimerRef.current = setTimeout(() => {
+        setEmailCooldown((prev) => prev - 1);
+      }, 1000);
+      return () => {
+        if (emailCooldownTimerRef.current) clearTimeout(emailCooldownTimerRef.current);
+      };
+    }
+  }, [emailCooldown]);
 
   // Individual Field Editor state
   type EditableField =
@@ -225,6 +243,10 @@ export default function ProfileScreen() {
       setFieldValue(lastName);
     } else if (field === 'email') {
       setFieldValue(user?.email || '');
+      setEmailChangeStep('input');
+      setPendingEmail('');
+      setEmailVerificationCode('');
+      setEmailCooldown(0);
     } else if (field === 'phone') {
       setFieldValue(user?.phone || '');
     } else if (field === 'country') {
@@ -237,6 +259,71 @@ export default function ProfileScreen() {
         lat: user?.savedLatitude ?? undefined,
         lon: user?.savedLongitude ?? undefined,
       });
+    }
+  };
+
+  const handleRequestEmailChange = async () => {
+    if (isSavingField) return;
+    const trimmed = fieldValue.trim().toLowerCase();
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(trimmed)) {
+      showToast('Please enter a valid email address', 'error');
+      return;
+    }
+    if (trimmed === user?.email?.toLowerCase()) {
+      showToast('Please enter a new email address different from your current one', 'error');
+      return;
+    }
+
+    setIsSavingField(true);
+    try {
+      const res = await requestEmailChange(trimmed);
+      setPendingEmail(trimmed);
+      setEmailChangeStep('verify');
+      setEmailVerificationCode('');
+      setEmailCooldown(res.remainingSeconds || 75);
+      showToast(res.message || 'Verification code sent to your new email address', 'success');
+    } catch (err: any) {
+      showToast(err.message || 'Failed to send verification code', 'error');
+    } finally {
+      setIsSavingField(false);
+    }
+  };
+
+  const handleConfirmEmailChange = async () => {
+    if (isSavingField) return;
+    const code = emailVerificationCode.trim();
+    if (code.length !== 6) {
+      showToast('Please enter the 6-digit verification code', 'error');
+      return;
+    }
+
+    setIsSavingField(true);
+    try {
+      const res = await confirmEmailChange(pendingEmail, code);
+      setActiveField(null);
+      setEmailChangeStep('input');
+      setPendingEmail('');
+      setEmailVerificationCode('');
+      showToast(res.message || 'Email address verified and updated successfully!', 'success');
+    } catch (err: any) {
+      showToast(err.message || 'Invalid or expired verification code', 'error');
+    } finally {
+      setIsSavingField(false);
+    }
+  };
+
+  const handleResendEmailCode = async () => {
+    if (emailCooldown > 0 || isSavingField || !pendingEmail) return;
+    setIsSavingField(true);
+    try {
+      const res = await requestEmailChange(pendingEmail);
+      setEmailCooldown(res.remainingSeconds || 75);
+      showToast('New verification code sent!', 'success');
+    } catch (err: any) {
+      showToast(err.message || 'Could not resend code', 'error');
+    } finally {
+      setIsSavingField(false);
     }
   };
 
@@ -266,6 +353,12 @@ export default function ProfileScreen() {
 
   const handleSaveField = async () => {
     if (isSavingField) return;
+
+    if (activeField === 'email') {
+      await handleRequestEmailChange();
+      return;
+    }
+
     setIsSavingField(true);
     try {
       if (activeField === 'password') {
@@ -277,36 +370,30 @@ export default function ProfileScreen() {
         setCurrentPassword('');
         setNewPassword('');
         setConfirmPassword('');
-        showToast('Password updated successfully in database!', 'success');
+        showToast('Password updated successfully!', 'success');
       } else if (activeField === 'firstName') {
         const trimmed = fieldValue.trim();
         if (!trimmed) throw new Error('First name cannot be empty');
         const newFullName = `${trimmed} ${lastName}`.trim();
         await updateUser({ name: newFullName });
-        showToast('First name updated in database!', 'success');
+        showToast('First name updated successfully!', 'success');
       } else if (activeField === 'lastName') {
         const trimmed = fieldValue.trim();
         const newFullName = `${firstName} ${trimmed}`.trim();
         await updateUser({ name: newFullName });
-        showToast('Last name updated in database!', 'success');
-      } else if (activeField === 'email') {
-        const trimmed = fieldValue.trim().toLowerCase();
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        if (!emailRegex.test(trimmed)) throw new Error('Please enter a valid email address');
-        await updateUser({ email: trimmed });
-        showToast('Email address updated in database!', 'success');
+        showToast('Last name updated successfully!', 'success');
       } else if (activeField === 'phone') {
         const trimmed = fieldValue.trim();
         await updateUser({ phone: trimmed });
-        showToast('Phone number updated in database!', 'success');
+        showToast('Phone number updated successfully!', 'success');
       } else if (activeField === 'country') {
         const trimmed = fieldValue.trim();
         if (!trimmed) throw new Error('Country cannot be empty');
         await updateUser({ country: trimmed });
-        showToast('Country updated in database!', 'success');
+        showToast('Country updated successfully!', 'success');
       } else if (activeField === 'persona') {
         await updateUser({ userType: personaChoice });
-        showToast('Profile persona updated in database!', 'success');
+        showToast('Profile persona updated successfully!', 'success');
       } else if (activeField === 'savedAddress') {
         const trimmed = fieldValue.trim();
         await updateUser({
@@ -314,7 +401,7 @@ export default function ProfileScreen() {
           savedLatitude: profileLocationCoords.lat ?? null,
           savedLongitude: profileLocationCoords.lon ?? null,
         });
-        showToast('Saved delivery destination updated in database!', 'success');
+        showToast('Delivery location updated successfully!', 'success');
       }
       setActiveField(null);
     } catch (err: any) {
@@ -615,49 +702,162 @@ export default function ProfileScreen() {
 
         {/* 3. Email Card */}
         {activeField === 'email' ? (
-          <View style={styles.inlineEditCard}>
-            <View style={styles.inlineCardHeader}>
-              <View style={styles.fieldIconCircle}>
-                <Ionicons name="mail" size={20} color={colors.navy} />
+          emailChangeStep === 'input' ? (
+            <View style={styles.inlineEditCard}>
+              <View style={styles.inlineCardHeader}>
+                <View style={styles.fieldIconCircle}>
+                  <Ionicons name="mail" size={20} color={colors.navy} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.inlineCardTitle}>Update Email Address</Text>
+                  <Text style={{ fontFamily: fonts.body, fontSize: 11, color: colors.charcoalSub, marginTop: 1 }}>
+                    Step 1 of 2: Enter new address
+                  </Text>
+                </View>
               </View>
-              <Text style={styles.inlineCardTitle}>Email Address</Text>
+
+              <TextInput
+                style={styles.inlineInput}
+                value={fieldValue}
+                onChangeText={setFieldValue}
+                placeholder="name@example.com"
+                placeholderTextColor={colors.charcoalLight}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                autoFocus
+              />
+
+              {/* Security Badge */}
+              <View style={styles.securityNoticeBox}>
+                <Ionicons name="shield-checkmark" size={15} color={colors.goldRich} style={{ marginTop: 1 }} />
+                <Text style={styles.securityNoticeText}>
+                  For your account security, a 6-digit verification code will be sent to confirm your new email before updating.
+                </Text>
+              </View>
+
+              <View style={styles.inlineBtnRow}>
+                <TouchableOpacity
+                  style={styles.inlineCancelBtn}
+                  onPress={() => {
+                    setActiveField(null);
+                    setEmailChangeStep('input');
+                    setFieldValue(user?.email || '');
+                  }}
+                  disabled={isSavingField}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.inlineCancelText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.inlineSaveBtn}
+                  onPress={handleRequestEmailChange}
+                  disabled={isSavingField}
+                  activeOpacity={0.8}
+                >
+                  {isSavingField ? (
+                    <ActivityIndicator size="small" color={colors.navy} />
+                  ) : (
+                    <>
+                      <Ionicons name="arrow-forward" size={15} color={colors.navy} style={{ marginRight: 4 }} />
+                      <Text style={styles.inlineSaveText}>Send Code</Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+              </View>
             </View>
-            <TextInput
-              style={styles.inlineInput}
-              value={fieldValue}
-              onChangeText={setFieldValue}
-              placeholder="name@example.com"
-              placeholderTextColor={colors.charcoalLight}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              autoFocus
-            />
-            <View style={styles.inlineBtnRow}>
-              <TouchableOpacity
-                style={styles.inlineCancelBtn}
-                onPress={() => setActiveField(null)}
-                disabled={isSavingField}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.inlineCancelText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.inlineSaveBtn}
-                onPress={handleSaveField}
-                disabled={isSavingField}
-                activeOpacity={0.8}
-              >
-                {isSavingField ? (
-                  <ActivityIndicator size="small" color={colors.navy} />
+          ) : (
+            <View style={styles.inlineEditCard}>
+              <View style={styles.inlineCardHeader}>
+                <View style={[styles.fieldIconCircle, { backgroundColor: colors.goldSoft }]}>
+                  <Ionicons name="shield-checkmark" size={20} color={colors.navy} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.inlineCardTitle}>Verify New Email</Text>
+                  <Text style={{ fontFamily: fonts.body, fontSize: 11, color: colors.charcoalSub, marginTop: 1 }}>
+                    Step 2 of 2: Enter 6-digit code
+                  </Text>
+                </View>
+              </View>
+
+              <View style={styles.otpSentToBanner}>
+                <Text style={styles.otpSentToLabel}>Verification code sent to:</Text>
+                <Text style={styles.otpSentToEmail}>{pendingEmail}</Text>
+              </View>
+
+              <TextInput
+                style={styles.otpMonospaceInput}
+                value={emailVerificationCode}
+                onChangeText={(text) => setEmailVerificationCode(text.replace(/[^0-9]/g, '').slice(0, 6))}
+                placeholder="••••••"
+                placeholderTextColor={colors.charcoalLight}
+                keyboardType="number-pad"
+                maxLength={6}
+                autoFocus
+              />
+
+              <View style={styles.otpActionsRow}>
+                <TouchableOpacity
+                  onPress={() => {
+                    setEmailChangeStep('input');
+                    setFieldValue(pendingEmail);
+                    setEmailVerificationCode('');
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.otpEditLink}>Wrong email? Edit</Text>
+                </TouchableOpacity>
+
+                {emailCooldown > 0 ? (
+                  <Text style={styles.otpCooldownText}>
+                    Resend in {emailCooldown}s
+                  </Text>
                 ) : (
-                  <>
-                    <Ionicons name="checkmark" size={16} color={colors.navy} style={{ marginRight: 4 }} />
-                    <Text style={styles.inlineSaveText}>Save</Text>
-                  </>
+                  <TouchableOpacity
+                    onPress={handleResendEmailCode}
+                    disabled={isSavingField}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={styles.otpResendLink}>Resend code</Text>
+                  </TouchableOpacity>
                 )}
-              </TouchableOpacity>
+              </View>
+
+              <View style={styles.inlineBtnRow}>
+                <TouchableOpacity
+                  style={styles.inlineCancelBtn}
+                  onPress={() => {
+                    setActiveField(null);
+                    setEmailChangeStep('input');
+                    setPendingEmail('');
+                    setEmailVerificationCode('');
+                    setFieldValue(user?.email || '');
+                  }}
+                  disabled={isSavingField}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.inlineCancelText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.inlineSaveBtn,
+                    emailVerificationCode.trim().length !== 6 && { opacity: 0.5 },
+                  ]}
+                  onPress={handleConfirmEmailChange}
+                  disabled={isSavingField || emailVerificationCode.trim().length !== 6}
+                  activeOpacity={0.8}
+                >
+                  {isSavingField ? (
+                    <ActivityIndicator size="small" color={colors.navy} />
+                  ) : (
+                    <>
+                      <Ionicons name="checkmark-done" size={16} color={colors.navy} style={{ marginRight: 4 }} />
+                      <Text style={styles.inlineSaveText}>Verify & Save</Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+              </View>
             </View>
-          </View>
+          )
         ) : (
           <TouchableOpacity
             style={styles.fieldCard}
@@ -2282,5 +2482,84 @@ const styles = StyleSheet.create({
   langRadioActive: {
     backgroundColor: colors.gold,
     borderColor: colors.gold,
+  },
+
+  // Email Change 2-Step Verification Styles
+  securityNoticeBox: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    backgroundColor: '#FBF8EF',
+    borderWidth: 1,
+    borderColor: '#F1E3B8',
+    borderRadius: radius.md,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginBottom: 14,
+  },
+  securityNoticeText: {
+    flex: 1,
+    fontFamily: fonts.body,
+    fontSize: 12,
+    color: '#785A14',
+    lineHeight: 16,
+  },
+  otpSentToBanner: {
+    backgroundColor: '#F4F6F9',
+    borderRadius: radius.md,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    alignItems: 'center',
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  otpSentToLabel: {
+    fontFamily: fonts.body,
+    fontSize: 11,
+    color: colors.charcoalSub,
+  },
+  otpSentToEmail: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 13,
+    color: colors.navy,
+    marginTop: 2,
+  },
+  otpMonospaceInput: {
+    backgroundColor: colors.surface,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: colors.gold,
+    paddingVertical: 12,
+    textAlign: 'center',
+    fontFamily: fonts.bodyBold,
+    fontSize: 26,
+    letterSpacing: 10,
+    fontWeight: '800',
+    color: colors.navy,
+    marginBottom: 10,
+  },
+  otpActionsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 14,
+    paddingHorizontal: 4,
+  },
+  otpEditLink: {
+    fontFamily: fonts.bodyMedium,
+    fontSize: 12,
+    color: colors.charcoalSub,
+    textDecorationLine: 'underline',
+  },
+  otpCooldownText: {
+    fontFamily: fonts.bodyMedium,
+    fontSize: 12,
+    color: colors.charcoalLight,
+  },
+  otpResendLink: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 12,
+    color: colors.goldRich,
   },
 });

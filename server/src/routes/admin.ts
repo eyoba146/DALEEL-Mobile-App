@@ -6,6 +6,12 @@ import path from 'path';
 import { prisma } from '../lib/prisma';
 import { authenticateAdmin, requireRole, AdminRequest } from '../middleware/adminAuth';
 import { AdminRole } from '@prisma/client';
+import {
+  sendOrderStatusEmail,
+  sendServiceInquiryStatusEmail,
+  sendEventRsvpStatusEmail,
+  sendInvestmentInquiryStatusEmail,
+} from '../lib/email';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'fallback-secret';
 
@@ -714,10 +720,48 @@ adminRouter.patch(
     try {
       const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
       const { status } = req.body;
+      const normalizedStatus = String(status).trim();
       const updated = await prisma.serviceInquiry.update({
         where: { id },
-        data: { status: String(status).trim() },
+        data: { status: normalizedStatus },
+        include: {
+          service: { select: { id: true, name: true, category: true } },
+          user: { select: { id: true, name: true, email: true } },
+        },
       });
+
+      // 1. In-App Notification (if user is registered)
+      if (updated.userId) {
+        try {
+          await prisma.notification.create({
+            data: {
+              userId: updated.userId,
+              title: `Service Inquiry: ${normalizedStatus.replace(/_/g, ' ').toUpperCase()}`,
+              message: `Your inquiry for "${updated.service.name}" has been updated to ${normalizedStatus.replace(/_/g, ' ')}.`,
+              type: 'service',
+              actionUrl: `/service/${updated.serviceId}`,
+            },
+          });
+        } catch (notifErr) {
+          console.error('Failed to create in-app notification for service inquiry:', notifErr);
+        }
+      }
+
+      // 2. Transactional Email Notification
+      if (updated.contactEmail) {
+        sendServiceInquiryStatusEmail(
+          {
+            email: updated.contactEmail,
+            name: updated.fullName || updated.user?.name || 'Valued Client',
+          },
+          updated.service.name,
+          normalizedStatus,
+          updated.timeframe || undefined
+        ).catch((emailErr) => {
+          console.error('Failed to dispatch service inquiry status email:', emailErr);
+        });
+      }
+
       res.json(updated);
     } catch (error) {
       console.error('Error updating inquiry status:', error);
@@ -879,10 +923,49 @@ adminRouter.patch(
     try {
       const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
       const { status } = req.body;
+      const normalizedStatus = String(status).trim();
       const updated = await prisma.eventRsvp.update({
         where: { id },
-        data: { status: String(status).trim() },
+        data: { status: normalizedStatus },
+        include: {
+          event: { select: { id: true, title: true, date: true, venue: true } },
+          user: { select: { id: true, name: true, email: true } },
+        },
       });
+
+      // 1. In-App Notification (if user is registered)
+      if (updated.userId) {
+        try {
+          await prisma.notification.create({
+            data: {
+              userId: updated.userId,
+              title: `Event RSVP: ${normalizedStatus.replace(/_/g, ' ').toUpperCase()}`,
+              message: `Your reservation for "${updated.event.title}" is now ${normalizedStatus.replace(/_/g, ' ')}.`,
+              type: 'event',
+              actionUrl: `/event/${updated.eventId}`,
+            },
+          });
+        } catch (notifErr) {
+          console.error('Failed to create in-app notification for event RSVP:', notifErr);
+        }
+      }
+
+      // 2. Transactional Email Notification
+      if (updated.email) {
+        sendEventRsvpStatusEmail(
+          {
+            email: updated.email,
+            name: updated.fullName || updated.user?.name || 'Valued Guest',
+          },
+          updated.event.title,
+          normalizedStatus,
+          updated.ticketsCount,
+          updated.event.date ? new Date(updated.event.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : undefined
+        ).catch((emailErr) => {
+          console.error('Failed to dispatch event RSVP status email:', emailErr);
+        });
+      }
+
       res.json(updated);
     } catch (error) {
       console.error('Error updating event RSVP status:', error);
@@ -1044,10 +1127,49 @@ adminRouter.patch(
     try {
       const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
       const { status } = req.body;
+      const normalizedStatus = String(status).trim();
       const updated = await prisma.productOrderInquiry.update({
         where: { id },
-        data: { status: String(status).trim() },
+        data: { status: normalizedStatus },
+        include: {
+          product: { select: { id: true, title: true, price: true, currency: true } },
+          user: { select: { id: true, name: true, email: true } },
+        },
       });
+
+      // 1. In-App Notification (if user is registered)
+      if (updated.userId) {
+        try {
+          await prisma.notification.create({
+            data: {
+              userId: updated.userId,
+              title: `Order Status: ${normalizedStatus.replace(/_/g, ' ').toUpperCase()}`,
+              message: `Your order for "${updated.product.title}" (Qty: ${updated.quantity}) is now ${normalizedStatus.replace(/_/g, ' ')}.`,
+              type: 'order',
+              actionUrl: `/marketplace`,
+            },
+          });
+        } catch (notifErr) {
+          console.error('Failed to create in-app notification for order:', notifErr);
+        }
+      }
+
+      // 2. Transactional Email Notification
+      if (updated.email) {
+        sendOrderStatusEmail(
+          {
+            email: updated.email,
+            name: updated.fullName || updated.user?.name || 'Valued Patron',
+          },
+          updated.product.title,
+          normalizedStatus,
+          updated.quantity,
+          updated.notes || undefined
+        ).catch((emailErr) => {
+          console.error('Failed to dispatch order status email:', emailErr);
+        });
+      }
+
       res.json(updated);
     } catch (error) {
       console.error('Error updating order status:', error);
@@ -1198,10 +1320,48 @@ adminRouter.patch(
     try {
       const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
       const { status } = req.body;
+      const normalizedStatus = String(status).trim();
       const updated = await prisma.investmentInquiry.update({
         where: { id },
-        data: { status: String(status).trim() },
+        data: { status: normalizedStatus },
+        include: {
+          opportunity: { select: { id: true, title: true, sector: true } },
+          user: { select: { id: true, name: true, email: true } },
+        },
       });
+
+      // 1. In-App Notification (if user is registered)
+      if (updated.userId) {
+        try {
+          await prisma.notification.create({
+            data: {
+              userId: updated.userId,
+              title: `Investment Inquiry: ${normalizedStatus.replace(/_/g, ' ').toUpperCase()}`,
+              message: `Your inquiry for "${updated.opportunity.title}" is now ${normalizedStatus.replace(/_/g, ' ')}.`,
+              type: 'investment',
+              actionUrl: `/investment/${updated.opportunityId}`,
+            },
+          });
+        } catch (notifErr) {
+          console.error('Failed to create in-app notification for investment inquiry:', notifErr);
+        }
+      }
+
+      // 2. Transactional Email Notification
+      if (updated.contactEmail) {
+        sendInvestmentInquiryStatusEmail(
+          {
+            email: updated.contactEmail,
+            name: updated.fullName || updated.user?.name || 'Valued Investor',
+          },
+          updated.opportunity.title,
+          normalizedStatus,
+          updated.investmentBudget || undefined
+        ).catch((emailErr) => {
+          console.error('Failed to dispatch investment inquiry status email:', emailErr);
+        });
+      }
+
       res.json(updated);
     } catch (error) {
       console.error('Error updating investment inquiry status:', error);

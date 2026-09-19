@@ -39,6 +39,8 @@ type AuthState = {
   }) => Promise<void>;
   uploadAvatar: (base64: string) => Promise<string>;
   changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
+  requestEmailChange: (newEmail: string) => Promise<{ message: string; remainingSeconds?: number }>;
+  confirmEmailChange: (newEmail: string, code: string) => Promise<{ message: string; user: AuthUser }>;
 };
 
 const STORAGE_KEYS = {
@@ -161,8 +163,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await authApi.changePassword(token, { currentPassword, newPassword });
   };
 
+  const requestEmailChange = async (newEmail: string) => {
+    if (!token) throw new Error('Not authenticated');
+    return await authApi.requestEmailChange(token, newEmail);
+  };
+
+  const confirmEmailChange = async (newEmail: string, code: string) => {
+    if (!token) throw new Error('Not authenticated');
+    const res = await authApi.confirmEmailChange(token, newEmail, code);
+    setUser(res.user);
+    await AsyncStorage.setItem(STORAGE_KEYS.user, JSON.stringify(res.user));
+    return res;
+  };
+
   const value = useMemo(
-    () => ({ isReady, user, token, onboarding, setOnboarding, login, register, logout, checkVerificationStatus, updateUser, uploadAvatar, changePassword }),
+    () => ({
+      isReady,
+      user,
+      token,
+      onboarding,
+      setOnboarding,
+      login,
+      register,
+      logout,
+      checkVerificationStatus,
+      updateUser,
+      uploadAvatar,
+      changePassword,
+      requestEmailChange,
+      confirmEmailChange,
+    }),
     [isReady, user, token, onboarding]
   );
 

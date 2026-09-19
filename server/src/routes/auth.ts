@@ -6,7 +6,7 @@ import { z } from 'zod';
 import { requireAuth, signToken } from '../middleware/auth';
 import { prisma } from '../lib/prisma';
 import { generateAndSendVerification } from './verification';
-import { sendPasswordReset } from '../lib/email';
+import { sendPasswordReset, sendNewEmailVerificationCode } from '../lib/email';
 
 export const authRouter = Router();
 
@@ -146,26 +146,155 @@ authRouter.patch('/profile', requireAuth, async (req, res) => {
   }
 
   try {
-    if (parsed.data.email) {
-      const normalized = parsed.data.email.trim().toLowerCase();
-      const existing = await prisma.user.findFirst({
-        where: { email: normalized, NOT: { id: req.auth!.userId } },
+    const currentUser = await prisma.user.findUnique({ where: { id: req.auth!.userId } });
+    if (!currentUser) return res.status(404).json({ error: 'User not found' });
+
+    // Enforce email change verification: direct unverified email mutations are rejected
+    if (parsed.data.email && parsed.data.email.trim().toLowerCase() !== currentUser.email.toLowerCase()) {
+      return res.status(400).json({
+        error: 'Email changes require two-step verification. Please use the verification security flow.',
       });
-      if (existing) {
-        return res.status(400).json({ error: 'This email is already in use by another account' });
-      }
-      parsed.data.email = normalized;
     }
+
+    // Omit email from general profile update so it cannot be mutated unverified
+    const { email: _omittedEmail, ...profileUpdates } = parsed.data;
 
     const user = await prisma.user.update({
       where: { id: req.auth!.userId },
-      data: parsed.data,
+      data: profileUpdates,
     });
     res.json({ user: toPublicUser(user) });
   } catch (err) {
     console.error('Failed to update profile:', err);
     res.status(500).json({ error: 'Failed to update profile' });
   }
+});
+
+const requestEmailChangeSchema = z.object({
+  newEmail: z.string().email('Please enter a valid email address'),
+});
+
+authRouter.post('/request-email-change', requireAuth, async (req, res) => {
+  const parsed = requestEmailChangeSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: parsed.error.issues[0]?.message ?? 'Invalid email address' });
+  }
+
+  const normalizedEmail = parsed.data.newEmail.trim().toLowerCase();
+  const user = await prisma.user.findUnique({ where: { id: req.auth!.userId } });
+  if (!user) return res.status(404).json({ error: 'User not found' });
+
+  if (user.email.toLowerCase() === normalizedEmail) {
+    return res.status(400).json({ error: 'New email address must be different from your current email' });
+  }
+
+  const existing = await prisma.user.findFirst({
+    where: { email: normalizedEmail, NOT: { id: user.id } },
+  });
+  if (existing) {
+    return res.status(409).json({ error: 'This email address is already in use by another account' });
+  }
+
+  // Rate limit: 75-second cooldown
+  const latest = await prisma.emailVerification.findFirst({
+    where: { userId: user.id },
+    orderBy: { createdAt: 'desc' },
+  });
+  if (latest) {
+    const elapsedMs = Date.now() - latest.createdAt.getTime();
+    const cooldownMs = 75 * 1000;
+    if (elapsedMs < cooldownMs) {
+      const remainingSec = Math.ceil((cooldownMs - elapsedMs) / 1000);
+      return res.status(429).json({
+        error: `Please wait ${remainingSec}s before requesting a new code.`,
+        remainingSeconds: remainingSec,
+      });
+    }
+  }
+
+  const code = Math.floor(100000 + Math.random() * 900000).toString();
+  const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+
+  // Invalidate previous unused codes for this user
+  await prisma.emailVerification.updateMany({
+    where: { userId: user.id, used: false },
+    data: { used: true },
+  });
+
+  await prisma.emailVerification.create({
+    data: {
+      userId: user.id,
+      email: normalizedEmail,
+      code,
+      expiresAt,
+    },
+  });
+
+  await sendNewEmailVerificationCode(normalizedEmail, user.name, code).catch((err) => {
+    console.error('Failed to send email change verification email:', err);
+  });
+
+  res.json({
+    message: 'Verification code sent to your new email address',
+    remainingSeconds: 75,
+  });
+});
+
+const confirmEmailChangeSchema = z.object({
+  newEmail: z.string().email(),
+  code: z.string().length(6, 'Verification code must be 6 digits'),
+});
+
+authRouter.post('/confirm-email-change', requireAuth, async (req, res) => {
+  const parsed = confirmEmailChangeSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: parsed.error.issues[0]?.message ?? 'Invalid code or email' });
+  }
+
+  const { code } = parsed.data;
+  const normalizedEmail = parsed.data.newEmail.trim().toLowerCase();
+  const userId = req.auth!.userId;
+
+  const verification = await prisma.emailVerification.findFirst({
+    where: {
+      userId,
+      email: normalizedEmail,
+      code,
+      used: false,
+    },
+    orderBy: { createdAt: 'desc' },
+  });
+
+  if (!verification) {
+    return res.status(400).json({ error: 'Invalid verification code. Please check and try again.' });
+  }
+
+  if (verification.expiresAt < new Date()) {
+    return res.status(400).json({ error: 'Verification code has expired. Please request a new code.' });
+  }
+
+  const existing = await prisma.user.findFirst({
+    where: { email: normalizedEmail, NOT: { id: userId } },
+  });
+  if (existing) {
+    return res.status(409).json({ error: 'This email address is now in use by another account' });
+  }
+
+  const [_, updatedUser] = await prisma.$transaction([
+    prisma.emailVerification.update({
+      where: { id: verification.id },
+      data: { used: true },
+    }),
+    prisma.user.update({
+      where: { id: userId },
+      data: { email: normalizedEmail, isVerified: true },
+    }),
+  ]);
+
+  res.json({
+    message: 'Email address verified and updated successfully',
+    user: toPublicUser(updatedUser),
+  });
 });
 
 const avatarUploadSchema = z.object({
