@@ -14,6 +14,8 @@ import {
   ShieldCheck,
   Activity,
   User,
+  Inbox,
+  UserCheck,
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -38,6 +40,7 @@ const NAV_SECTIONS: NavSection[] = [
     title: 'EXECUTIVE CORE',
     items: [
       { id: 'dashboard', label: 'Overview & Ops', icon: LayoutDashboard },
+      { id: 'inquiries', label: 'Master Triage Desk', icon: Inbox },
     ],
   },
   {
@@ -58,6 +61,7 @@ const NAV_SECTIONS: NavSection[] = [
   {
     title: 'GOVERNANCE & ACCOUNT',
     items: [
+      { id: 'users', label: 'Registered Members', icon: UserCheck },
       { id: 'team', label: 'Administrative Team', icon: Users },
       { id: 'profile', label: 'Security & Profile', icon: ShieldCheck },
     ],

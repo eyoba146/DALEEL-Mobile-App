@@ -12,6 +12,8 @@ import {
   Users,
   ShieldCheck,
   ArrowRight,
+  UserCheck,
+  Inbox,
 } from 'lucide-react';
 
 interface DashboardViewProps {
@@ -93,6 +95,17 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
       icon: Users,
       desc: 'Authorized management staff and coordinators',
     },
+    ...(canAccess('users')
+      ? [
+          {
+            id: 'users' as AppModule,
+            label: 'Registered Members',
+            value: stats?.registeredUsersCount ?? 0,
+            icon: UserCheck,
+            desc: 'Registered diaspora travelers and resident members',
+          },
+        ]
+      : []),
   ];
 
   return (
@@ -155,12 +168,26 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
 
       {/* Inquiries & Requests Section */}
       <div style={styles.sectionTitleRow}>
-        <h3 style={styles.sectionHeading}>Customer Requests & Inquiries</h3>
-        <span style={styles.sectionSub}>Live requests submitted from the mobile app</span>
+        <div>
+          <h3 style={styles.sectionHeading}>Customer Requests & Inquiries</h3>
+          <span style={styles.sectionSub}>Live requests submitted from the mobile app</span>
+        </div>
+        <button
+          style={styles.openTriageBtn}
+          onClick={() => onNavigate('inquiries')}
+        >
+          <Inbox size={15} color="#DFB76C" />
+          <span>Open Triage Desk</span>
+          <ArrowRight size={13} color="#DFB76C" />
+        </button>
       </div>
 
       <div style={styles.inquiriesGrid}>
-        <div style={styles.inquiryCard}>
+        <div
+          style={{ ...styles.inquiryCard, cursor: 'pointer' }}
+          onClick={() => onNavigate('inquiries')}
+          title="Open in Triage Desk"
+        >
           <div style={styles.inquiryIcon}>
             <Briefcase size={17} color="#8C6A21" />
           </div>
@@ -170,7 +197,11 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
           </div>
         </div>
 
-        <div style={styles.inquiryCard}>
+        <div
+          style={{ ...styles.inquiryCard, cursor: 'pointer' }}
+          onClick={() => onNavigate('inquiries')}
+          title="Open in Triage Desk"
+        >
           <div style={styles.inquiryIcon}>
             <ShoppingBag size={17} color="#8C6A21" />
           </div>
@@ -180,7 +211,11 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
           </div>
         </div>
 
-        <div style={styles.inquiryCard}>
+        <div
+          style={{ ...styles.inquiryCard, cursor: 'pointer' }}
+          onClick={() => onNavigate('inquiries')}
+          title="Open in Triage Desk"
+        >
           <div style={styles.inquiryIcon}>
             <Calendar size={17} color="#8C6A21" />
           </div>
@@ -190,7 +225,11 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
           </div>
         </div>
 
-        <div style={styles.inquiryCard}>
+        <div
+          style={{ ...styles.inquiryCard, cursor: 'pointer' }}
+          onClick={() => onNavigate('inquiries')}
+          title="Open in Triage Desk"
+        >
           <div style={styles.inquiryIcon}>
             <TrendingUp size={17} color="#8C6A21" />
           </div>
@@ -378,5 +417,19 @@ const styles: { [key: string]: React.CSSProperties } = {
     color: '#5A687A',
     marginTop: '2px',
     fontWeight: 500,
+  },
+  openTriageBtn: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    padding: '8px 16px',
+    borderRadius: '10px',
+    backgroundColor: 'rgba(223, 183, 108, 0.12)',
+    border: '1px solid rgba(223, 183, 108, 0.4)',
+    color: '#8C6A21',
+    fontSize: '13px',
+    fontWeight: 700,
+    cursor: 'pointer',
+    transition: 'all 0.2s ease',
   },
 };

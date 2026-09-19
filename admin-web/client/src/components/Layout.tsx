@@ -10,14 +10,18 @@ import { MarketplaceManager } from './MarketplaceManager';
 import { InvestmentsManager } from './InvestmentsManager';
 import { TeamManager } from './TeamManager';
 import { ProfileSecurityView } from './ProfileSecurityView';
+import { TriageInboxManager } from './TriageInboxManager';
+import { UsersManager } from './UsersManager';
 
 const VALID_MODULES: AppModule[] = [
   'dashboard',
+  'inquiries',
   'destinations',
   'services',
   'events',
   'marketplace',
   'investments',
+  'users',
   'team',
   'profile',
 ];
@@ -64,6 +68,8 @@ export const Layout: React.FC = () => {
     switch (currentTab) {
       case 'dashboard':
         return <DashboardView onNavigate={handleSelectTab} />;
+      case 'inquiries':
+        return <TriageInboxManager />;
       case 'destinations':
         return <DestinationsManager />;
       case 'services':
@@ -74,6 +80,8 @@ export const Layout: React.FC = () => {
         return <MarketplaceManager />;
       case 'investments':
         return <InvestmentsManager />;
+      case 'users':
+        return <UsersManager />;
       case 'team':
         return <TeamManager />;
       case 'profile':

@@ -13,6 +13,10 @@ const TAB_TITLES: Record<AppModule, { title: string; subtitle: string }> = {
     title: 'Overview & Activity',
     subtitle: 'Summary of heritage destinations, service partners, and marketplace orders',
   },
+  inquiries: {
+    title: 'Master Triage Desk',
+    subtitle: 'Role-based triage desk monitoring customer inquiries, reservations, and orders',
+  },
   destinations: {
     title: 'Heritage & Tourism',
     subtitle: 'Manage regional attractions, UNESCO cultural sites, and map coordinates',
@@ -32,6 +36,10 @@ const TAB_TITLES: Record<AppModule, { title: string; subtitle: string }> = {
   investments: {
     title: 'Diaspora Investments',
     subtitle: 'Manage high-growth opportunities, syndicates, and investor inquiries',
+  },
+  users: {
+    title: 'Registered Members Directory',
+    subtitle: 'Roster of registered Ethiopian diaspora and foreign resident accounts',
   },
   team: {
     title: 'Administrative Team',

@@ -1,3 +1,6 @@
+import { prisma } from './prisma';
+import { AdminRole } from '@prisma/client';
+
 const BREVO_API_URL = 'https://api.brevo.com/v3/smtp/email';
 
 function parseSender(fromStr?: string): { name: string; email: string } {
@@ -352,4 +355,87 @@ export async function sendInvestmentInquiryStatusEmail(
   await sendEmail(to, subject, htmlContent).catch((err) => {
     console.error(`[EMAIL] Failed to send investment inquiry status email to ${to.email}:`, err);
   });
+}
+
+/* ─── Coordinator New Inquiry Alert Email ─── */
+export async function sendCoordinatorInquiryAlertEmail(params: {
+  category: string;
+  title: string;
+  customerName: string;
+  customerEmail: string;
+  customerPhone?: string | null;
+  messageOrDetails: string;
+  inquiryId: string;
+  role: AdminRole;
+}) {
+  try {
+    const coordinators = await prisma.user.findMany({
+      where: {
+        isAdmin: true,
+        OR: [{ adminRole: params.role }, { adminRole: AdminRole.SUPER_ADMIN }],
+      },
+      select: { email: true, name: true, adminRole: true },
+    });
+
+    if (!coordinators.length) {
+      console.log(`[EMAIL ALERT] No coordinator found for role ${params.role}.`);
+      return;
+    }
+
+    const subject = `[Triage Alert] New ${params.category} submission: ${params.title}`;
+
+    for (const coord of coordinators) {
+      const htmlContent = `
+        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 24px auto; padding: 24px; border: 1px solid #E2E8F0; border-radius: 16px; background: #FFFFFF; color: #0F172A;">
+          <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #F1F5F9; padding-bottom: 16px; margin-bottom: 20px;">
+            <span style="font-size: 18px; font-weight: 800; color: #0E1C40; letter-spacing: 1px;">DALEEL <span style="color: #D4AF37;">•</span> TRIAGE DESK</span>
+            <span style="font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 20px; background: #FEF3C7; color: #92400E; text-transform: uppercase;">
+              NEW SUBMISSION
+            </span>
+          </div>
+
+          <h2 style="font-size: 18px; font-weight: 700; color: #0E1C40; margin-top: 0; margin-bottom: 8px;">Incoming Customer Request</h2>
+          <p style="font-size: 14px; color: #475569; line-height: 1.5; margin-bottom: 20px;">
+            Hello ${coord.name}, a customer has submitted a request requiring review by the ${params.category} department.
+          </p>
+
+          <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 12px; padding: 18px; margin-bottom: 24px;">
+            <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+              <tr>
+                <td style="color: #64748B; padding: 6px 0; width: 140px;">Category:</td>
+                <td style="font-weight: 600; color: #0F172A; padding: 6px 0;">${params.category}</td>
+              </tr>
+              <tr>
+                <td style="color: #64748B; padding: 6px 0;">Listing / Item:</td>
+                <td style="font-weight: 600; color: #0F172A; padding: 6px 0;">${params.title}</td>
+              </tr>
+              <tr>
+                <td style="color: #64748B; padding: 6px 0;">Customer Name:</td>
+                <td style="font-weight: 600; color: #0F172A; padding: 6px 0;">${params.customerName}</td>
+              </tr>
+              <tr>
+                <td style="color: #64748B; padding: 6px 0;">Customer Email:</td>
+                <td style="font-weight: 600; color: #0F172A; padding: 6px 0;"><a href="mailto:${params.customerEmail}" style="color: #0E1C40;">${params.customerEmail}</a></td>
+              </tr>
+              ${params.customerPhone ? `<tr><td style="color: #64748B; padding: 6px 0;">Customer Phone:</td><td style="font-weight: 600; color: #0F172A; padding: 6px 0;">${params.customerPhone}</td></tr>` : ''}
+              <tr>
+                <td style="color: #64748B; padding: 6px 0; vertical-align: top;">Notes / Message:</td>
+                <td style="font-weight: 500; color: #334155; padding: 6px 0; line-height: 1.5;">${params.messageOrDetails}</td>
+              </tr>
+            </table>
+          </div>
+
+          <p style="font-size: 13px; color: #64748B; line-height: 1.5;">
+            Log into the <strong>DALEEL Operations Portal</strong> to review this request and update its status.
+          </p>
+        </div>
+      `;
+
+      await sendEmail({ email: coord.email, name: coord.name }, subject, htmlContent).catch((err) => {
+        console.error(`[EMAIL ALERT] Failed to alert coordinator ${coord.email}:`, err);
+      });
+    }
+  } catch (error) {
+    console.error('[EMAIL ALERT] Error dispatching coordinator alert email:', error);
+  }
 }

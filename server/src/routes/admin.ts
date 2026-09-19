@@ -255,6 +255,7 @@ adminRouter.get('/stats', async (_req: AdminRequest, res: Response) => {
       eventRsvpsCount,
       investmentInquiriesCount,
       adminTeamCount,
+      registeredUsersCount,
     ] = await Promise.all([
       prisma.destination.count(),
       prisma.service.count(),
@@ -266,6 +267,7 @@ adminRouter.get('/stats', async (_req: AdminRequest, res: Response) => {
       prisma.eventRsvp.count(),
       prisma.investmentInquiry.count(),
       prisma.user.count({ where: { isAdmin: true } }),
+      prisma.user.count({ where: { isAdmin: false } }),
     ]);
 
     res.json({
@@ -279,6 +281,7 @@ adminRouter.get('/stats', async (_req: AdminRequest, res: Response) => {
       eventRsvpsCount,
       investmentInquiriesCount,
       adminTeamCount,
+      registeredUsersCount,
     });
   } catch (error) {
     console.error('Error fetching admin stats:', error);
@@ -449,6 +452,464 @@ adminRouter.delete(
     } catch (error) {
       console.error('Error deleting admin member:', error);
       res.status(500).json({ error: 'Failed to delete team member' });
+    }
+  }
+);
+
+// --- Registered Mobile Members Directory (Super Admin Only) ---
+
+adminRouter.get(
+  '/users',
+  requireRole([AdminRole.SUPER_ADMIN]) as any,
+  async (req: AdminRequest, res: Response) => {
+    try {
+      const { search, userType, isVerified, page = '1', limit = '50' } = req.query;
+
+      const whereClause: any = {
+        isAdmin: false,
+      };
+
+      if (userType && userType !== 'all') {
+        whereClause.userType = String(userType);
+      }
+
+      if (isVerified === 'true') {
+        whereClause.isVerified = true;
+      } else if (isVerified === 'false') {
+        whereClause.isVerified = false;
+      }
+
+      if (search && String(search).trim()) {
+        const query = String(search).trim();
+        whereClause.OR = [
+          { name: { contains: query, mode: 'insensitive' } },
+          { email: { contains: query, mode: 'insensitive' } },
+          { country: { contains: query, mode: 'insensitive' } },
+          { phone: { contains: query, mode: 'insensitive' } },
+        ];
+      }
+
+      const take = Math.min(Math.max(Number(limit) || 50, 1), 100);
+      const skip = (Math.max(Number(page) || 1, 1) - 1) * take;
+
+      const [users, total] = await Promise.all([
+        prisma.user.findMany({
+          where: whereClause,
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            userType: true,
+            country: true,
+            language: true,
+            isVerified: true,
+            phone: true,
+            savedAddress: true,
+            avatarUrl: true,
+            createdAt: true,
+            updatedAt: true,
+            _count: {
+              select: {
+                favorites: true,
+                serviceInquiries: true,
+                eventRsvps: true,
+                productOrderInquiries: true,
+                investmentInquiries: true,
+              },
+            },
+          },
+          orderBy: { createdAt: 'desc' },
+          skip,
+          take,
+        }),
+        prisma.user.count({ where: whereClause }),
+      ]);
+
+      res.json({
+        users,
+        total,
+        page: Number(page) || 1,
+        totalPages: Math.ceil(total / take),
+      });
+    } catch (error) {
+      console.error('Error fetching registered users:', error);
+      res.status(500).json({ error: 'Failed to fetch registered members' });
+    }
+  }
+);
+
+adminRouter.patch(
+  '/users/:id',
+  requireRole([AdminRole.SUPER_ADMIN]) as any,
+  async (req: AdminRequest, res: Response) => {
+    try {
+      const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+      const { isVerified, phone, country, userType } = req.body;
+
+      const updateData: any = {};
+      if (typeof isVerified === 'boolean') updateData.isVerified = isVerified;
+      if (phone !== undefined) updateData.phone = phone ? String(phone).trim() : null;
+      if (country !== undefined) updateData.country = String(country).trim();
+      if (userType !== undefined) updateData.userType = String(userType);
+
+      const updated = await prisma.user.update({
+        where: { id },
+        data: updateData,
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          userType: true,
+          country: true,
+          language: true,
+          isVerified: true,
+          phone: true,
+          avatarUrl: true,
+          createdAt: true,
+          updatedAt: true,
+          _count: {
+            select: {
+              favorites: true,
+              serviceInquiries: true,
+              eventRsvps: true,
+              productOrderInquiries: true,
+              investmentInquiries: true,
+            },
+          },
+        },
+      });
+
+      res.json(updated);
+    } catch (error) {
+      console.error('Error updating user:', error);
+      res.status(500).json({ error: 'Failed to update member profile' });
+    }
+  }
+);
+
+// --- Role-Based Master Triage Desk ---
+
+adminRouter.get(
+  '/inquiries/unified',
+  async (req: AdminRequest, res: Response) => {
+    try {
+      const role = req.adminUser?.adminRole;
+      const { department, status, search } = req.query;
+
+      // Determine which modules the coordinator can access
+      const canAccessServices = role === AdminRole.SUPER_ADMIN || role === AdminRole.SERVICE_MANAGER || role === AdminRole.DESTINATION_MANAGER;
+      const canAccessEvents = role === AdminRole.SUPER_ADMIN || role === AdminRole.EVENT_MANAGER;
+      const canAccessMarketplace = role === AdminRole.SUPER_ADMIN || role === AdminRole.MARKETPLACE_MANAGER;
+      const canAccessInvestments = role === AdminRole.SUPER_ADMIN || role === AdminRole.INVESTMENT_OFFICER;
+
+      const shouldFetchServices = canAccessServices && (!department || department === 'all' || department === 'services');
+      const shouldFetchEvents = canAccessEvents && (!department || department === 'all' || department === 'events');
+      const shouldFetchMarketplace = canAccessMarketplace && (!department || department === 'all' || department === 'marketplace');
+      const shouldFetchInvestments = canAccessInvestments && (!department || department === 'all' || department === 'investments');
+
+      const promises: Promise<any>[] = [];
+
+      if (shouldFetchServices) {
+        promises.push(
+          prisma.serviceInquiry.findMany({
+            include: { service: { select: { id: true, name: true, category: true } } },
+            orderBy: { createdAt: 'desc' },
+            take: 100,
+          }).then(list => list.map(item => ({
+            id: item.id,
+            module: 'SERVICES',
+            moduleLabel: 'Verified Service',
+            title: item.service.name,
+            customerName: item.fullName,
+            customerEmail: item.contactEmail,
+            customerPhone: item.contactPhone,
+            customerWhatsapp: item.contactWhatsapp,
+            status: item.status,
+            createdAt: item.createdAt,
+            details: {
+              category: item.service.category,
+              timeframe: item.timeframe,
+              message: item.message,
+            },
+          })))
+        );
+      } else {
+        promises.push(Promise.resolve([]));
+      }
+
+      if (shouldFetchEvents) {
+        promises.push(
+          prisma.eventRsvp.findMany({
+            include: { event: { select: { id: true, title: true, city: true, venue: true, date: true } } },
+            orderBy: { createdAt: 'desc' },
+            take: 100,
+          }).then(list => list.map(item => ({
+            id: item.id,
+            module: 'EVENTS',
+            moduleLabel: 'Event Gathering',
+            title: item.event.title,
+            customerName: item.fullName,
+            customerEmail: item.email,
+            customerPhone: item.phone,
+            customerWhatsapp: null,
+            status: item.status,
+            createdAt: item.createdAt,
+            details: {
+              ticketsCount: item.ticketsCount,
+              eventDate: item.event.date,
+              location: `${item.event.venue ? `${item.event.venue}, ` : ''}${item.event.city}`,
+              notes: item.notes,
+            },
+          })))
+        );
+      } else {
+        promises.push(Promise.resolve([]));
+      }
+
+      if (shouldFetchMarketplace) {
+        promises.push(
+          prisma.productOrderInquiry.findMany({
+            include: { product: { select: { id: true, title: true, price: true, currency: true, category: true } } },
+            orderBy: { createdAt: 'desc' },
+            take: 100,
+          }).then(list => list.map(item => ({
+            id: item.id,
+            module: 'MARKETPLACE',
+            moduleLabel: 'Artisan Marketplace',
+            title: `${item.product.title} (x${item.quantity})`,
+            customerName: item.fullName,
+            customerEmail: item.email,
+            customerPhone: item.phone,
+            customerWhatsapp: item.whatsapp,
+            status: item.status,
+            createdAt: item.createdAt,
+            details: {
+              productTitle: item.product.title,
+              quantity: item.quantity,
+              unitPrice: `${item.product.price} ${item.product.currency}`,
+              totalPrice: `${(item.product.price * item.quantity).toFixed(2)} ${item.product.currency}`,
+              deliveryAddress: item.deliveryAddress,
+              notes: item.notes,
+            },
+          })))
+        );
+      } else {
+        promises.push(Promise.resolve([]));
+      }
+
+      if (shouldFetchInvestments) {
+        promises.push(
+          prisma.investmentInquiry.findMany({
+            include: { opportunity: { select: { id: true, title: true, sector: true, expectedReturn: true } } },
+            orderBy: { createdAt: 'desc' },
+            take: 100,
+          }).then(list => list.map(item => ({
+            id: item.id,
+            module: 'INVESTMENTS',
+            moduleLabel: 'Diaspora Investment',
+            title: item.opportunity.title,
+            customerName: item.fullName,
+            customerEmail: item.contactEmail,
+            customerPhone: item.contactPhone,
+            customerWhatsapp: item.contactWhatsapp,
+            status: item.status,
+            createdAt: item.createdAt,
+            details: {
+              sector: item.opportunity.sector,
+              targetReturn: item.opportunity.expectedReturn,
+              investmentBudget: item.investmentBudget,
+              timeframe: item.timeframe,
+              message: item.message,
+            },
+          })))
+        );
+      } else {
+        promises.push(Promise.resolve([]));
+      }
+
+      const [servicesInqs, eventsInqs, marketplaceInqs, investmentsInqs] = await Promise.all(promises);
+      let unified = [...servicesInqs, ...eventsInqs, ...marketplaceInqs, ...investmentsInqs];
+
+      if (status && status !== 'all') {
+        unified = unified.filter(item => item.status.toLowerCase() === String(status).toLowerCase());
+      }
+
+      if (search && String(search).trim()) {
+        const q = String(search).trim().toLowerCase();
+        unified = unified.filter(item =>
+          item.customerName.toLowerCase().includes(q) ||
+          item.customerEmail.toLowerCase().includes(q) ||
+          item.title.toLowerCase().includes(q)
+        );
+      }
+
+      unified.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+      res.json({
+        inquiries: unified,
+        total: unified.length,
+        userRole: role,
+        accessibleModules: {
+          services: canAccessServices,
+          events: canAccessEvents,
+          marketplace: canAccessMarketplace,
+          investments: canAccessInvestments,
+        },
+      });
+    } catch (error) {
+      console.error('Error fetching unified inquiries:', error);
+      res.status(500).json({ error: 'Failed to fetch unified triage feed' });
+    }
+  }
+);
+
+adminRouter.patch(
+  '/inquiries/unified/:module/:id',
+  async (req: AdminRequest, res: Response) => {
+    try {
+      const moduleName = String(req.params.module).toUpperCase();
+      const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+      const { status } = req.body;
+      const role = req.adminUser?.adminRole;
+
+      if (!status) {
+        return res.status(400).json({ error: 'Status is required' });
+      }
+
+      if (moduleName === 'SERVICES') {
+        if (role !== AdminRole.SUPER_ADMIN && role !== AdminRole.SERVICE_MANAGER && role !== AdminRole.DESTINATION_MANAGER) {
+          return res.status(403).json({ error: 'Permission denied: Services Lead access required' });
+        }
+        const updated = await prisma.serviceInquiry.update({
+          where: { id },
+          data: { status: String(status).toUpperCase() },
+          include: { service: true, user: true },
+        });
+
+        if (updated.userId) {
+          await prisma.notification.create({
+            data: {
+              userId: updated.userId,
+              type: 'service',
+              title: `Service Inquiry: ${updated.status}`,
+              message: `Your inquiry for "${updated.service.name}" has been updated to ${updated.status.toLowerCase()}.`,
+              actionUrl: `/service/${updated.serviceId}`,
+            },
+          }).catch(() => {});
+        }
+
+        sendServiceInquiryStatusEmail(
+          { email: updated.contactEmail, name: updated.fullName },
+          updated.service.name,
+          updated.status,
+          updated.service.category
+        ).catch(() => {});
+
+        return res.json({ success: true, item: updated });
+      }
+
+      if (moduleName === 'EVENTS') {
+        if (role !== AdminRole.SUPER_ADMIN && role !== AdminRole.EVENT_MANAGER) {
+          return res.status(403).json({ error: 'Permission denied: Event Coordinator access required' });
+        }
+        const updated = await prisma.eventRsvp.update({
+          where: { id },
+          data: { status: String(status).toLowerCase() },
+          include: { event: true, user: true },
+        });
+
+        if (updated.userId) {
+          await prisma.notification.create({
+            data: {
+              userId: updated.userId,
+              type: 'event',
+              title: `RSVP Status: ${updated.status.toUpperCase()}`,
+              message: `Your RSVP for "${updated.event.title}" is now ${updated.status.toLowerCase()}.`,
+              actionUrl: `/event/${updated.eventId}`,
+            },
+          }).catch(() => {});
+        }
+
+        sendEventRsvpStatusEmail(
+          { email: updated.email, name: updated.fullName },
+          updated.event.title,
+          updated.status,
+          updated.ticketsCount,
+          new Date(updated.event.date).toLocaleDateString()
+        ).catch(() => {});
+
+        return res.json({ success: true, item: updated });
+      }
+
+      if (moduleName === 'MARKETPLACE') {
+        if (role !== AdminRole.SUPER_ADMIN && role !== AdminRole.MARKETPLACE_MANAGER) {
+          return res.status(403).json({ error: 'Permission denied: Marketplace Lead access required' });
+        }
+        const updated = await prisma.productOrderInquiry.update({
+          where: { id },
+          data: { status: String(status).toUpperCase() },
+          include: { product: true, user: true },
+        });
+
+        if (updated.userId) {
+          await prisma.notification.create({
+            data: {
+              userId: updated.userId,
+              type: 'order',
+              title: `Order Status: ${updated.status}`,
+              message: `Your inquiry for "${updated.product.title}" is now ${updated.status.toLowerCase()}.`,
+              actionUrl: `/marketplace`,
+            },
+          }).catch(() => {});
+        }
+
+        sendOrderStatusEmail(
+          { email: updated.email, name: updated.fullName },
+          updated.product.title,
+          updated.status,
+          updated.quantity,
+          `${(updated.product.price * updated.quantity).toFixed(2)} ${updated.product.currency}`
+        ).catch(() => {});
+
+        return res.json({ success: true, item: updated });
+      }
+
+      if (moduleName === 'INVESTMENTS') {
+        if (role !== AdminRole.SUPER_ADMIN && role !== AdminRole.INVESTMENT_OFFICER) {
+          return res.status(403).json({ error: 'Permission denied: Investment Officer access required' });
+        }
+        const updated = await prisma.investmentInquiry.update({
+          where: { id },
+          data: { status: String(status).toUpperCase() },
+          include: { opportunity: true, user: true },
+        });
+
+        if (updated.userId) {
+          await prisma.notification.create({
+            data: {
+              userId: updated.userId,
+              type: 'investment',
+              title: `Investment Inquiry: ${updated.status}`,
+              message: `Your prospectus request for "${updated.opportunity.title}" is now ${updated.status.toLowerCase()}.`,
+              actionUrl: `/investment/${updated.opportunityId}`,
+            },
+          }).catch(() => {});
+        }
+
+        sendInvestmentInquiryStatusEmail(
+          { email: updated.contactEmail, name: updated.fullName },
+          updated.opportunity.title,
+          updated.status,
+          updated.investmentBudget || undefined
+        ).catch(() => {});
+
+        return res.json({ success: true, item: updated });
+      }
+
+      res.status(400).json({ error: 'Invalid module specified' });
+    } catch (error) {
+      console.error('Error updating inquiry status:', error);
+      res.status(500).json({ error: 'Failed to update inquiry status' });
     }
   }
 );

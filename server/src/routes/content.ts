@@ -1,6 +1,8 @@
 import { Request, Response, Router } from 'express';
 import jwt from 'jsonwebtoken';
 import { prisma } from '../lib/prisma';
+import { AdminRole } from '@prisma/client';
+import { sendCoordinatorInquiryAlertEmail } from '../lib/email';
 
 const JWT_SECRET = process.env.JWT_SECRET;
 
@@ -113,6 +115,18 @@ contentRouter.post('/services/:id/inquiry', async (req: Request, res: Response) 
       },
     });
 
+    // Alert department coordinators & Super Admin
+    sendCoordinatorInquiryAlertEmail({
+      category: 'Service Directory',
+      title: service.name,
+      customerName: String(fullName).trim(),
+      customerEmail: String(contactEmail).trim().toLowerCase(),
+      customerPhone: contactPhone ? String(contactPhone).trim() : null,
+      messageOrDetails: `${timeframe ? `[Timeframe: ${timeframe}] ` : ''}${String(message).trim()}`,
+      inquiryId: inquiry.id,
+      role: AdminRole.SERVICE_MANAGER,
+    }).catch((err) => console.error('Error dispatching service inquiry coordinator alert:', err));
+
     res.status(201).json({
       success: true,
       message: 'Your inquiry has been transmitted to our verified partner.',
@@ -191,6 +205,18 @@ contentRouter.post('/events/:id/rsvp', async (req: Request, res: Response) => {
         status: 'confirmed',
       },
     });
+
+    // Alert event coordinators & Super Admin
+    sendCoordinatorInquiryAlertEmail({
+      category: 'Event Gathering',
+      title: event.title,
+      customerName: String(fullName).trim(),
+      customerEmail: String(email).trim().toLowerCase(),
+      customerPhone: phone ? String(phone).trim() : null,
+      messageOrDetails: `Tickets requested: ${rsvp.ticketsCount}${notes ? ` • Note: ${notes}` : ''}`,
+      inquiryId: rsvp.id,
+      role: AdminRole.EVENT_MANAGER,
+    }).catch((err) => console.error('Error dispatching event RSVP coordinator alert:', err));
 
     res.status(201).json({
       success: true,
@@ -276,6 +302,18 @@ contentRouter.post('/investments/:id/inquiry', async (req: Request, res: Respons
         message: String(message).trim(),
       },
     });
+
+    // Alert investment officers & Super Admin
+    sendCoordinatorInquiryAlertEmail({
+      category: 'Diaspora Investment',
+      title: opportunity.title,
+      customerName: String(fullName).trim(),
+      customerEmail: String(contactEmail).trim().toLowerCase(),
+      customerPhone: contactPhone ? String(contactPhone).trim() : null,
+      messageOrDetails: `${investmentBudget ? `[Budget: ${investmentBudget}] ` : ''}${timeframe ? `[Timeframe: ${timeframe}] ` : ''}${String(message).trim()}`,
+      inquiryId: inquiry.id,
+      role: AdminRole.INVESTMENT_OFFICER,
+    }).catch((err) => console.error('Error dispatching investment coordinator alert:', err));
 
     res.status(201).json({
       success: true,
@@ -506,6 +544,18 @@ contentRouter.post('/products/:id/order-inquiry', async (req: Request, res: Resp
         },
       }).catch(() => {});
     }
+
+    // Alert marketplace managers & Super Admin
+    sendCoordinatorInquiryAlertEmail({
+      category: 'Artisan Marketplace',
+      title: `${product.title} (Qty: ${inquiry.quantity})`,
+      customerName: String(fullName).trim(),
+      customerEmail: String(email).trim().toLowerCase(),
+      customerPhone: phone ? String(phone).trim() : null,
+      messageOrDetails: `Delivery Address: ${deliveryAddress}${notes ? ` • Note: ${notes}` : ''}`,
+      inquiryId: inquiry.id,
+      role: AdminRole.MARKETPLACE_MANAGER,
+    }).catch((err) => console.error('Error dispatching marketplace coordinator alert:', err));
 
     res.status(201).json({
       success: true,

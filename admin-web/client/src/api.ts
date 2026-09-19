@@ -22,6 +22,55 @@ export interface PlatformStats {
   eventRsvpsCount: number;
   investmentInquiriesCount: number;
   adminTeamCount: number;
+  registeredUsersCount?: number;
+}
+
+export interface RegisteredUser {
+  id: string;
+  name: string;
+  email: string;
+  userType: 'diaspora' | 'foreign_resident';
+  country: string;
+  language: string;
+  isVerified: boolean;
+  phone?: string | null;
+  savedAddress?: string | null;
+  avatarUrl?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  _count: {
+    favorites: number;
+    serviceInquiries: number;
+    eventRsvps: number;
+    productOrderInquiries: number;
+    investmentInquiries: number;
+  };
+}
+
+export interface UnifiedInquiryItem {
+  id: string;
+  module: 'SERVICES' | 'EVENTS' | 'MARKETPLACE' | 'INVESTMENTS';
+  moduleLabel: string;
+  title: string;
+  customerName: string;
+  customerEmail: string;
+  customerPhone?: string | null;
+  customerWhatsapp?: string | null;
+  status: string;
+  createdAt: string;
+  details: Record<string, any>;
+}
+
+export interface UnifiedInquiriesResponse {
+  inquiries: UnifiedInquiryItem[];
+  total: number;
+  userRole: string;
+  accessibleModules: {
+    services: boolean;
+    events: boolean;
+    marketplace: boolean;
+    investments: boolean;
+  };
 }
 
 function getStoredToken(): string | null {
@@ -169,4 +218,35 @@ export const adminApi = {
   getInvestmentInquiries: () => request<any[]>('/admin/investments-inquiries'),
   updateInvestmentInquiryStatus: (id: string, status: string) =>
     request<any>(`/admin/investments-inquiries/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status }) }),
+
+  // Registered Mobile Members Directory (Super Admin)
+  getRegisteredUsers: (params?: { search?: string; userType?: string; isVerified?: string; page?: number; limit?: number }) => {
+    const q = new URLSearchParams();
+    if (params?.search) q.set('search', params.search);
+    if (params?.userType) q.set('userType', params.userType);
+    if (params?.isVerified) q.set('isVerified', params.isVerified);
+    if (params?.page) q.set('page', String(params.page));
+    if (params?.limit) q.set('limit', String(params.limit));
+    const qs = q.toString();
+    return request<{ users: RegisteredUser[]; total: number; page: number; totalPages: number }>(`/admin/users${qs ? `?${qs}` : ''}`);
+  },
+
+  updateRegisteredUser: (id: string, data: { isVerified?: boolean; phone?: string; country?: string; userType?: string }) =>
+    request<RegisteredUser>(`/admin/users/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+
+  // Role-Based Master Triage Desk
+  getUnifiedInquiries: (params?: { department?: string; status?: string; search?: string }) => {
+    const q = new URLSearchParams();
+    if (params?.department) q.set('department', params.department);
+    if (params?.status) q.set('status', params.status);
+    if (params?.search) q.set('search', params.search);
+    const qs = q.toString();
+    return request<UnifiedInquiriesResponse>(`/admin/inquiries/unified${qs ? `?${qs}` : ''}`);
+  },
+
+  updateUnifiedInquiryStatus: (module: string, id: string, status: string) =>
+    request<{ success: boolean; item: any }>(`/admin/inquiries/unified/${module}/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status }),
+    }),
 };

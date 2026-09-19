@@ -4,11 +4,13 @@ import type { AdminUser } from '../api';
 
 export type AppModule =
   | 'dashboard'
+  | 'inquiries'
   | 'destinations'
   | 'services'
   | 'events'
   | 'marketplace'
   | 'investments'
+  | 'users'
   | 'team'
   | 'profile';
 
@@ -84,6 +86,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     switch (module) {
       case 'dashboard':
         return true;
+      case 'inquiries':
+        return true; // All authorized roles access the role-scoped triage desk
       case 'destinations':
         return adminUser.adminRole === 'DESTINATION_MANAGER';
       case 'services':
@@ -94,8 +98,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return adminUser.adminRole === 'MARKETPLACE_MANAGER';
       case 'investments':
         return adminUser.adminRole === 'INVESTMENT_OFFICER';
+      case 'users':
+        return false; // Only SUPER_ADMIN (handled above by if (adminUser.adminRole === 'SUPER_ADMIN') return true)
       case 'team':
-        return false;
+        return false; // Only SUPER_ADMIN
       default:
         return false;
     }
