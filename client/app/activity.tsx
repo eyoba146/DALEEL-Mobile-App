@@ -220,7 +220,19 @@ export default function ActivityScreen() {
           <View style={styles.qrVisualBlock}>
             {/* High-fidelity digital pass barcode frame */}
             <View style={styles.qrGridFrame}>
-              <Ionicons name="qr-code-outline" size={46} color={colors.navy} />
+              {isConfirmed && item.meta.passCode ? (
+                <Image
+                  source={{
+                    uri: `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(
+                      item.meta.passCode
+                    )}&color=07152B`,
+                  }}
+                  style={{ width: 56, height: 56, borderRadius: 4 }}
+                  resizeMode="contain"
+                />
+              ) : (
+                <Ionicons name="qr-code-outline" size={46} color={colors.navy} />
+              )}
             </View>
             <View style={styles.qrTextCol}>
               <Text style={styles.qrTitle}>
@@ -228,7 +240,7 @@ export default function ActivityScreen() {
               </Text>
               <Text style={styles.qrSubtitle}>
                 {isConfirmed
-                  ? 'Present at venue door for digital check-in scanner.'
+                  ? 'Present this QR code at the gate scanner for admission.'
                   : 'Coordinator is reviewing capacity. Pass activates upon confirmation.'}
               </Text>
             </View>

@@ -16,7 +16,11 @@ import {
   Undo2,
   Sparkles,
   Upload,
+  Copy,
+  Download,
+  X,
 } from 'lucide-react';
+import QRCode from 'qrcode';
 import { Html5Qrcode } from 'html5-qrcode';
 import { adminApi } from '../api';
 import { useToast } from '../context/ToastContext';
@@ -159,6 +163,17 @@ export const EventCheckInDesk: React.FC<EventCheckInDeskProps> = ({
   // Attendee Table Search & Filter
   const [tableSearch, setTableSearch] = useState('');
   const [tableFilter, setTableFilter] = useState<'all' | 'checked_in' | 'awaiting'>('all');
+
+  // QR Code Preview Modal State
+  const [selectedQrPass, setSelectedQrPass] = useState<{
+    passCode: string;
+    fullName: string;
+    email: string;
+    ticketsCount: number;
+    eventTitle?: string;
+  } | null>(null);
+  const [qrModalDataUrl, setQrModalDataUrl] = useState<string | null>(null);
+  const [isCopied, setIsCopied] = useState(false);
 
   // Load all events for selector
   useEffect(() => {
@@ -461,6 +476,51 @@ export const EventCheckInDesk: React.FC<EventCheckInDeskProps> = ({
     }
   };
 
+  // Generate & Display QR Code Pass Modal
+  const handleShowPassQr = async (att: AttendeeItem) => {
+    try {
+      const dataUrl = await QRCode.toDataURL(att.passCode, {
+        width: 320,
+        margin: 2,
+        color: {
+          dark: '#07152B',
+          light: '#FFFFFF',
+        },
+      });
+      setQrModalDataUrl(dataUrl);
+      setSelectedQrPass({
+        passCode: att.passCode,
+        fullName: att.fullName,
+        email: att.email,
+        ticketsCount: att.ticketsCount,
+        eventTitle: eventDetails?.title,
+      });
+      setIsCopied(false);
+    } catch (err) {
+      console.error('QR generation error:', err);
+      toastError('Failed to generate QR Code');
+    }
+  };
+
+  const handleDownloadQr = () => {
+    if (!qrModalDataUrl || !selectedQrPass) return;
+    const a = document.createElement('a');
+    a.href = qrModalDataUrl;
+    a.download = `${selectedQrPass.passCode}-qr-pass.png`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    toastSuccess('QR Pass image downloaded');
+  };
+
+  const handleCopyPassCode = () => {
+    if (!selectedQrPass) return;
+    navigator.clipboard.writeText(selectedQrPass.passCode);
+    setIsCopied(true);
+    toastSuccess('Pass code copied to clipboard');
+    setTimeout(() => setIsCopied(false), 2500);
+  };
+
   useEffect(() => {
     return () => {
       if (html5QrCodeRef.current) {
@@ -731,16 +791,34 @@ export const EventCheckInDesk: React.FC<EventCheckInDeskProps> = ({
                     {isStartingCamera ? 'Connecting Camera...' : 'Start Camera'}
                   </button>
 
-                  <label style={styles.uploadPassBtn}>
-                    <Upload size={13} style={{ marginRight: 5 }} />
-                    <span>Or Select QR Image File</span>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      style={{ display: 'none' }}
-                      onChange={handleScanFile}
-                    />
-                  </label>
+                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', justifyContent: 'center' }}>
+                    <label style={styles.uploadPassBtn}>
+                      <Upload size={13} style={{ marginRight: 5 }} />
+                      <span>Upload QR Image File</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        style={{ display: 'none' }}
+                        onChange={handleScanFile}
+                      />
+                    </label>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (attendees.length > 0) {
+                          handleShowPassQr(attendees[0]);
+                        } else {
+                          toastError('No attendees registered yet to generate test QR pass.');
+                        }
+                      }}
+                      style={styles.sampleQrBtn}
+                      title="View a sample scannable QR pass"
+                    >
+                      <Sparkles size={13} style={{ marginRight: 5 }} />
+                      <span>Test QR Code</span>
+                    </button>
+                  </div>
                 </div>
               )}
 
@@ -975,7 +1053,17 @@ export const EventCheckInDesk: React.FC<EventCheckInDeskProps> = ({
                           backgroundColor: isCheckedIn ? 'rgba(22, 128, 60, 0.03)' : '#FFFFFF',
                         }}
                       >
-                        <td style={styles.tdCode}>{att.passCode}</td>
+                        <td style={styles.tdCode}>
+                          <button
+                            type="button"
+                            onClick={() => handleShowPassQr(att)}
+                            style={styles.passCodeBtn}
+                            title="Click to view and scan this attendee's QR Pass"
+                          >
+                            <QrCode size={13} color="#8C6A21" />
+                            <span>{att.passCode}</span>
+                          </button>
+                        </td>
                         <td style={styles.td}>
                           <div style={{ fontWeight: 700, color: '#07152B' }}>{att.fullName}</div>
                           <div style={{ fontSize: '11px', color: '#8A9AA8' }}>{att.email}</div>
@@ -1034,6 +1122,100 @@ export const EventCheckInDesk: React.FC<EventCheckInDeskProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Attendee Pass QR Code Modal */}
+      {selectedQrPass && qrModalDataUrl && (
+        <div style={styles.modalBackdrop} onClick={() => setSelectedQrPass(null)}>
+          <div style={styles.qrModalCard} onClick={(e) => e.stopPropagation()}>
+            <div style={styles.qrModalHeader}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={styles.qrModalIcon}>
+                  <QrCode size={20} color="#DFB76C" />
+                </div>
+                <div>
+                  <h3 style={styles.qrModalTitle}>Official Admission Pass</h3>
+                  <p style={styles.qrModalSub}>{selectedQrPass.eventTitle || 'DALEEL Verified Event'}</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedQrPass(null)}
+                style={styles.modalCloseBtn}
+              >
+                <X size={18} color="#5A687A" />
+              </button>
+            </div>
+
+            {/* QR Image Frame */}
+            <div style={styles.qrCodeFrame}>
+              <img
+                src={qrModalDataUrl}
+                alt={selectedQrPass.passCode}
+                style={{ width: '220px', height: '220px', display: 'block', borderRadius: '8px' }}
+              />
+              <div style={styles.qrPassReferenceWrap}>
+                <span style={styles.qrPassReferenceLabel}>PASS CODE</span>
+                <span style={styles.qrPassReferenceCode}>{selectedQrPass.passCode}</span>
+              </div>
+            </div>
+
+            {/* Attendee Info Card */}
+            <div style={styles.qrModalAttendeeBox}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                  <div style={{ fontWeight: 800, fontSize: '14px', color: '#07152B' }}>
+                    {selectedQrPass.fullName}
+                  </div>
+                  <div style={{ fontSize: '12px', color: '#8A9AA8' }}>{selectedQrPass.email}</div>
+                </div>
+                <div style={styles.ticketCountBadge}>
+                  {selectedQrPass.ticketsCount} {selectedQrPass.ticketsCount > 1 ? 'Tickets' : 'Ticket'}
+                </div>
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div style={styles.qrModalActions}>
+              <button
+                type="button"
+                onClick={handleDownloadQr}
+                style={styles.qrActionBtnSecondary}
+                title="Download pass PNG image"
+              >
+                <Download size={14} />
+                <span>Save PNG</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleCopyPassCode}
+                style={styles.qrActionBtnSecondary}
+                title="Copy pass reference code"
+              >
+                {isCopied ? <Check size={14} color="#16803C" /> : <Copy size={14} />}
+                <span>{isCopied ? 'Copied' : 'Copy Code'}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  handleProcessCheckIn(selectedQrPass.passCode);
+                  setSelectedQrPass(null);
+                }}
+                style={styles.qrActionBtnPrimary}
+                title="Immediately admit this pass"
+              >
+                <CheckCircle2 size={14} />
+                <span>Verify Pass</span>
+              </button>
+            </div>
+
+            <p style={styles.qrModalHint}>
+              Tip: Hold this up to your camera, open it on your smartphone, or download the PNG to test scanning!
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
@@ -1326,6 +1508,182 @@ const styles: { [key: string]: React.CSSProperties } = {
     cursor: 'pointer',
     marginTop: '4px',
     transition: 'background-color 0.2s',
+  },
+  sampleQrBtn: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    backgroundColor: 'rgba(223, 183, 108, 0.15)',
+    color: '#DFB76C',
+    border: '1px solid rgba(223, 183, 108, 0.35)',
+    borderRadius: '8px',
+    padding: '6px 14px',
+    fontSize: '11.5px',
+    fontWeight: 700,
+    cursor: 'pointer',
+    marginTop: '4px',
+    transition: 'all 0.2s',
+  },
+  passCodeBtn: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '6px',
+    backgroundColor: '#F8FAFC',
+    border: '1px solid #E4E9F0',
+    borderRadius: '6px',
+    padding: '3px 8px',
+    fontSize: '11.5px',
+    fontFamily: 'monospace',
+    fontWeight: 800,
+    color: '#07152B',
+    cursor: 'pointer',
+    transition: 'all 0.2s',
+  },
+  modalBackdrop: {
+    position: 'fixed',
+    inset: 0,
+    backgroundColor: 'rgba(7, 21, 43, 0.65)',
+    backdropFilter: 'blur(4px)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 9999,
+    padding: '20px',
+  },
+  qrModalCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: '20px',
+    boxShadow: '0 20px 48px rgba(7, 21, 43, 0.25)',
+    border: '1px solid #E4E9F0',
+    width: '100%',
+    maxWidth: '380px',
+    padding: '24px',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '16px',
+    animation: 'toastSlideIn 0.2s ease-out',
+  },
+  qrModalHeader: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  qrModalIcon: {
+    width: '38px',
+    height: '38px',
+    borderRadius: '10px',
+    backgroundColor: '#07152B',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  qrModalTitle: {
+    fontSize: '15px',
+    fontWeight: 800,
+    color: '#07152B',
+    margin: 0,
+  },
+  qrModalSub: {
+    fontSize: '11.5px',
+    color: '#8A9AA8',
+    margin: '2px 0 0 0',
+  },
+  modalCloseBtn: {
+    backgroundColor: 'transparent',
+    border: 'none',
+    cursor: 'pointer',
+    padding: '4px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: '6px',
+  },
+  qrCodeFrame: {
+    backgroundColor: '#FFFFFF',
+    border: '2px solid #E4E9F0',
+    borderRadius: '16px',
+    padding: '16px',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: '12px',
+    boxShadow: '0 4px 14px rgba(7, 21, 43, 0.05)',
+  },
+  qrPassReferenceWrap: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    backgroundColor: '#F8FAFC',
+    border: '1px solid #E4E9F0',
+    padding: '4px 12px',
+    borderRadius: '8px',
+  },
+  qrPassReferenceLabel: {
+    fontSize: '10px',
+    fontWeight: 800,
+    letterSpacing: '0.06em',
+    color: '#8A9AA8',
+  },
+  qrPassReferenceCode: {
+    fontFamily: 'monospace',
+    fontWeight: 800,
+    fontSize: '12.5px',
+    color: '#07152B',
+  },
+  qrModalAttendeeBox: {
+    backgroundColor: '#F8FAFC',
+    border: '1px solid #E4E9F0',
+    borderRadius: '12px',
+    padding: '12px 16px',
+  },
+  ticketCountBadge: {
+    backgroundColor: '#DFB76C',
+    color: '#07152B',
+    fontWeight: 800,
+    fontSize: '11px',
+    padding: '3px 8px',
+    borderRadius: '999px',
+  },
+  qrModalActions: {
+    display: 'grid',
+    gridTemplateColumns: '1fr 1fr 1.3fr',
+    gap: '8px',
+  },
+  qrActionBtnSecondary: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: '6px',
+    padding: '9px',
+    backgroundColor: '#F8FAFC',
+    border: '1px solid #E4E9F0',
+    borderRadius: '10px',
+    fontSize: '11.5px',
+    fontWeight: 700,
+    color: '#07152B',
+    cursor: 'pointer',
+    transition: 'all 0.15s',
+  },
+  qrActionBtnPrimary: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: '6px',
+    padding: '9px',
+    backgroundColor: '#07152B',
+    border: 'none',
+    borderRadius: '10px',
+    fontSize: '11.5px',
+    fontWeight: 800,
+    color: '#DFB76C',
+    cursor: 'pointer',
+    boxShadow: '0 2px 6px rgba(7, 21, 43, 0.2)',
+  },
+  qrModalHint: {
+    fontSize: '11px',
+    color: '#8A9AA8',
+    textAlign: 'center',
+    margin: 0,
+    lineHeight: '15px',
   },
   errorUploadBtn: {
     display: 'inline-flex',
