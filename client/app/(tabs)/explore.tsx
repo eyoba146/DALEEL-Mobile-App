@@ -20,6 +20,7 @@ import { categoriesApi, CategoryItem, contentApi, Destination } from '../../lib/
 import { useFavorites } from '../../lib/favorites-context';
 import { useLanguage } from '../../lib/language-context';
 import ScreenHeader from '../../components/ScreenHeader';
+import { ExploreMapView } from '../../components/ExploreMapView';
 import { colors, fonts, radius, spacing } from '../../theme/tokens';
 
 function resolveDestinationIcon(name: string): keyof typeof Ionicons.glyphMap {
@@ -100,12 +101,13 @@ const AnimatedDestinationCard = React.memo(function AnimatedDestinationCard({
             e.stopPropagation?.();
             onToggleFav();
           }}
-          activeOpacity={0.7}
+          activeOpacity={0.8}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
         >
           <Ionicons
             name={fav ? 'bookmark' : 'bookmark-outline'}
-            size={20}
-            color={fav ? colors.gold : '#FFFFFF'}
+            size={16}
+            color={fav ? colors.goldRich : colors.charcoal}
           />
         </TouchableOpacity>
 
@@ -140,6 +142,7 @@ export default function ExploreScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [dbCategories, setDbCategories] = useState<CategoryItem[]>([]);
+  const [viewMode, setViewMode] = useState<'grid' | 'map'>('grid');
 
   const filterCategories = React.useMemo(() => {
     const list: { id: string; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
@@ -274,123 +277,157 @@ export default function ExploreScreen() {
         badgeCount={destinations.length}
       />
 
-      {/* Main content body with absolute floating header and full-bleed scroll */}
+      {/* Main content body with absolute floating header and full-bleed scroll or map */}
       <View style={styles.mainBodyContainer}>
-        <Animated.ScrollView
-          style={{ flex: 1 }}
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-          keyboardDismissMode="on-drag"
-          onScroll={Animated.event(
-            [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-            { useNativeDriver: true }
-          )}
-          scrollEventThrottle={16}
-          refreshControl={
-            <RefreshControl
-              refreshing={isRefreshing}
-              onRefresh={onRefresh}
-              tintColor={colors.gold}
-              colors={[colors.gold]}
-              progressViewOffset={HEADER_HEIGHT}
-            />
-          }
-        >
-          {filtered.map((d, index) => {
-            const fav = isFavorite('destination', d.id);
-            return (
-              <AnimatedDestinationCard
-                key={d.id}
-                destination={d}
-                index={index}
-                filterTrigger={`${selectedCategory}-${searchQuery}`}
-                fav={fav}
-                onToggleFav={() => toggleFavorite('destination', d.id)}
-                onPress={() => router.push({ pathname: '/destination/[id]', params: { id: d.id } })}
+        {viewMode === 'map' ? (
+          <View style={styles.mapWrap}>
+            <ExploreMapView destinations={filtered} />
+          </View>
+        ) : (
+          <Animated.ScrollView
+            style={{ flex: 1 }}
+            contentContainerStyle={styles.scrollContent}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="on-drag"
+            onScroll={Animated.event(
+              [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+              { useNativeDriver: true }
+            )}
+            scrollEventThrottle={16}
+            refreshControl={
+              <RefreshControl
+                refreshing={isRefreshing}
+                onRefresh={onRefresh}
+                tintColor={colors.gold}
+                colors={[colors.gold]}
+                progressViewOffset={HEADER_HEIGHT}
               />
-            );
-          })}
+            }
+          >
+            {filtered.map((d, index) => {
+              const fav = isFavorite('destination', d.id);
+              return (
+                <AnimatedDestinationCard
+                  key={d.id}
+                  destination={d}
+                  index={index}
+                  filterTrigger={`${selectedCategory}-${searchQuery}`}
+                  fav={fav}
+                  onToggleFav={() => toggleFavorite('destination', d.id)}
+                  onPress={() => router.push({ pathname: '/destination/[id]', params: { id: d.id } })}
+                />
+              );
+            })}
 
-          {filtered.length === 0 && (
-            <View style={styles.emptyCard}>
-              <View style={styles.emptyIconCircle}>
-                <Ionicons name="compass-outline" size={36} color={colors.gold} />
+            {filtered.length === 0 && (
+              <View style={styles.emptyCard}>
+                <View style={styles.emptyIconCircle}>
+                  <Ionicons name="compass-outline" size={36} color={colors.gold} />
+                </View>
+                <Text style={styles.emptyTitle}>{t('explore.noDestinations', 'No destinations found')}</Text>
+                <Text style={styles.emptyText}>
+                  {searchQuery
+                    ? `${t('explore.noDestinationsDesc', 'Try exploring other regions or reset your filters.')} ("${searchQuery}")`
+                    : t('explore.noDestinationsDesc', 'Try exploring other regions or reset your filters.')}
+                </Text>
+                <TouchableOpacity
+                  style={styles.resetFilterBtn}
+                  onPress={() => {
+                    setSearchQuery('');
+                    setSelectedCategory('all');
+                  }}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons name="refresh" size={15} color={colors.navy} style={{ marginRight: 6 }} />
+                  <Text style={styles.resetFilterText}>{t('explore.resetFilters', 'Reset Search & Filters')}</Text>
+                </TouchableOpacity>
               </View>
-              <Text style={styles.emptyTitle}>{t('explore.noDestinations', 'No destinations found')}</Text>
-              <Text style={styles.emptyText}>
-                {searchQuery
-                  ? `${t('explore.noDestinationsDesc', 'Try exploring other regions or reset your filters.')} ("${searchQuery}")`
-                  : t('explore.noDestinationsDesc', 'Try exploring other regions or reset your filters.')}
-              </Text>
-              <TouchableOpacity
-                style={styles.resetFilterBtn}
-                onPress={() => {
-                  setSearchQuery('');
-                  setSelectedCategory('all');
-                }}
-                activeOpacity={0.8}
-              >
-                <Ionicons name="refresh" size={15} color={colors.navy} style={{ marginRight: 6 }} />
-                <Text style={styles.resetFilterText}>{t('explore.resetFilters', 'Reset Search & Filters')}</Text>
-              </TouchableOpacity>
-            </View>
-          )}
+            )}
 
-          <View style={{ height: 32 }} />
-        </Animated.ScrollView>
+            <View style={{ height: 32 }} />
+          </Animated.ScrollView>
+        )}
 
         {/* ── Floating Collapsible Search Bar & Filter Section (60fps Native Driver) ── */}
         <Animated.View
           style={[
             styles.floatingHeaderContainer,
             {
-              transform: [{ translateY }],
+              transform: [{ translateY: viewMode === 'map' ? 0 : translateY }],
             },
           ]}
         >
           <View style={styles.searchSectionInner}>
-            <View
-              style={[
-                styles.searchBarPod,
-                isSearchFocused && styles.searchBarPodFocused,
-              ]}
-            >
-              <View style={[styles.searchIconCircle, isSearchFocused && styles.searchIconCircleFocused]}>
-                <Ionicons
-                  name="search"
-                  size={16}
-                  color={colors.navy}
+            <View style={styles.searchRow}>
+              <View
+                style={[
+                  styles.searchBarPod,
+                  isSearchFocused && styles.searchBarPodFocused,
+                ]}
+              >
+                <View style={[styles.searchIconCircle, isSearchFocused && styles.searchIconCircleFocused]}>
+                  <Ionicons
+                    name="search"
+                    size={16}
+                    color={colors.navy}
+                  />
+                </View>
+
+                <TextInput
+                  style={styles.searchInput}
+                  placeholder={t('explore.searchPlaceholder', 'Search heritage, cities, or landmarks…')}
+                  placeholderTextColor={colors.charcoalSub}
+                  value={searchQuery}
+                  onChangeText={setSearchQuery}
+                  onFocus={() => setIsSearchFocused(true)}
+                  onBlur={() => setIsSearchFocused(false)}
+                  returnKeyType="search"
+                  clearButtonMode="never"
+                  autoCorrect={false}
+                  autoCapitalize="none"
                 />
+
+                {searchQuery.length > 0 ? (
+                  <TouchableOpacity
+                    onPress={() => setSearchQuery('')}
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                    style={styles.clearBtn}
+                  >
+                    <Ionicons name="close-circle" size={19} color={colors.charcoalSub} />
+                  </TouchableOpacity>
+                ) : (
+                  <View style={styles.countBadgePill}>
+                    <Text style={styles.countBadgeText}>{filtered.length}</Text>
+                  </View>
+                )}
               </View>
 
-              <TextInput
-                style={styles.searchInput}
-                placeholder={t('explore.searchPlaceholder', 'Search heritage, cities, or landmarks…')}
-                placeholderTextColor={colors.charcoalSub}
-                value={searchQuery}
-                onChangeText={setSearchQuery}
-                onFocus={() => setIsSearchFocused(true)}
-                onBlur={() => setIsSearchFocused(false)}
-                returnKeyType="search"
-                clearButtonMode="never"
-                autoCorrect={false}
-                autoCapitalize="none"
-              />
-
-              {searchQuery.length > 0 ? (
+              {/* Grid / Map View Mode Segmented Pill */}
+              <View style={styles.viewModePill}>
                 <TouchableOpacity
-                  onPress={() => setSearchQuery('')}
-                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                  style={styles.clearBtn}
+                  style={[styles.viewModeBtn, viewMode === 'grid' && styles.viewModeBtnActive]}
+                  onPress={() => setViewMode('grid')}
+                  activeOpacity={0.8}
                 >
-                  <Ionicons name="close-circle" size={19} color={colors.charcoalSub} />
+                  <Ionicons
+                    name="grid"
+                    size={16}
+                    color={viewMode === 'grid' ? colors.navy : '#94A3B8'}
+                  />
                 </TouchableOpacity>
-              ) : (
-                <View style={styles.countBadgePill}>
-                  <Text style={styles.countBadgeText}>{filtered.length} found</Text>
-                </View>
-              )}
+                <TouchableOpacity
+                  style={[styles.viewModeBtn, viewMode === 'map' && styles.viewModeBtnActive]}
+                  onPress={() => setViewMode('map')}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons
+                    name="map"
+                    size={16}
+                    color={viewMode === 'map' ? colors.navy : '#94A3B8'}
+                  />
+                </TouchableOpacity>
+              </View>
             </View>
 
             {/* Horizontal Quick Filter Pills Carousel */}
@@ -462,12 +499,18 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     elevation: 3,
   },
-  searchBarPod: {
+  searchRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginHorizontal: 16,
+    paddingHorizontal: 16,
+    gap: 10,
+  },
+  searchBarPod: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: 14,
-    height: 50,
+    height: 48,
     borderRadius: 16,
     backgroundColor: '#FFFFFF',
     borderWidth: 1.5,
@@ -478,6 +521,36 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.06,
     shadowRadius: 6,
     elevation: 2,
+  },
+  viewModePill: {
+    flexDirection: 'row',
+    backgroundColor: '#F8FAFC',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    padding: 3,
+    gap: 2,
+    height: 48,
+    alignItems: 'center',
+  },
+  viewModeBtn: {
+    width: 36,
+    height: 40,
+    borderRadius: 11,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  viewModeBtnActive: {
+    backgroundColor: colors.gold,
+    shadowColor: colors.navy,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.15,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  mapWrap: {
+    flex: 1,
+    paddingTop: 122,
   },
   searchBarPodFocused: {
     borderColor: colors.goldRich,

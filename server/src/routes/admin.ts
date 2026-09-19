@@ -859,13 +859,14 @@ adminRouter.patch(
         });
 
         if (updated.userId) {
+          const readableStatus = updated.status.replace(/_/g, ' ');
           await prisma.notification.create({
             data: {
               userId: updated.userId,
               type: 'service',
-              title: `Service Inquiry: ${updated.status}`,
-              message: `Your inquiry for "${updated.service.name}" has been updated to ${updated.status.toLowerCase()}.`,
-              actionUrl: `/service/${updated.serviceId}`,
+              title: `Service Inquiry: ${readableStatus.toUpperCase()}`,
+              message: `Your inquiry for "${updated.service.name}" has been updated to ${readableStatus.toLowerCase()}.`,
+              actionUrl: `/activity?tab=service`,
             },
           }).catch((err) => console.error('[NOTIF] Failed to create in-app notification:', err));
         }
@@ -896,13 +897,14 @@ adminRouter.patch(
         });
 
         if (updated.userId) {
+          const readableStatus = updated.status.replace(/_/g, ' ');
           await prisma.notification.create({
             data: {
               userId: updated.userId,
               type: 'event',
-              title: `RSVP Status: ${updated.status.toUpperCase()}`,
-              message: `Your RSVP for "${updated.event.title}" is now ${updated.status.toLowerCase()}.`,
-              actionUrl: `/event/${updated.eventId}`,
+              title: `RSVP Status: ${readableStatus.toUpperCase()}`,
+              message: `Your RSVP for "${updated.event.title}" is now ${readableStatus.toLowerCase()}.`,
+              actionUrl: `/activity?tab=event`,
             },
           }).catch((err) => console.error('[NOTIF] Failed to create in-app notification:', err));
         }
@@ -934,13 +936,14 @@ adminRouter.patch(
         });
 
         if (updated.userId) {
+          const readableStatus = updated.status.replace(/_/g, ' ');
           await prisma.notification.create({
             data: {
               userId: updated.userId,
               type: 'order',
-              title: `Order Status: ${updated.status}`,
-              message: `Your inquiry for "${updated.product.title}" is now ${updated.status.toLowerCase()}.`,
-              actionUrl: `/marketplace`,
+              title: `Order Status: ${readableStatus.toUpperCase()}`,
+              message: `Your order inquiry for "${updated.product.title}" is now ${readableStatus.toLowerCase()}.`,
+              actionUrl: `/activity?tab=order`,
             },
           }).catch((err) => console.error('[NOTIF] Failed to create in-app notification:', err));
         }
@@ -972,13 +975,14 @@ adminRouter.patch(
         });
 
         if (updated.userId) {
+          const readableStatus = updated.status.replace(/_/g, ' ');
           await prisma.notification.create({
             data: {
               userId: updated.userId,
               type: 'investment',
-              title: `Investment Inquiry: ${updated.status}`,
-              message: `Your prospectus request for "${updated.opportunity.title}" is now ${updated.status.toLowerCase()}.`,
-              actionUrl: `/investment/${updated.opportunityId}`,
+              title: `Investment Inquiry: ${readableStatus.toUpperCase()}`,
+              message: `Your prospectus request for "${updated.opportunity.title}" is now ${readableStatus.toLowerCase()}.`,
+              actionUrl: `/activity?tab=investment`,
             },
           }).catch((err) => console.error('[NOTIF] Failed to create in-app notification:', err));
         }
@@ -1958,7 +1962,7 @@ adminRouter.patch(
               title: `Order Status: ${normalizedStatus.replace(/_/g, ' ').toUpperCase()}`,
               message: `Your order for "${updated.product.title}" (Qty: ${updated.quantity}) is now ${normalizedStatus.replace(/_/g, ' ')}.`,
               type: 'order',
-              actionUrl: `/marketplace`,
+              actionUrl: `/activity?tab=order`,
             },
           });
         } catch (notifErr) {

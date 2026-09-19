@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
@@ -27,10 +27,26 @@ type FilterTab = 'all' | 'event' | 'service' | 'order' | 'investment';
 
 export default function ActivityScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams<{ tab?: string }>();
   const { user, token } = useAuth();
   const { t } = useLanguage();
 
-  const [activeTab, setActiveTab] = useState<FilterTab>('all');
+  const [activeTab, setActiveTab] = useState<FilterTab>(() => {
+    const rawTab = params?.tab ? String(params.tab).toLowerCase() : 'all';
+    if (['all', 'event', 'service', 'order', 'investment'].includes(rawTab)) {
+      return rawTab as FilterTab;
+    }
+    return 'all';
+  });
+
+  useEffect(() => {
+    if (params?.tab) {
+      const rawTab = String(params.tab).toLowerCase();
+      if (['all', 'event', 'service', 'order', 'investment'].includes(rawTab)) {
+        setActiveTab(rawTab as FilterTab);
+      }
+    }
+  }, [params?.tab]);
   const [items, setItems] = useState<UnifiedActivityItem[]>([]);
   const [counts, setCounts] = useState<UserActivityCounts>({
     total: 0,

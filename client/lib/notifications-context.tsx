@@ -121,11 +121,11 @@ export function NotificationsProvider({ children }: { children: React.ReactNode 
     refreshNotifications();
   }, [refreshNotifications]);
 
-  // Periodic polling for real-time alerts (every 15s)
+  // Periodic polling for real-time alerts (every 8s)
   useEffect(() => {
     const timer = setInterval(() => {
       refreshNotifications();
-    }, 15000);
+    }, 8000);
 
     return () => clearInterval(timer);
   }, [refreshNotifications]);
