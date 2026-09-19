@@ -13,6 +13,12 @@ import {
   LayoutGrid,
   List,
   Sparkles,
+  Clock,
+  CheckCircle2,
+  Truck,
+  PackageCheck,
+  XCircle,
+  Loader2,
 } from 'lucide-react';
 import { useDynamicCategories } from '../utils/categories';
 import { CategoryFilterBar } from './CategoryFilterBar';
@@ -75,6 +81,7 @@ export const MarketplaceManager: React.FC = () => {
   const [products, setProducts] = useState<ProductItem[]>([]);
   const [orders, setOrders] = useState<OrderInquiryItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [updatingOrderId, setUpdatingOrderId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
@@ -112,8 +119,8 @@ export const MarketplaceManager: React.FC = () => {
     inStock: true,
   });
 
-  const loadData = async () => {
-    setLoading(true);
+  const loadData = async (silent = false) => {
+    if (!silent) setLoading(true);
     try {
       const [prodData, orderData] = await Promise.all([
         adminApi.getProducts(),
@@ -124,7 +131,7 @@ export const MarketplaceManager: React.FC = () => {
     } catch (err: any) {
       console.error('Failed to load marketplace data:', err);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
 
@@ -232,14 +239,22 @@ export const MarketplaceManager: React.FC = () => {
   };
 
   const handleUpdateOrderStatus = async (id: string, status: string) => {
+    setUpdatingOrderId(id);
+    // Instant optimistic status update
+    setOrders((prev) =>
+      prev.map((o) => (o.id === id ? { ...o, status } : o))
+    );
     try {
       await adminApi.updateOrderStatus(id, status);
       success(`Order status updated to "${status}".`, 'Order Updated');
-      loadData();
+      await loadData(true);
     } catch (err: any) {
       const msg = 'Failed to update order status';
       console.error(msg, err);
       toastError(msg);
+      loadData(true);
+    } finally {
+      setUpdatingOrderId(null);
     }
   };
 
@@ -477,7 +492,7 @@ export const MarketplaceManager: React.FC = () => {
         </div>
 
         <div style={styles.actionsGroup}>
-          <button className="btn btn-secondary" onClick={loadData}>
+          <button className="btn btn-secondary" onClick={() => loadData()}>
             <RefreshCw size={15} color="#07152B" />
             <span>Refresh</span>
           </button>
@@ -720,7 +735,7 @@ export const MarketplaceManager: React.FC = () => {
                 <th>Quantity & Total</th>
                 <th>Delivery Address</th>
                 <th>Status</th>
-                <th style={{ textAlign: 'right' }}>Update Status</th>
+                <th style={{ textAlign: 'right', minWidth: '380px' }}>Order Workflow</th>
               </tr>
             </thead>
             <tbody>
@@ -801,17 +816,61 @@ export const MarketplaceManager: React.FC = () => {
                       </span>
                     </td>
                     <td style={{ textAlign: 'right' }}>
-                      <select
-                        value={ord.status}
-                        onChange={(e) => handleUpdateOrderStatus(ord.id, e.target.value)}
-                        style={{ padding: '6px 10px', fontSize: '12px', borderRadius: '6px' }}
+                      {/* Modernized Segmented Pill Group (NO SELECT DROPDOWN) */}
+                      <div
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '3px',
+                          backgroundColor: '#F8FAFC',
+                          padding: '3px',
+                          borderRadius: '8px',
+                          border: '1px solid #E4E9F0',
+                        }}
                       >
-                        <option value="pending">Pending</option>
-                        <option value="confirmed">Confirmed</option>
-                        <option value="dispatched">Dispatched</option>
-                        <option value="delivered">Delivered</option>
-                        <option value="cancelled">Cancelled</option>
-                      </select>
+                        {[
+                          { key: 'pending', label: 'Pending', icon: Clock, activeBg: '#FEF3C7', activeColor: '#92400E' },
+                          { key: 'confirmed', label: 'Confirmed', icon: CheckCircle2, activeBg: '#EFF6FF', activeColor: '#1D4ED8' },
+                          { key: 'dispatched', label: 'Dispatched', icon: Truck, activeBg: '#FEF3C7', activeColor: '#B45309' },
+                          { key: 'delivered', label: 'Delivered', icon: PackageCheck, activeBg: '#ECFDF5', activeColor: '#065F46' },
+                          { key: 'cancelled', label: 'Cancel', icon: XCircle, activeBg: '#FEF2F2', activeColor: '#991B1B' },
+                        ].map((btn) => {
+                          const IconComp = btn.icon;
+                          const isActive = ord.status === btn.key;
+                          const isUpdating = updatingOrderId === ord.id;
+                          return (
+                            <button
+                              key={btn.key}
+                              type="button"
+                              disabled={isUpdating}
+                              title={`Set status to ${btn.label}`}
+                              onClick={() => handleUpdateOrderStatus(ord.id, btn.key)}
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '4px',
+                                padding: '4px 9px',
+                                borderRadius: '6px',
+                                fontSize: '11.5px',
+                                fontWeight: 650,
+                                border: 'none',
+                                cursor: isUpdating ? 'wait' : 'pointer',
+                                backgroundColor: isActive ? btn.activeBg : 'transparent',
+                                color: isActive ? btn.activeColor : '#5A687A',
+                                boxShadow: isActive ? '0 1px 2px rgba(7, 21, 43, 0.05)' : 'none',
+                                transition: 'all 0.15s ease',
+                              }}
+                            >
+                              {isUpdating && isActive ? (
+                                <Loader2 size={11} className="animate-spin" />
+                              ) : (
+                                <IconComp size={11} />
+                              )}
+                              <span>{btn.label}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
                     </td>
                   </tr>
                 ))

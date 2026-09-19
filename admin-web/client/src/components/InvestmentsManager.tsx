@@ -18,6 +18,11 @@ import {
   LayoutGrid,
   List,
   DollarSign,
+  Clock,
+  PhoneCall,
+  FileCheck,
+  Archive,
+  Loader2,
 } from 'lucide-react';
 
 interface InvestmentItem {
@@ -68,6 +73,7 @@ export const InvestmentsManager: React.FC = () => {
   const [investments, setInvestments] = useState<InvestmentItem[]>([]);
   const [inquiries, setInquiries] = useState<InvestmentInquiryItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [updatingInquiryId, setUpdatingInquiryId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedSector, setSelectedSector] = useState('All');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
@@ -101,8 +107,8 @@ export const InvestmentsManager: React.FC = () => {
     contactPhone: '+251 11 551 7000',
   });
 
-  const loadData = async () => {
-    setLoading(true);
+  const loadData = async (silent = false) => {
+    if (!silent) setLoading(true);
     try {
       const [invData, inqData] = await Promise.all([
         adminApi.getInvestments(),
@@ -113,7 +119,7 @@ export const InvestmentsManager: React.FC = () => {
     } catch (err: any) {
       console.error('Failed to load investments data:', err);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
 
@@ -213,14 +219,22 @@ export const InvestmentsManager: React.FC = () => {
   };
 
   const handleUpdateInquiryStatus = async (id: string, status: string) => {
+    setUpdatingInquiryId(id);
+    // Optimistic UI update
+    setInquiries((prev) =>
+      prev.map((inq) => (inq.id === id ? { ...inq, status } : inq))
+    );
     try {
       await adminApi.updateInvestmentInquiryStatus(id, status);
       success(`Prospectus inquiry updated to "${status}".`, 'Status Updated');
-      loadData();
+      await loadData(true);
     } catch (err: any) {
       const msg = 'Failed to update inquiry status';
       console.error(msg, err);
       toastError(msg);
+      loadData(true);
+    } finally {
+      setUpdatingInquiryId(null);
     }
   };
 
@@ -432,7 +446,7 @@ export const InvestmentsManager: React.FC = () => {
         </div>
 
         <div style={styles.actionsGroup}>
-          <button className="btn btn-secondary" onClick={loadData}>
+          <button className="btn btn-secondary" onClick={() => loadData()}>
             <RefreshCw size={15} color="#07152B" />
             <span>Refresh</span>
           </button>
@@ -661,7 +675,7 @@ export const InvestmentsManager: React.FC = () => {
                 <th>Intended Capital</th>
                 <th>Investor Message</th>
                 <th>Status</th>
-                <th style={{ textAlign: 'right' }}>Update Status</th>
+                <th style={{ textAlign: 'right', minWidth: '350px' }}>Inquiry Workflow</th>
               </tr>
             </thead>
             <tbody>
@@ -720,16 +734,60 @@ export const InvestmentsManager: React.FC = () => {
                       </span>
                     </td>
                     <td style={{ textAlign: 'right' }}>
-                      <select
-                        value={inq.status}
-                        onChange={(e) => handleUpdateInquiryStatus(inq.id, e.target.value)}
-                        style={{ padding: '6px 10px', fontSize: '12px', borderRadius: '6px' }}
+                      {/* Modernized Segmented Pill Group (NO SELECT DROPDOWN) */}
+                      <div
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '3px',
+                          backgroundColor: '#F8FAFC',
+                          padding: '3px',
+                          borderRadius: '8px',
+                          border: '1px solid #E4E9F0',
+                        }}
                       >
-                        <option value="pending">Pending</option>
-                        <option value="contacted">Contacted</option>
-                        <option value="completed">Term Sheet Sent</option>
-                        <option value="closed">Closed</option>
-                      </select>
+                        {[
+                          { key: 'pending', label: 'Pending', icon: Clock, activeBg: '#FEF3C7', activeColor: '#92400E' },
+                          { key: 'contacted', label: 'Contacted', icon: PhoneCall, activeBg: '#EFF6FF', activeColor: '#1D4ED8' },
+                          { key: 'completed', label: 'Term Sheet', icon: FileCheck, activeBg: '#ECFDF5', activeColor: '#065F46' },
+                          { key: 'closed', label: 'Closed', icon: Archive, activeBg: '#F1F5F9', activeColor: '#475569' },
+                        ].map((btn) => {
+                          const IconComp = btn.icon;
+                          const isActive = inq.status === btn.key;
+                          const isUpdating = updatingInquiryId === inq.id;
+                          return (
+                            <button
+                              key={btn.key}
+                              type="button"
+                              disabled={isUpdating}
+                              title={`Set status to ${btn.label}`}
+                              onClick={() => handleUpdateInquiryStatus(inq.id, btn.key)}
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '4px',
+                                padding: '4px 9px',
+                                borderRadius: '6px',
+                                fontSize: '11.5px',
+                                fontWeight: 650,
+                                border: 'none',
+                                cursor: isUpdating ? 'wait' : 'pointer',
+                                backgroundColor: isActive ? btn.activeBg : 'transparent',
+                                color: isActive ? btn.activeColor : '#5A687A',
+                                boxShadow: isActive ? '0 1px 2px rgba(7, 21, 43, 0.05)' : 'none',
+                                transition: 'all 0.15s ease',
+                              }}
+                            >
+                              {isUpdating && isActive ? (
+                                <Loader2 size={11} className="animate-spin" />
+                              ) : (
+                                <IconComp size={11} />
+                              )}
+                              <span>{btn.label}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
                     </td>
                   </tr>
                 ))
