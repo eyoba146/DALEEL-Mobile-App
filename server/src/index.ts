@@ -18,6 +18,50 @@ app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
 
 app.get('/api/health', (_req, res) => res.json({ ok: true }));
 
+// Live Currency Exchange Rates endpoint with in-memory caching
+let cachedCurrencyRates = {
+  base: 'ETB',
+  rates: {
+    ETB: 1.0,
+    USD: 0.006165,
+    EUR: 0.005307,
+    GBP: 0.004611,
+    AED: 0.022724,
+  },
+  lastUpdated: new Date().toISOString(),
+};
+let lastCurrencyFetch = 0;
+const CURRENCY_TTL_MS = 10 * 60 * 1000; // 10 minutes
+
+app.get('/api/currency/rates', async (_req, res) => {
+  const now = Date.now();
+  if (now - lastCurrencyFetch > CURRENCY_TTL_MS) {
+    try {
+      const resp = await fetch('https://open.er-api.com/v6/latest/ETB');
+      if (resp.ok) {
+        const data: any = await resp.json();
+        if (data && data.rates) {
+          cachedCurrencyRates = {
+            base: 'ETB',
+            rates: {
+              ETB: 1.0,
+              USD: data.rates.USD || cachedCurrencyRates.rates.USD,
+              EUR: data.rates.EUR || cachedCurrencyRates.rates.EUR,
+              GBP: data.rates.GBP || cachedCurrencyRates.rates.GBP,
+              AED: data.rates.AED || cachedCurrencyRates.rates.AED,
+            },
+            lastUpdated: data.time_last_update_utc || new Date().toISOString(),
+          };
+          lastCurrencyFetch = now;
+        }
+      }
+    } catch (err) {
+      console.warn('Currency rates live fetch error:', err);
+    }
+  }
+  res.json(cachedCurrencyRates);
+});
+
 app.use('/api/auth', authRouter);
 app.use('/api/auth', verificationRouter);
 app.use('/api', contentRouter);

@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useState } from 'react';
 import {
+  ActivityIndicator,
   Modal,
   StyleProp,
   StyleSheet,
@@ -19,8 +20,22 @@ type Props = {
 };
 
 export const CurrencySelector: React.FC<Props> = ({ style, compact = false }) => {
-  const { currency, currencyMeta, currencies, setCurrency } = useCurrency();
+  const {
+    currency,
+    currencyMeta,
+    currencies,
+    setCurrency,
+    isLoadingRates,
+    lastUpdated,
+    refreshRates,
+  } = useCurrency();
   const [modalVisible, setModalVisible] = useState(false);
+
+  const handleOpen = () => {
+    setModalVisible(true);
+    // Refresh live rates whenever user opens the currency switcher to ensure latest rates
+    refreshRates().catch(() => {});
+  };
 
   const handleSelect = (code: CurrencyCode) => {
     setCurrency(code);
@@ -31,12 +46,15 @@ export const CurrencySelector: React.FC<Props> = ({ style, compact = false }) =>
     <>
       <TouchableOpacity
         style={[styles.selectorBtn, compact && styles.selectorBtnCompact, style]}
-        onPress={() => setModalVisible(true)}
+        onPress={handleOpen}
         activeOpacity={0.8}
+        accessibilityLabel={`Currency: ${currencyMeta.code}`}
       >
-        <Text style={styles.flagText}>{currencyMeta.flag}</Text>
+        <View style={styles.pillSymbolBadge}>
+          <Text style={styles.pillSymbolText}>{currencyMeta.symbol}</Text>
+        </View>
         <Text style={styles.codeText}>{currencyMeta.code}</Text>
-        <Ionicons name="chevron-down" size={12} color={colors.charcoalSub} style={{ marginLeft: 2 }} />
+        <Ionicons name="chevron-down" size={11} color={colors.charcoalSub} style={{ marginLeft: 1 }} />
       </TouchableOpacity>
 
       {/* Modal Sheet for selecting currency */}
@@ -52,21 +70,42 @@ export const CurrencySelector: React.FC<Props> = ({ style, compact = false }) =>
               <View style={styles.modalCard}>
                 <View style={styles.modalHeader}>
                   <View style={styles.titleGroup}>
-                    <Ionicons name="cash-outline" size={20} color={colors.goldRich} />
+                    <Ionicons name="globe-outline" size={20} color={colors.goldRich} />
                     <Text style={styles.modalTitle}>Diaspora Currency</Text>
                   </View>
-                  <TouchableOpacity
-                    style={styles.closeBtn}
-                    onPress={() => setModalVisible(false)}
-                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                  >
-                    <Ionicons name="close" size={20} color={colors.charcoalSub} />
-                  </TouchableOpacity>
+                  <View style={styles.headerRightActions}>
+                    <TouchableOpacity
+                      style={styles.refreshBtn}
+                      onPress={() => refreshRates()}
+                      disabled={isLoadingRates}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      accessibilityLabel="Refresh Exchange Rates"
+                    >
+                      {isLoadingRates ? (
+                        <ActivityIndicator size="small" color={colors.goldRich} />
+                      ) : (
+                        <Ionicons name="sync" size={16} color={colors.goldRich} />
+                      )}
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.closeBtn}
+                      onPress={() => setModalVisible(false)}
+                      hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                    >
+                      <Ionicons name="close" size={20} color={colors.charcoalSub} />
+                    </TouchableOpacity>
+                  </View>
                 </View>
 
-                <Text style={styles.modalSubtitle}>
-                  Choose your preferred currency for artisan crafts and marketplace checkout.
-                </Text>
+                <View style={styles.rateStatusRow}>
+                  <View style={styles.liveBadge}>
+                    <View style={styles.livePulseDot} />
+                    <Text style={styles.liveBadgeText}>LIVE MARKET RATES</Text>
+                  </View>
+                  <Text style={styles.modalSubtitleText}>
+                    Automatic conversion on all artisan items
+                  </Text>
+                </View>
 
                 <View style={styles.currencyList}>
                   {currencies.map((c) => {
@@ -79,30 +118,50 @@ export const CurrencySelector: React.FC<Props> = ({ style, compact = false }) =>
                         activeOpacity={0.8}
                       >
                         <View style={styles.currencyLeft}>
-                          <Text style={styles.currencyFlag}>{c.flag}</Text>
-                          <View style={styles.currencyMeta}>
-                            <Text style={[styles.currencyName, isActive && styles.currencyNameActive]}>
-                              {c.name}
+                          {/* Luxury Badge Token (Zero emojis) */}
+                          <View style={[styles.currencyToken, isActive && styles.currencyTokenActive]}>
+                            <Text
+                              style={[
+                                styles.currencyTokenText,
+                                isActive && styles.currencyTokenTextActive,
+                              ]}
+                            >
+                              {c.symbol}
                             </Text>
+                          </View>
+
+                          <View style={styles.currencyMeta}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                              <Text
+                                style={[styles.currencyName, isActive && styles.currencyNameActive]}
+                              >
+                                {c.name}
+                              </Text>
+                              <Text style={styles.currencyCodePill}>{c.code}</Text>
+                            </View>
                             <Text style={styles.currencySub}>
                               {c.code === 'ETB'
                                 ? 'Base Currency (1.00 ETB)'
-                                : `Approx. 1 ${c.code} ≈ ${(1 / c.ratePerETB).toFixed(1)} ETB`}
+                                : `Live: 1 ${c.code} ≈ ${(1 / c.ratePerETB).toFixed(2)} ETB`}
                             </Text>
                           </View>
                         </View>
 
                         <View style={styles.currencyRight}>
-                          <Text style={[styles.currencySymbol, isActive && styles.currencySymbolActive]}>
-                            {c.symbol}
-                          </Text>
                           {isActive && (
-                            <Ionicons name="checkmark-circle" size={18} color={colors.goldRich} />
+                            <Ionicons name="checkmark-circle" size={20} color={colors.goldRich} />
                           )}
                         </View>
                       </TouchableOpacity>
                     );
                   })}
+                </View>
+
+                <View style={styles.footerNoteWrap}>
+                  <Ionicons name="shield-checkmark" size={13} color={colors.goldRich} style={{ marginRight: 4 }} />
+                  <Text style={styles.footerNoteText}>
+                    Live rates automatically updated from global forex feeds
+                  </Text>
                 </View>
               </View>
             </TouchableWithoutFeedback>
@@ -118,8 +177,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#FFFFFF',
-    paddingVertical: 6,
-    paddingHorizontal: 10,
+    paddingVertical: 5,
+    paddingHorizontal: 8,
     borderRadius: 9999,
     borderWidth: 1.5,
     borderColor: 'rgba(223, 183, 108, 0.45)',
@@ -132,13 +191,25 @@ const styles = StyleSheet.create({
   },
   selectorBtnCompact: {
     paddingVertical: 4,
-    paddingHorizontal: 8,
+    paddingHorizontal: 7,
   },
-  flagText: {
-    fontSize: 14,
+  pillSymbolBadge: {
+    backgroundColor: colors.navy,
+    paddingHorizontal: 5,
+    paddingVertical: 2,
+    borderRadius: 6,
+    minWidth: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pillSymbolText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: colors.gold,
+    fontFamily: fonts.bodyBold,
   },
   codeText: {
-    fontSize: 12,
+    fontSize: 11.5,
     fontWeight: '800',
     color: colors.navy,
     fontFamily: fonts.bodyBold,
@@ -168,7 +239,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 6,
+    marginBottom: 4,
   },
   titleGroup: {
     flexDirection: 'row',
@@ -181,15 +252,50 @@ const styles = StyleSheet.create({
     color: colors.navy,
     fontFamily: fonts.heading,
   },
+  headerRightActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  refreshBtn: {
+    padding: 4,
+  },
   closeBtn: {
     padding: 4,
   },
-  modalSubtitle: {
-    fontSize: 12.5,
-    color: colors.charcoalSub,
-    lineHeight: 18,
+  rateStatusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
     marginBottom: 16,
+    marginTop: 2,
+  },
+  liveBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(37, 211, 102, 0.12)',
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: 6,
+    gap: 4,
+  },
+  livePulseDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#16A34A',
+  },
+  liveBadgeText: {
+    fontSize: 9.5,
+    fontWeight: '800',
+    color: '#15803D',
+    letterSpacing: 0.5,
+  },
+  modalSubtitleText: {
+    fontSize: 11,
+    color: colors.charcoalSub,
     fontFamily: fonts.body,
+    flex: 1,
   },
   currencyList: {
     gap: 8,
@@ -215,8 +321,28 @@ const styles = StyleSheet.create({
     gap: 12,
     flex: 1,
   },
-  currencyFlag: {
-    fontSize: 22,
+  currencyToken: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: colors.surface,
+    borderWidth: 1.5,
+    borderColor: '#CBD5E1',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  currencyTokenActive: {
+    backgroundColor: colors.navy,
+    borderColor: colors.gold,
+  },
+  currencyTokenText: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: colors.navy,
+    fontFamily: fonts.bodyBold,
+  },
+  currencyTokenTextActive: {
+    color: colors.gold,
   },
   currencyMeta: {
     flex: 1,
@@ -230,6 +356,15 @@ const styles = StyleSheet.create({
   currencyNameActive: {
     color: colors.navy,
   },
+  currencyCodePill: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: colors.charcoalSub,
+    backgroundColor: 'rgba(0,0,0,0.05)',
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+    borderRadius: 4,
+  },
   currencySub: {
     fontSize: 11,
     color: colors.charcoalSub,
@@ -239,14 +374,20 @@ const styles = StyleSheet.create({
   currencyRight: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
   },
-  currencySymbol: {
-    fontSize: 14,
-    fontWeight: '800',
+  footerNoteWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 14,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(0,0,0,0.05)',
+  },
+  footerNoteText: {
+    fontSize: 10.5,
     color: colors.charcoalSub,
-  },
-  currencySymbolActive: {
-    color: colors.goldText,
+    fontFamily: fonts.body,
   },
 });
+

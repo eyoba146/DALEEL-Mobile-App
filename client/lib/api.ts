@@ -683,5 +683,11 @@ export const userActivityApi = {
     ),
 };
 
+export const currencyApi = {
+  getRates: () =>
+    apiRequest<{ base: string; rates: Record<string, number>; lastUpdated?: string }>('/currency/rates'),
+};
+
+
 
 
