@@ -299,6 +299,18 @@ export type ProductOrderInquiryPayload = {
   notes?: string;
 };
 
+export type CartCheckoutPayload = {
+  items: Array<{ productId: string; quantity: number }>;
+  fullName: string;
+  email: string;
+  phone?: string;
+  whatsapp?: string;
+  deliveryAddress: string;
+  deliveryLatitude?: number | null;
+  deliveryLongitude?: number | null;
+  notes?: string;
+};
+
 export type ProductOrderInquiry = {
   id: string;
   productId: string;
@@ -466,6 +478,18 @@ export const contentApi = {
   product: (id: string) => apiRequest<Product>(`/products/${id}`),
   createProductOrderInquiry: (productId: string, data: ProductOrderInquiryPayload, token?: string | null) =>
     apiRequest<{ success: boolean; message: string; inquiry: ProductOrderInquiry }>(`/products/${productId}/order-inquiry`, {
+      method: 'POST',
+      body: data,
+      token,
+    }),
+  cartCheckout: (data: CartCheckoutPayload, token?: string | null) =>
+    apiRequest<{
+      success: boolean;
+      message: string;
+      inquiries: ProductOrderInquiry[];
+      count: number;
+      totalETB: number;
+    }>('/products/cart/checkout', {
       method: 'POST',
       body: data,
       token,

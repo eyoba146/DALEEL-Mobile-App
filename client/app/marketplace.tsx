@@ -12,9 +12,11 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { products as sampleProducts } from '../assets/data/sample';
 import ScreenHeader from '../components/ScreenHeader';
 import { contentApi, Product, categoriesApi, CategoryItem } from '../lib/api';
+import { useCart } from '../lib/cart-context';
 import { useFavorites } from '../lib/favorites-context';
 import { colors, fonts, radius, spacing } from '../theme/tokens';
 
@@ -179,7 +181,9 @@ const HEADER_HEIGHT = 106;
 
 export default function MarketplaceScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { isFavorite, toggleFavorite } = useFavorites();
+  const { itemCount, subtotalETB } = useCart();
 
   const [products, setProducts] = useState<Product[]>(sampleProducts);
   const [dbCategories, setDbCategories] = useState<CategoryItem[]>([]);
@@ -290,6 +294,23 @@ export default function MarketplaceScreen() {
         title="Artisan Marketplace"
         subtitle="Handcrafted Ethiopian treasures, textiles & specialty coffee"
         showBack
+        rightElement={
+          <TouchableOpacity
+            style={styles.headerCartBtn}
+            onPress={() => router.push('/cart')}
+            activeOpacity={0.8}
+            accessibilityLabel="Artisan Bag"
+          >
+            <Ionicons name="bag-handle-outline" size={19} color="#FFFFFF" />
+            {itemCount > 0 && (
+              <View style={styles.headerCartBadge}>
+                <Text style={styles.headerCartBadgeText}>
+                  {itemCount > 9 ? '9+' : itemCount}
+                </Text>
+              </View>
+            )}
+          </TouchableOpacity>
+        }
       />
 
       {/* Main Screen Body Container */}
@@ -445,6 +466,35 @@ export default function MarketplaceScreen() {
           </View>
         </Animated.View>
       </View>
+
+      {/* Floating Bottom View Bag Bar */}
+      {itemCount > 0 && (
+        <View style={[styles.floatingCartBar, { bottom: Math.max(insets.bottom, 12) + 8 }]}>
+          <TouchableOpacity
+            style={styles.floatingCartBtn}
+            onPress={() => router.push('/cart')}
+            activeOpacity={0.9}
+          >
+            <View style={styles.floatingCartLeft}>
+              <View style={styles.floatingCartIconCircle}>
+                <Ionicons name="bag-handle" size={16} color={colors.navy} />
+              </View>
+              <Text style={styles.floatingCartCountText}>
+                {itemCount} item{itemCount > 1 ? 's' : ''} in Bag
+              </Text>
+            </View>
+
+            <View style={styles.floatingCartRight}>
+              <Text style={styles.floatingCartPriceText}>
+                {formatPrice(subtotalETB)}
+              </Text>
+              <View style={styles.floatingCartArrowCircle}>
+                <Ionicons name="arrow-forward" size={13} color={colors.navy} />
+              </View>
+            </View>
+          </TouchableOpacity>
+        </View>
+      )}
     </View>
   );
 }
@@ -855,5 +905,97 @@ const styles = StyleSheet.create({
     fontFamily: fonts.body,
     fontWeight: '700',
     color: colors.navy,
+  },
+
+  // Cart Header Button & Badge
+  headerCartBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+    borderWidth: 1,
+    borderColor: 'rgba(223, 183, 108, 0.3)',
+  },
+  headerCartBadge: {
+    position: 'absolute',
+    top: -3,
+    right: -3,
+    backgroundColor: colors.gold,
+    borderRadius: 9,
+    minWidth: 17,
+    height: 17,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 3,
+    borderWidth: 1.5,
+    borderColor: colors.navy,
+  },
+  headerCartBadgeText: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: colors.navy,
+  },
+
+  // Floating Bottom View Bag Bar
+  floatingCartBar: {
+    position: 'absolute',
+    left: 14,
+    right: 14,
+    zIndex: 999,
+  },
+  floatingCartBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: colors.gold,
+    borderRadius: radius.pill,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.22,
+    shadowRadius: 10,
+    elevation: 8,
+  },
+  floatingCartLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  floatingCartIconCircle: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: 'rgba(7, 21, 43, 0.12)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 8,
+  },
+  floatingCartCountText: {
+    fontSize: 13,
+    fontFamily: fonts.body,
+    fontWeight: '700',
+    color: colors.navy,
+  },
+  floatingCartRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  floatingCartPriceText: {
+    fontSize: 13.5,
+    fontFamily: fonts.body,
+    fontWeight: '800',
+    color: colors.navy,
+    marginRight: 6,
+  },
+  floatingCartArrowCircle: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: 'rgba(7, 21, 43, 0.12)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });

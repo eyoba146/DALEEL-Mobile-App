@@ -518,6 +518,126 @@ contentRouter.get('/products', async (req: Request, res: Response) => {
   }
 });
 
+contentRouter.post('/products/cart/checkout', async (req: Request, res: Response) => {
+  try {
+    const {
+      items,
+      fullName,
+      email,
+      phone,
+      whatsapp,
+      deliveryAddress,
+      deliveryLatitude,
+      deliveryLongitude,
+      notes,
+    } = req.body;
+
+    if (!fullName || !email || !deliveryAddress) {
+      return res.status(400).json({
+        error: 'Full name, email address, and delivery address are required',
+      });
+    }
+
+    if (!Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({
+        error: 'Cart is empty. Please provide at least one product item.',
+      });
+    }
+
+    const userId = getOptionalUserId(req);
+
+    // Fetch product records to calculate accurate totals and verify existence
+    const productIds = items.map((it: any) => String(it.productId));
+    const products = await prisma.product.findMany({
+      where: { id: { in: productIds } },
+    });
+    const productMap = new Map(products.map((p) => [p.id, p]));
+
+    const createdInquiries: any[] = [];
+    let totalETB = 0;
+    const itemSummaries: string[] = [];
+
+    await prisma.$transaction(async (tx) => {
+      for (const item of items) {
+        const product = productMap.get(String(item.productId));
+        if (!product) continue;
+
+        const parsedQty = Number(item.quantity) > 0 ? Math.floor(Number(item.quantity)) : 1;
+        totalETB += product.price * parsedQty;
+        itemSummaries.push(`${product.title} (x${parsedQty})`);
+
+        const inquiry = await tx.productOrderInquiry.create({
+          data: {
+            productId: product.id,
+            userId: userId ?? null,
+            fullName: String(fullName).trim(),
+            email: String(email).trim().toLowerCase(),
+            phone: phone ? String(phone).trim() : null,
+            whatsapp: whatsapp ? String(whatsapp).trim() : null,
+            quantity: parsedQty,
+            deliveryAddress: String(deliveryAddress).trim(),
+            deliveryLatitude: typeof deliveryLatitude === 'number' ? deliveryLatitude : null,
+            deliveryLongitude: typeof deliveryLongitude === 'number' ? deliveryLongitude : null,
+            notes: notes ? String(notes).trim() : null,
+          },
+          include: {
+            product: true,
+          },
+        });
+        createdInquiries.push(inquiry);
+      }
+
+      // Auto-save user default delivery location
+      if (userId) {
+        await tx.user.update({
+          where: { id: userId },
+          data: {
+            savedAddress: String(deliveryAddress).trim(),
+            ...(typeof deliveryLatitude === 'number' ? { savedLatitude: deliveryLatitude } : {}),
+            ...(typeof deliveryLongitude === 'number' ? { savedLongitude: deliveryLongitude } : {}),
+          },
+        }).catch(() => {});
+      }
+
+      // In-App Notification for user
+      if (userId) {
+        await tx.notification.create({
+          data: {
+            userId,
+            title: 'Diaspora Order Request Received!',
+            message: `Your order for ${createdInquiries.length} artisan item(s) (${totalETB.toLocaleString()} ETB) has been submitted. Our team will verify delivery dispatch.`,
+            type: 'order',
+            actionUrl: '/activity',
+          },
+        }).catch(() => {});
+      }
+    });
+
+    // Alert marketplace managers & Super Admin
+    sendCoordinatorInquiryAlertEmail({
+      category: 'Artisan Marketplace Cart Order',
+      title: `Cart Order (${createdInquiries.length} items • ${totalETB.toLocaleString()} ETB)`,
+      customerName: String(fullName).trim(),
+      customerEmail: String(email).trim().toLowerCase(),
+      customerPhone: phone ? String(phone).trim() : null,
+      messageOrDetails: `Items: ${itemSummaries.join(', ')} • Delivery Address: ${deliveryAddress}${notes ? ` • Note: ${notes}` : ''}`,
+      inquiryId: createdInquiries[0]?.id || 'cart-order',
+      role: AdminRole.MARKETPLACE_MANAGER,
+    }).catch((err) => console.error('Error dispatching marketplace coordinator alert:', err));
+
+    res.status(201).json({
+      success: true,
+      message: `Your order for ${createdInquiries.length} artisan item(s) has been submitted successfully.`,
+      inquiries: createdInquiries,
+      count: createdInquiries.length,
+      totalETB,
+    });
+  } catch (error) {
+    console.error('Error processing cart checkout:', error);
+    res.status(500).json({ error: 'Failed to process cart order checkout' });
+  }
+});
+
 contentRouter.get('/products/inquiries/my', async (req: Request, res: Response) => {
   try {
     const userId = getOptionalUserId(req);

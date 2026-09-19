@@ -23,6 +23,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { products as sampleProducts } from '../../assets/data/sample';
 import { contentApi, Product, ProductOrderInquiry, ProductOrderInquiryPayload } from '../../lib/api';
 import { useAuth } from '../../lib/auth-context';
+import { useCart } from '../../lib/cart-context';
 import { useFavorites } from '../../lib/favorites-context';
 import { getCurrentUserLocation } from '../../lib/location';
 import { colors, fonts, radius, spacing } from '../../theme/tokens';
@@ -37,6 +38,8 @@ export default function ProductDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { isFavorite, toggleFavorite } = useFavorites();
   const { user, token } = useAuth();
+  const { addToCart, itemCount } = useCart();
+  const [addedFeedback, setAddedFeedback] = useState(false);
 
   const [product, setProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(true);
@@ -91,6 +94,13 @@ export default function ProductDetailScreen() {
     } finally {
       setDetectingGps(false);
     }
+  };
+
+  const handleAddToCart = () => {
+    if (!product) return;
+    addToCart(product, 1);
+    setAddedFeedback(true);
+    setTimeout(() => setAddedFeedback(false), 2200);
   };
 
   // Scroll tracking to hide floating top nav bar on scroll
@@ -375,6 +385,22 @@ export default function ProductDetailScreen() {
               color={fav ? colors.gold : '#FFFFFF'}
             />
           </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.navCircleBtn}
+            onPress={() => router.push('/cart')}
+            activeOpacity={0.8}
+            accessibilityLabel="Shopping Bag"
+          >
+            <Ionicons name="bag-handle-outline" size={19} color="#FFFFFF" />
+            {itemCount > 0 && (
+              <View style={styles.navCartBadge}>
+                <Text style={styles.navCartBadgeText}>
+                  {itemCount > 9 ? '9+' : itemCount}
+                </Text>
+              </View>
+            )}
+          </TouchableOpacity>
         </View>
       </Animated.View>
 
@@ -605,13 +631,38 @@ export default function ProductDetailScreen() {
               style={styles.chatWhatsappBtn}
               onPress={() => handleWhatsAppSeller(activeInquiry?.id)}
               activeOpacity={0.85}
+              accessibilityLabel="WhatsApp Merchant"
             >
               <Ionicons name="logo-whatsapp" size={20} color="#25D366" />
             </TouchableOpacity>
           )}
 
+          {!hasActiveInquiry && (
+            <TouchableOpacity
+              style={[styles.addToCartBtn, addedFeedback && styles.addToCartBtnSuccess]}
+              onPress={handleAddToCart}
+              activeOpacity={0.85}
+            >
+              <Ionicons
+                name={addedFeedback ? 'checkmark-circle' : 'bag-add-outline'}
+                size={17}
+                color={addedFeedback ? '#166534' : colors.navy}
+                style={{ marginRight: 5 }}
+              />
+              <Text
+                style={[styles.addToCartBtnText, addedFeedback && styles.addToCartBtnTextSuccess]}
+              >
+                {addedFeedback ? 'Added!' : 'Add to Bag'}
+              </Text>
+            </TouchableOpacity>
+          )}
+
           <TouchableOpacity
-            style={[styles.orderMainBtn, hasActiveInquiry && styles.orderManageBtn]}
+            style={[
+              styles.orderMainBtn,
+              hasActiveInquiry && styles.orderManageBtn,
+              !hasActiveInquiry && { flex: 1.1 },
+            ]}
             onPress={() => {
               setOrderSuccess(false);
               setIsEditMode(false);
@@ -622,13 +673,13 @@ export default function ProductDetailScreen() {
             activeOpacity={0.88}
           >
             <Ionicons
-              name={hasActiveInquiry ? 'clipboard-outline' : 'bag-check-outline'}
+              name={hasActiveInquiry ? 'clipboard-outline' : 'flash-outline'}
               size={18}
               color="#FFFFFF"
               style={{ marginRight: 6 }}
             />
             <Text style={styles.orderMainBtnText}>
-              {hasActiveInquiry ? 'Manage Order' : 'Request / Order'}
+              {hasActiveInquiry ? 'Manage Order' : 'Direct Order'}
             </Text>
           </TouchableOpacity>
         </View>
@@ -2012,5 +2063,52 @@ const styles = StyleSheet.create({
     fontFamily: fonts.body,
     fontWeight: '700',
     color: colors.navy,
+  },
+
+  // Cart Button Styles
+  navCartBadge: {
+    position: 'absolute',
+    top: -2,
+    right: -2,
+    backgroundColor: colors.gold,
+    borderRadius: 8,
+    minWidth: 16,
+    height: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 3,
+    borderWidth: 1.5,
+    borderColor: colors.navy,
+  },
+  navCartBadgeText: {
+    fontSize: 8.5,
+    fontWeight: '800',
+    color: colors.navy,
+  },
+  addToCartBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.goldSoft,
+    paddingVertical: 13,
+    paddingHorizontal: 12,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: 'rgba(223, 183, 108, 0.4)',
+    marginRight: 8,
+  },
+  addToCartBtnSuccess: {
+    backgroundColor: '#DCFCE7',
+    borderColor: '#86EFAC',
+  },
+  addToCartBtnText: {
+    fontSize: 13,
+    fontFamily: fonts.body,
+    fontWeight: '700',
+    color: colors.navy,
+  },
+  addToCartBtnTextSuccess: {
+    color: '#166534',
   },
 });
