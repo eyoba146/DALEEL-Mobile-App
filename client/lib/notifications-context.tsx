@@ -1,4 +1,6 @@
-import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
+import { useRouter } from 'expo-router';
+import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
+import InAppNotificationBanner from '../components/InAppNotificationBanner';
 import { AppNotification, notificationsApi } from './api';
 import { useAuth } from './auth-context';
 
@@ -54,42 +56,77 @@ type NotificationsContextType = {
   notifications: AppNotification[];
   unreadCount: number;
   isLoading: boolean;
-  refreshNotifications: () => Promise<void>;
+  refreshNotifications: (category?: string) => Promise<void>;
   markAsRead: (id: string) => Promise<void>;
   markAllAsRead: () => Promise<void>;
   dismissNotification: (id: string) => Promise<void>;
+  triggerAlert: (notification: AppNotification) => void;
 };
 
 const NotificationsContext = createContext<NotificationsContextType | null>(null);
 
 export function NotificationsProvider({ children }: { children: React.ReactNode }) {
+  const router = useRouter();
   const { token, user } = useAuth();
   const [notifications, setNotifications] = useState<AppNotification[]>(sampleNotifications);
   const [unreadCount, setUnreadCount] = useState<number>(3);
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [activeAlert, setActiveAlert] = useState<AppNotification | null>(null);
 
-  const refreshNotifications = useCallback(async () => {
-    try {
-      setIsLoading(true);
-      const res = await notificationsApi.list(token);
-      if (res && Array.isArray(res.notifications) && res.notifications.length > 0) {
-        setNotifications(res.notifications);
-        setUnreadCount(res.unreadCount);
-      } else {
-        setNotifications(sampleNotifications);
-        setUnreadCount(sampleNotifications.filter((n) => !n.isRead).length);
+  // Keep track of seen notification IDs to detect brand new incoming alerts
+  const knownNotificationIdsRef = useRef<Set<string>>(new Set(sampleNotifications.map((n) => n.id)));
+  const isInitialLoadRef = useRef(true);
+
+  const refreshNotifications = useCallback(
+    async (category?: string) => {
+      try {
+        setIsLoading(true);
+        const res = await notificationsApi.list(token, category);
+        if (res && Array.isArray(res.notifications)) {
+          setNotifications(res.notifications);
+          setUnreadCount(res.unreadCount);
+
+          // Check if any notification is new and unread
+          if (!isInitialLoadRef.current) {
+            const incomingNew = res.notifications.find(
+              (n) => !n.isRead && !knownNotificationIdsRef.current.has(n.id)
+            );
+            if (incomingNew) {
+              setActiveAlert(incomingNew);
+            }
+          }
+
+          // Update known set
+          const updatedSet = new Set(knownNotificationIdsRef.current);
+          res.notifications.forEach((n) => updatedSet.add(n.id));
+          knownNotificationIdsRef.current = updatedSet;
+          isInitialLoadRef.current = false;
+        }
+      } catch (err) {
+        // Only keep sample on network error if notifications are empty
+        if (notifications.length === 0) {
+          setNotifications(sampleNotifications);
+          setUnreadCount(sampleNotifications.filter((n) => !n.isRead).length);
+        }
+      } finally {
+        setIsLoading(false);
       }
-    } catch {
-      // Fallback
-      setNotifications(sampleNotifications);
-      setUnreadCount(sampleNotifications.filter((n) => !n.isRead).length);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [token]);
+    },
+    [token, notifications.length]
+  );
 
+  // Initial load
   useEffect(() => {
     refreshNotifications();
+  }, [refreshNotifications]);
+
+  // Periodic polling for real-time alerts (every 15s)
+  useEffect(() => {
+    const timer = setInterval(() => {
+      refreshNotifications();
+    }, 15000);
+
+    return () => clearInterval(timer);
   }, [refreshNotifications]);
 
   const markAsRead = useCallback(
@@ -100,19 +137,24 @@ export function NotificationsProvider({ children }: { children: React.ReactNode 
       );
       setUnreadCount((prev) => Math.max(0, prev - 1));
 
+      if (activeAlert?.id === id) {
+        setActiveAlert(null);
+      }
+
       try {
         await notificationsApi.markAsRead(id, token);
       } catch (err) {
         console.warn('Failed to mark notification as read:', err);
       }
     },
-    [token]
+    [token, activeAlert?.id]
   );
 
   const markAllAsRead = useCallback(async () => {
     // Optimistic update
     setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
     setUnreadCount(0);
+    setActiveAlert(null);
 
     try {
       await notificationsApi.markAllAsRead(token);
@@ -131,6 +173,9 @@ export function NotificationsProvider({ children }: { children: React.ReactNode 
       if (wasUnread) {
         setUnreadCount((prev) => Math.max(0, prev - 1));
       }
+      if (activeAlert?.id === id) {
+        setActiveAlert(null);
+      }
 
       try {
         await notificationsApi.dismiss(id, token);
@@ -138,7 +183,26 @@ export function NotificationsProvider({ children }: { children: React.ReactNode 
         console.warn('Failed to dismiss notification:', err);
       }
     },
-    [notifications, token]
+    [notifications, token, activeAlert?.id]
+  );
+
+  const triggerAlert = useCallback((notification: AppNotification) => {
+    setActiveAlert(notification);
+    // Add to known set so it doesn't re-trigger from polling
+    knownNotificationIdsRef.current.add(notification.id);
+  }, []);
+
+  const handleOpenAlert = useCallback(
+    (notification: AppNotification) => {
+      markAsRead(notification.id);
+      setActiveAlert(null);
+      if (notification.actionUrl) {
+        router.push(notification.actionUrl as any);
+      } else {
+        router.push('/notifications');
+      }
+    },
+    [markAsRead, router]
   );
 
   return (
@@ -151,9 +215,15 @@ export function NotificationsProvider({ children }: { children: React.ReactNode 
         markAsRead,
         markAllAsRead,
         dismissNotification,
+        triggerAlert,
       }}
     >
       {children}
+      <InAppNotificationBanner
+        notification={activeAlert}
+        onDismiss={() => setActiveAlert(null)}
+        onOpen={handleOpenAlert}
+      />
     </NotificationsContext.Provider>
   );
 }

@@ -12,6 +12,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { resolveMediaUrl } from '../lib/api';
 import { useAuth } from '../lib/auth-context';
+import { useNotifications } from '../lib/notifications-context';
 import { colors, fonts } from '../theme/tokens';
 
 interface ScreenHeaderProps {
@@ -22,6 +23,7 @@ interface ScreenHeaderProps {
   rightElement?: React.ReactNode;
   style?: ViewStyle;
   badgeCount?: number;
+  showNotificationBell?: boolean;
 }
 
 export default function ScreenHeader({
@@ -32,10 +34,12 @@ export default function ScreenHeader({
   rightElement,
   style,
   badgeCount,
+  showNotificationBell = !showBack && !rightElement,
 }: ScreenHeaderProps) {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
+  const { unreadCount } = useNotifications();
   const avatarUri = resolveMediaUrl(user?.avatarUrl);
 
   const handleBack = () => {
@@ -101,25 +105,44 @@ export default function ScreenHeader({
           )}
         </View>
 
-        {/* Right Side: Custom Action (Edit Pill) OR User Avatar (Identical to Home Header) */}
+        {/* Right Side: Custom Action OR (Bell + User Avatar) */}
         {rightElement ? (
           <View style={styles.rightSlot}>{rightElement}</View>
         ) : (
-          <TouchableOpacity
-            style={styles.avatarBtn}
-            onPress={() => router.push('/(tabs)/profile')}
-            activeOpacity={0.8}
-          >
-            {avatarUri ? (
-              <Image source={{ uri: avatarUri }} style={styles.headerAvatar} />
-            ) : (
-              <View style={styles.headerAvatarFallback}>
-                <Text style={styles.headerAvatarText}>
-                  {user?.name?.[0]?.toUpperCase() || 'D'}
-                </Text>
-              </View>
+          <View style={styles.rightSlot}>
+            {showNotificationBell && (
+              <TouchableOpacity
+                style={styles.notifBtn}
+                onPress={() => router.push('/notifications')}
+                activeOpacity={0.75}
+                accessibilityLabel="Notifications"
+              >
+                <Ionicons name="notifications-outline" size={19} color="#FFFFFF" />
+                {unreadCount > 0 && (
+                  <View style={styles.notifBadge}>
+                    <Text style={styles.notifBadgeText}>
+                      {unreadCount > 9 ? '9+' : unreadCount}
+                    </Text>
+                  </View>
+                )}
+              </TouchableOpacity>
             )}
-          </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.avatarBtn}
+              onPress={() => router.push('/(tabs)/profile')}
+              activeOpacity={0.8}
+            >
+              {avatarUri ? (
+                <Image source={{ uri: avatarUri }} style={styles.headerAvatar} />
+              ) : (
+                <View style={styles.headerAvatarFallback}>
+                  <Text style={styles.headerAvatarText}>
+                    {user?.name?.[0]?.toUpperCase() || 'D'}
+                  </Text>
+                </View>
+              )}
+            </TouchableOpacity>
+          </View>
         )}
       </View>
     </View>
@@ -255,9 +278,40 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   rightSlot: {
-    alignItems: 'flex-end',
-    justifyContent: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
     zIndex: 2,
+  },
+  notifBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+  },
+  notifBadge: {
+    position: 'absolute',
+    top: -2,
+    right: -2,
+    backgroundColor: colors.gold,
+    borderRadius: 9,
+    minWidth: 16,
+    height: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 3,
+    borderWidth: 1.5,
+    borderColor: colors.navy,
+  },
+  notifBadgeText: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: colors.navy,
   },
   avatarBtn: {
     width: 38,

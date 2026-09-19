@@ -357,7 +357,8 @@ export type EventRsvp = {
   phone?: string | null;
   ticketsCount: number;
   notes?: string | null;
-  status: 'pending' | 'confirmed' | 'cancelled' | string;
+  status: 'pending' | 'confirmed' | 'cancelled' | 'checked_in' | string;
+  passCode?: string;
   createdAt: string;
 };
 

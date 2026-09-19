@@ -1,31 +1,25 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
-  Animated,
+  Modal,
   RefreshControl,
   ScrollView,
   StyleSheet,
+  Switch,
   Text,
   TouchableOpacity,
   View,
 } from 'react-native';
 import ScreenHeader from '../components/ScreenHeader';
-import { AppNotification } from '../lib/api';
-import { useNotifications } from '../lib/notifications-context';
+import { AppNotification, NotificationPreferences, notificationsApi } from '../lib/api';
+import { useAuth } from '../lib/auth-context';
 import { useLanguage } from '../lib/language-context';
+import { useNotifications } from '../lib/notifications-context';
 import { colors, fonts, radius, spacing } from '../theme/tokens';
 
-type NotificationCategory = 'All' | 'Orders' | 'Events' | 'Investments' | 'Announcements';
-
-const CATEGORIES: { label: NotificationCategory; icon: keyof typeof Ionicons.glyphMap }[] = [
-  { label: 'All', icon: 'sparkles-outline' },
-  { label: 'Orders', icon: 'bag-check-outline' },
-  { label: 'Events', icon: 'calendar-outline' },
-  { label: 'Investments', icon: 'trending-up-outline' },
-  { label: 'Announcements', icon: 'megaphone-outline' },
-];
+type NotificationCategory = 'All' | 'Events' | 'Services' | 'Orders' | 'Investments' | 'Announcements';
 
 function formatRelativeTime(dateStr: string) {
   try {
@@ -50,15 +44,15 @@ function getCategoryConfig(type: string) {
       return {
         icon: 'bag-check' as const,
         color: colors.success,
-        bg: 'rgba(46, 125, 50, 0.12)',
+        bg: 'rgba(22, 128, 60, 0.12)',
         tag: 'ORDER UPDATE',
       };
     case 'event':
       return {
         icon: 'calendar' as const,
         color: colors.goldRich,
-        bg: 'rgba(198, 148, 10, 0.14)',
-        tag: 'EVENT GATHERING',
+        bg: 'rgba(197, 155, 67, 0.14)',
+        tag: 'EVENT PASS',
       };
     case 'investment':
       return {
@@ -78,14 +72,15 @@ function getCategoryConfig(type: string) {
       return {
         icon: 'megaphone' as const,
         color: colors.navy,
-        bg: 'rgba(11, 27, 61, 0.12)',
-        tag: 'COMMUNITY ANNOUNCEMENT',
+        bg: 'rgba(7, 21, 43, 0.10)',
+        tag: 'ANNOUNCEMENT',
       };
   }
 }
 
 export default function NotificationsScreen() {
   const router = useRouter();
+  const { token } = useAuth();
   const { t } = useLanguage();
   const {
     notifications,
@@ -99,14 +94,59 @@ export default function NotificationsScreen() {
 
   const [activeCategory, setActiveCategory] = useState<NotificationCategory>('All');
   const [refreshing, setRefreshing] = useState(false);
+  const [selectedNotif, setSelectedNotif] = useState<AppNotification | null>(null);
 
-  const categories = useMemo(() => [
-    { id: 'All' as const, label: t('notifications.categories.all', 'All'), icon: 'sparkles-outline' as const },
-    { id: 'Orders' as const, label: t('notifications.categories.orders', 'Orders'), icon: 'bag-check-outline' as const },
-    { id: 'Events' as const, label: t('notifications.categories.events', 'Events'), icon: 'calendar-outline' as const },
-    { id: 'Investments' as const, label: t('notifications.categories.investments', 'Investments'), icon: 'trending-up-outline' as const },
-    { id: 'Announcements' as const, label: t('notifications.categories.announcements', 'Announcements'), icon: 'megaphone-outline' as const },
-  ], [t]);
+  // Preferences Modal State
+  const [prefsModalVisible, setPrefsModalVisible] = useState(false);
+  const [savingPrefKey, setSavingPrefKey] = useState<string | null>(null);
+  const [preferences, setPreferences] = useState<NotificationPreferences>({
+    orders: true,
+    events: true,
+    investments: true,
+    announcements: true,
+  });
+
+  useEffect(() => {
+    async function loadPrefs() {
+      if (!token) return;
+      try {
+        const res = await notificationsApi.getPreferences(token);
+        if (res) setPreferences(res);
+      } catch {
+        // Keep defaults
+      }
+    }
+    if (prefsModalVisible) {
+      loadPrefs();
+    }
+  }, [prefsModalVisible, token]);
+
+  const handleTogglePref = async (key: keyof NotificationPreferences) => {
+    const updated = { ...preferences, [key]: !preferences[key] };
+    setPreferences(updated);
+    setSavingPrefKey(key);
+
+    try {
+      await notificationsApi.updatePreferences(updated, token);
+    } catch {
+      // Revert on error
+      setPreferences(preferences);
+    } finally {
+      setSavingPrefKey(null);
+    }
+  };
+
+  const categories = useMemo(
+    () => [
+      { id: 'All' as const, label: t('notifications.categories.all', 'All'), icon: 'sparkles-outline' as const },
+      { id: 'Events' as const, label: t('notifications.categories.events', 'Events'), icon: 'calendar-outline' as const },
+      { id: 'Services' as const, label: 'Services', icon: 'briefcase-outline' as const },
+      { id: 'Orders' as const, label: t('notifications.categories.orders', 'Orders'), icon: 'bag-check-outline' as const },
+      { id: 'Investments' as const, label: t('notifications.categories.investments', 'Investments'), icon: 'trending-up-outline' as const },
+      { id: 'Announcements' as const, label: t('notifications.categories.announcements', 'Announcements'), icon: 'megaphone-outline' as const },
+    ],
+    [t]
+  );
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -117,11 +157,12 @@ export default function NotificationsScreen() {
   const filteredNotifications = useMemo(() => {
     return notifications.filter((item) => {
       if (activeCategory === 'All') return true;
-      if (activeCategory === 'Orders') return item.type === 'order';
       if (activeCategory === 'Events') return item.type === 'event';
+      if (activeCategory === 'Services') return item.type === 'service';
+      if (activeCategory === 'Orders') return item.type === 'order';
       if (activeCategory === 'Investments') return item.type === 'investment';
       if (activeCategory === 'Announcements')
-        return item.type === 'system' || item.type === 'service';
+        return item.type === 'system' || item.type === 'announcement';
       return true;
     });
   }, [notifications, activeCategory]);
@@ -132,6 +173,8 @@ export default function NotificationsScreen() {
     }
     if (item.actionUrl) {
       router.push(item.actionUrl as any);
+    } else {
+      setSelectedNotif(item);
     }
   };
 
@@ -139,9 +182,19 @@ export default function NotificationsScreen() {
     <View style={styles.screen}>
       <ScreenHeader
         title={t('notifications.title', 'Notifications')}
-        subtitle={t('notifications.subtitle', 'Activity updates, orders & community notices')}
+        subtitle={t('notifications.subtitle', 'Live gate passes, inquiries & notices')}
         showBack
         badgeCount={unreadCount}
+        rightElement={
+          <TouchableOpacity
+            style={styles.headerSettingsBtn}
+            onPress={() => setPrefsModalVisible(true)}
+            activeOpacity={0.8}
+            accessibilityLabel="Notification Preferences"
+          >
+            <Ionicons name="options-outline" size={19} color="#FFFFFF" />
+          </TouchableOpacity>
+        }
       />
 
       {/* Action Sub-Bar: Mark All As Read & Filter Summary */}
@@ -149,7 +202,9 @@ export default function NotificationsScreen() {
         <View style={styles.unreadBadgeRow}>
           <View style={[styles.unreadDot, unreadCount === 0 && styles.unreadDotInactive]} />
           <Text style={styles.unreadCountText}>
-            {unreadCount > 0 ? `${unreadCount} ${t('notifications.unreadUpdates', 'unread update(s)')}` : t('notifications.allCaughtUp', 'All caught up')}
+            {unreadCount > 0
+              ? `${unreadCount} ${t('notifications.unreadUpdates', 'unread update(s)')}`
+              : t('notifications.allCaughtUp', 'All caught up')}
           </Text>
         </View>
 
@@ -242,7 +297,15 @@ export default function NotificationsScreen() {
 
                 {item.actionUrl && (
                   <View style={styles.actionLinkRow}>
-                    <Text style={styles.actionLinkText}>{t('common.viewDetails', 'View Details')}</Text>
+                    <Text style={styles.actionLinkText}>
+                      {item.type === 'event'
+                        ? 'View Admission Pass'
+                        : item.type === 'order'
+                        ? 'Track Order'
+                        : item.type === 'investment'
+                        ? 'View Opportunity'
+                        : t('common.viewDetails', 'View Details')}
+                    </Text>
                     <Ionicons name="arrow-forward" size={12} color={colors.navy} style={{ marginLeft: 4 }} />
                   </View>
                 )}
@@ -256,10 +319,11 @@ export default function NotificationsScreen() {
                   <TouchableOpacity
                     style={styles.dismissBtn}
                     onPress={(e) => {
-                      e.stopPropagation?.();
+                      e.stopPropagation();
                       dismissNotification(item.id);
                     }}
-                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                    accessibilityLabel="Delete notification"
                   >
                     <Ionicons name="close-circle-outline" size={18} color="rgba(23, 25, 28, 0.28)" />
                   </TouchableOpacity>
@@ -273,11 +337,13 @@ export default function NotificationsScreen() {
         {filteredNotifications.length === 0 && (
           <View style={styles.emptyStateContainer}>
             <View style={styles.emptyIconCircle}>
-              <Ionicons name="notifications-off-outline" size={38} color={colors.gold} />
+              <Ionicons name="notifications-off-outline" size={36} color={colors.gold} />
             </View>
             <Text style={styles.emptyTitle}>{t('notifications.emptyTitle', 'No notifications found')}</Text>
             <Text style={styles.emptySubtitle}>
-              {t('notifications.noNotifications', 'All caught up! No notifications at this time.')}
+              {activeCategory === 'All'
+                ? t('notifications.noNotifications', 'All caught up! No notifications at this time.')
+                : `No active notifications in the ${activeCategory} category.`}
             </Text>
             {activeCategory !== 'All' && (
               <TouchableOpacity
@@ -293,6 +359,202 @@ export default function NotificationsScreen() {
 
         <View style={{ height: 40 }} />
       </ScrollView>
+
+      {/* Notification Details Modal (When tapped with no direct actionUrl) */}
+      <Modal
+        visible={!!selectedNotif}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setSelectedNotif(null)}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalCard}>
+            {selectedNotif && (
+              <>
+                <View style={styles.modalHeader}>
+                  <View
+                    style={[
+                      styles.iconCircle,
+                      { backgroundColor: getCategoryConfig(selectedNotif.type).bg },
+                    ]}
+                  >
+                    <Ionicons
+                      name={getCategoryConfig(selectedNotif.type).icon}
+                      size={22}
+                      color={getCategoryConfig(selectedNotif.type).color}
+                    />
+                  </View>
+                  <View style={{ flex: 1, marginLeft: 10 }}>
+                    <Text style={styles.modalCategoryTag}>
+                      {getCategoryConfig(selectedNotif.type).tag}
+                    </Text>
+                    <Text style={styles.modalTimeText}>
+                      {formatRelativeTime(selectedNotif.createdAt)}
+                    </Text>
+                  </View>
+                  <TouchableOpacity
+                    onPress={() => setSelectedNotif(null)}
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                  >
+                    <Ionicons name="close" size={22} color={colors.charcoal} />
+                  </TouchableOpacity>
+                </View>
+
+                <Text style={styles.modalTitle}>{selectedNotif.title}</Text>
+                <Text style={styles.modalMessage}>{selectedNotif.message}</Text>
+
+                <View style={styles.modalActionsRow}>
+                  <TouchableOpacity
+                    style={styles.modalDismissBtn}
+                    onPress={() => {
+                      dismissNotification(selectedNotif.id);
+                      setSelectedNotif(null);
+                    }}
+                  >
+                    <Ionicons name="trash-outline" size={16} color={colors.error} style={{ marginRight: 4 }} />
+                    <Text style={styles.modalDismissBtnText}>Delete</Text>
+                  </TouchableOpacity>
+
+                  {selectedNotif.actionUrl ? (
+                    <TouchableOpacity
+                      style={styles.modalActionBtn}
+                      onPress={() => {
+                        const target = selectedNotif.actionUrl;
+                        setSelectedNotif(null);
+                        router.push(target as any);
+                      }}
+                    >
+                      <Text style={styles.modalActionBtnText}>Open Details</Text>
+                      <Ionicons name="arrow-forward" size={15} color="#FFFFFF" style={{ marginLeft: 4 }} />
+                    </TouchableOpacity>
+                  ) : (
+                    <TouchableOpacity
+                      style={styles.modalActionBtn}
+                      onPress={() => setSelectedNotif(null)}
+                    >
+                      <Text style={styles.modalActionBtnText}>Got It</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              </>
+            )}
+          </View>
+        </View>
+      </Modal>
+
+      {/* Notification Preferences Modal */}
+      <Modal
+        visible={prefsModalVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setPrefsModalVisible(false)}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={styles.prefsModalCard}>
+            <View style={styles.prefsModalHeader}>
+              <View style={styles.prefsModalTitleGroup}>
+                <View style={[styles.fieldIconCircle, { width: 34, height: 34, borderRadius: 17 }]}>
+                  <Ionicons name="options-outline" size={18} color={colors.navy} />
+                </View>
+                <View style={{ marginLeft: 10 }}>
+                  <Text style={styles.prefsModalTitle}>Notification Preferences</Text>
+                  <Text style={styles.prefsModalSubtitle}>Choose which real-time alerts to receive</Text>
+                </View>
+              </View>
+              <TouchableOpacity
+                onPress={() => setPrefsModalVisible(false)}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <Ionicons name="close" size={22} color={colors.charcoal} />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.divider} />
+
+            {/* Pref 1: Events & Gate Passes */}
+            <View style={styles.prefRow}>
+              <View style={styles.prefIconWrap}>
+                <Ionicons name="calendar-outline" size={20} color={colors.goldRich} />
+              </View>
+              <View style={styles.prefTextCol}>
+                <Text style={styles.prefTitle}>Events & Admission Passes</Text>
+                <Text style={styles.prefDesc}>Gate check-in verifications & RSVP reminders</Text>
+              </View>
+              <Switch
+                value={preferences.events}
+                onValueChange={() => handleTogglePref('events')}
+                trackColor={{ false: '#E2E8F0', true: colors.gold }}
+                thumbColor={preferences.events ? colors.navy : '#FFFFFF'}
+              />
+            </View>
+
+            <View style={styles.prefDivider} />
+
+            {/* Pref 2: Artisan Orders */}
+            <View style={styles.prefRow}>
+              <View style={styles.prefIconWrap}>
+                <Ionicons name="bag-check-outline" size={20} color={colors.success} />
+              </View>
+              <View style={styles.prefTextCol}>
+                <Text style={styles.prefTitle}>Artisan Orders & Marketplace</Text>
+                <Text style={styles.prefDesc}>Delivery tracking, seller replies & shipments</Text>
+              </View>
+              <Switch
+                value={preferences.orders}
+                onValueChange={() => handleTogglePref('orders')}
+                trackColor={{ false: '#E2E8F0', true: colors.gold }}
+                thumbColor={preferences.orders ? colors.navy : '#FFFFFF'}
+              />
+            </View>
+
+            <View style={styles.prefDivider} />
+
+            {/* Pref 3: Diaspora Investments */}
+            <View style={styles.prefRow}>
+              <View style={styles.prefIconWrap}>
+                <Ionicons name="trending-up-outline" size={20} color="#2563EB" />
+              </View>
+              <View style={styles.prefTextCol}>
+                <Text style={styles.prefTitle}>Investment Hub & Real Estate</Text>
+                <Text style={styles.prefDesc}>Prospectus replies & syndication updates</Text>
+              </View>
+              <Switch
+                value={preferences.investments}
+                onValueChange={() => handleTogglePref('investments')}
+                trackColor={{ false: '#E2E8F0', true: colors.gold }}
+                thumbColor={preferences.investments ? colors.navy : '#FFFFFF'}
+              />
+            </View>
+
+            <View style={styles.prefDivider} />
+
+            {/* Pref 4: Community Announcements */}
+            <View style={styles.prefRow}>
+              <View style={styles.prefIconWrap}>
+                <Ionicons name="megaphone-outline" size={20} color={colors.navy} />
+              </View>
+              <View style={styles.prefTextCol}>
+                <Text style={styles.prefTitle}>Community & Embassy Notices</Text>
+                <Text style={styles.prefDesc}>Yellow Card advisory & consular circulars</Text>
+              </View>
+              <Switch
+                value={preferences.announcements}
+                onValueChange={() => handleTogglePref('announcements')}
+                trackColor={{ false: '#E2E8F0', true: colors.gold }}
+                thumbColor={preferences.announcements ? colors.navy : '#FFFFFF'}
+              />
+            </View>
+
+            <TouchableOpacity
+              style={styles.prefsSaveBtn}
+              onPress={() => setPrefsModalVisible(false)}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.prefsSaveBtnText}>Done</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -301,6 +563,16 @@ const styles = StyleSheet.create({
   screen: {
     flex: 1,
     backgroundColor: colors.background,
+  },
+  headerSettingsBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(223, 183, 108, 0.3)',
   },
   actionSubBar: {
     flexDirection: 'row',
@@ -336,7 +608,7 @@ const styles = StyleSheet.create({
   markAllBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(11, 27, 61, 0.06)',
+    backgroundColor: 'rgba(7, 21, 43, 0.06)',
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: radius.pill,
@@ -404,7 +676,7 @@ const styles = StyleSheet.create({
   },
   notifCardUnread: {
     backgroundColor: '#FFFEFA',
-    borderColor: 'rgba(198, 148, 10, 0.3)',
+    borderColor: 'rgba(223, 183, 108, 0.35)',
     borderLeftWidth: 3.5,
     borderLeftColor: colors.gold,
   },
@@ -506,7 +778,7 @@ const styles = StyleSheet.create({
     width: 68,
     height: 68,
     borderRadius: 34,
-    backgroundColor: 'rgba(198, 148, 10, 0.12)',
+    backgroundColor: 'rgba(223, 183, 108, 0.14)',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 14,
@@ -540,5 +812,188 @@ const styles = StyleSheet.create({
     fontFamily: fonts.body,
     fontWeight: '700',
     color: colors.navy,
+  },
+
+  // Modal Details
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(5, 13, 26, 0.65)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalCard: {
+    width: '100%',
+    maxWidth: 400,
+    backgroundColor: '#FFFFFF',
+    borderRadius: radius.xl,
+    padding: 20,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.25,
+    shadowRadius: 16,
+    elevation: 20,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 14,
+  },
+  modalCategoryTag: {
+    fontSize: 10,
+    fontFamily: fonts.body,
+    fontWeight: '800',
+    color: colors.goldText,
+    letterSpacing: 0.4,
+  },
+  modalTimeText: {
+    fontSize: 11,
+    fontFamily: fonts.body,
+    color: colors.charcoalSub,
+  },
+  modalTitle: {
+    fontSize: 16,
+    fontFamily: fonts.heading,
+    fontWeight: '700',
+    color: colors.charcoal,
+    marginBottom: 8,
+    lineHeight: 22,
+  },
+  modalMessage: {
+    fontSize: 13.5,
+    fontFamily: fonts.body,
+    color: colors.charcoalSub,
+    lineHeight: 20,
+    marginBottom: 20,
+  },
+  modalActionsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  modalDismissBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: radius.pill,
+    backgroundColor: 'rgba(214, 48, 49, 0.08)',
+  },
+  modalDismissBtnText: {
+    fontSize: 12.5,
+    fontFamily: fonts.body,
+    fontWeight: '700',
+    color: colors.error,
+  },
+  modalActionBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.navy,
+    paddingVertical: 11,
+    paddingHorizontal: 16,
+    borderRadius: radius.pill,
+  },
+  modalActionBtnText: {
+    fontSize: 13,
+    fontFamily: fonts.body,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+
+  // Preferences Modal
+  prefsModalCard: {
+    width: '100%',
+    maxWidth: 420,
+    backgroundColor: '#FFFFFF',
+    borderRadius: radius.xl,
+    padding: 22,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.25,
+    shadowRadius: 16,
+    elevation: 20,
+  },
+  prefsModalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  prefsModalTitleGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  fieldIconCircle: {
+    backgroundColor: colors.navySoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  prefsModalTitle: {
+    fontSize: 16,
+    fontFamily: fonts.heading,
+    fontWeight: '700',
+    color: colors.navy,
+  },
+  prefsModalSubtitle: {
+    fontSize: 11.5,
+    fontFamily: fonts.body,
+    color: colors.charcoalSub,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: 'rgba(23, 25, 28, 0.07)',
+    marginBottom: 14,
+  },
+  prefRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+  },
+  prefIconWrap: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
+  },
+  prefTextCol: {
+    flex: 1,
+    marginRight: 10,
+  },
+  prefTitle: {
+    fontSize: 13,
+    fontFamily: fonts.body,
+    fontWeight: '700',
+    color: colors.charcoal,
+    marginBottom: 2,
+  },
+  prefDesc: {
+    fontSize: 11,
+    fontFamily: fonts.body,
+    color: colors.charcoalSub,
+    lineHeight: 15,
+  },
+  prefDivider: {
+    height: 1,
+    backgroundColor: 'rgba(23, 25, 28, 0.05)',
+    marginVertical: 4,
+  },
+  prefsSaveBtn: {
+    backgroundColor: colors.navy,
+    borderRadius: radius.pill,
+    paddingVertical: 12,
+    alignItems: 'center',
+    marginTop: 16,
+  },
+  prefsSaveBtnText: {
+    fontSize: 13.5,
+    fontFamily: fonts.body,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
 });
