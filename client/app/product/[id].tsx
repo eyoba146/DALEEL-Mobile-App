@@ -38,7 +38,8 @@ export default function ProductDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { isFavorite, toggleFavorite } = useFavorites();
   const { user, token } = useAuth();
-  const { addToCart, itemCount } = useCart();
+  const { items, addToCart, removeFromCart, updateQuantity, itemCount } = useCart();
+  const [localQty, setLocalQty] = useState(1);
   const [addedFeedback, setAddedFeedback] = useState(false);
 
   const [product, setProduct] = useState<Product | null>(null);
@@ -96,11 +97,33 @@ export default function ProductDetailScreen() {
     }
   };
 
-  const handleAddToCart = () => {
+  const cartItem = items.find((it) => it.product.id === product?.id);
+  const inBagQty = cartItem ? cartItem.quantity : 0;
+
+  const handleAddToBagWithQty = () => {
     if (!product) return;
-    addToCart(product, 1);
+    addToCart(product, localQty);
     setAddedFeedback(true);
-    setTimeout(() => setAddedFeedback(false), 2200);
+    setTimeout(() => setAddedFeedback(false), 2000);
+  };
+
+  const handleIncrementBag = () => {
+    if (!product) return;
+    if (inBagQty === 0) {
+      addToCart(product, 1);
+    } else {
+      updateQuantity(product.id, inBagQty + 1);
+    }
+  };
+
+  const handleDecrementBag = () => {
+    if (!product) return;
+    if (inBagQty > 1) {
+      updateQuantity(product.id, inBagQty - 1);
+    } else if (inBagQty === 1) {
+      removeFromCart(product.id);
+      setLocalQty(1);
+    }
   };
 
   // Scroll tracking to hide floating top nav bar on scroll
@@ -614,20 +637,20 @@ export default function ProductDetailScreen() {
         </View>
       </Animated.ScrollView>
 
-      {/* Sticky Bottom Ordering Bar */}
+      {/* Sticky Bottom Ordering & Bag Bar */}
       <View style={[styles.bottomBar, { paddingBottom: Math.max(insets.bottom, 12) }]}>
         {/* Tier 1: Price & WhatsApp Link */}
         <View style={styles.bottomInfoRow}>
           <View style={styles.bottomPriceCol}>
             <Text style={styles.bottomPriceLabel}>
-              {hasActiveInquiry ? 'Your Active Inquiry' : 'Artisan Direct Price'}
+              {inBagQty > 0 ? `Subtotal in Bag (${inBagQty} pcs)` : 'Artisan Direct Price'}
             </Text>
             <View style={styles.bottomPriceValueRow}>
               <Text style={styles.bottomPriceValue}>
-                {formatPrice(hasActiveInquiry ? product.price * activeInquiry.quantity : product.price, product.currency)}
+                {formatPrice(inBagQty > 0 ? product.price * inBagQty : product.price * localQty, product.currency)}
               </Text>
               <Text style={styles.bottomPriceUsd}>
-                {`≈ $${Math.round((hasActiveInquiry ? product.price * activeInquiry.quantity : product.price) / 125)} USD`}
+                {`≈ $${Math.round((inBagQty > 0 ? product.price * inBagQty : product.price * localQty) / 125)} USD`}
               </Text>
             </View>
           </View>
@@ -645,67 +668,106 @@ export default function ProductDetailScreen() {
           )}
         </View>
 
-        {/* Tier 2: Action Buttons */}
-        <View style={styles.bottomButtonsRow}>
-          {!hasActiveInquiry ? (
+        {/* Tier 2: Stepper (+ / -) & Action Button */}
+        <View style={styles.bottomControlsRow}>
+          {inBagQty > 0 ? (
+            /* STATE: IN BAG - Interactive +/- Stepper to add/remove and View Bag */
             <>
+              <View style={styles.bagStepperPod}>
+                <TouchableOpacity
+                  style={styles.stepperActionBtn}
+                  onPress={handleDecrementBag}
+                  activeOpacity={0.75}
+                  accessibilityLabel="Decrease or remove from bag"
+                >
+                  <Ionicons
+                    name={inBagQty === 1 ? 'trash-outline' : 'remove'}
+                    size={16}
+                    color={inBagQty === 1 ? '#DC2626' : colors.navy}
+                  />
+                </TouchableOpacity>
+
+                <View style={styles.stepperCenterInfo}>
+                  <Text style={styles.stepperCountText}>{inBagQty}</Text>
+                  <Text style={styles.stepperCountSub}>in bag</Text>
+                </View>
+
+                <TouchableOpacity
+                  style={styles.stepperActionBtn}
+                  onPress={handleIncrementBag}
+                  activeOpacity={0.75}
+                  accessibilityLabel="Add more to bag"
+                >
+                  <Ionicons name="add" size={16} color={colors.navy} />
+                </TouchableOpacity>
+              </View>
+
               <TouchableOpacity
-                style={[styles.addToBagBtn, addedFeedback && styles.addToBagBtnSuccess]}
-                onPress={handleAddToCart}
-                activeOpacity={0.85}
+                style={styles.viewBagMainBtn}
+                onPress={() => router.push('/cart')}
+                activeOpacity={0.88}
+                accessibilityLabel="View Bag and Checkout"
+              >
+                <View style={styles.viewBagIconBadge}>
+                  <Ionicons name="bag-handle" size={16} color="#FFFFFF" />
+                  <View style={styles.viewBagCountDot}>
+                    <Text style={styles.viewBagCountDotText}>{itemCount}</Text>
+                  </View>
+                </View>
+                <Text style={styles.viewBagMainBtnText}>View Bag & Checkout</Text>
+                <Ionicons name="arrow-forward" size={15} color="#DFB76C" style={{ marginLeft: 4 }} />
+              </TouchableOpacity>
+            </>
+          ) : (
+            /* STATE: NOT IN BAG - +/- Selector and Add to Bag Button */
+            <>
+              <View style={styles.preAddStepperPod}>
+                <TouchableOpacity
+                  style={[styles.stepperActionBtn, localQty <= 1 && styles.stepperActionBtnDisabled]}
+                  onPress={() => setLocalQty((prev) => Math.max(1, prev - 1))}
+                  disabled={localQty <= 1}
+                  activeOpacity={0.75}
+                  accessibilityLabel="Decrease quantity"
+                >
+                  <Ionicons
+                    name="remove"
+                    size={16}
+                    color={localQty <= 1 ? 'rgba(7, 21, 43, 0.3)' : colors.navy}
+                  />
+                </TouchableOpacity>
+
+                <View style={styles.stepperCenterInfo}>
+                  <Text style={styles.stepperCountText}>{localQty}</Text>
+                  <Text style={styles.stepperCountSub}>qty</Text>
+                </View>
+
+                <TouchableOpacity
+                  style={styles.stepperActionBtn}
+                  onPress={() => setLocalQty((prev) => prev + 1)}
+                  activeOpacity={0.75}
+                  accessibilityLabel="Increase quantity"
+                >
+                  <Ionicons name="add" size={16} color={colors.navy} />
+                </TouchableOpacity>
+              </View>
+
+              <TouchableOpacity
+                style={[styles.addToBagMainBtn, addedFeedback && styles.addToBagMainBtnSuccess]}
+                onPress={handleAddToBagWithQty}
+                activeOpacity={0.88}
+                accessibilityLabel="Add to Bag"
               >
                 <Ionicons
-                  name={addedFeedback ? 'checkmark-circle' : 'bag-add-outline'}
+                  name={addedFeedback ? 'checkmark-circle' : 'bag-add'}
                   size={18}
                   color={addedFeedback ? '#166534' : colors.navy}
                   style={{ marginRight: 6 }}
                 />
-                <Text style={[styles.addToBagBtnText, addedFeedback && styles.addToBagBtnTextSuccess]}>
-                  {addedFeedback ? 'Added to Bag!' : 'Add to Bag'}
+                <Text style={[styles.addToBagMainBtnText, addedFeedback && styles.addToBagMainBtnTextSuccess]}>
+                  {addedFeedback ? 'Added to Bag!' : `Add to Bag • ${formatPrice(product.price * localQty, product.currency)}`}
                 </Text>
               </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.directOrderBtn}
-                onPress={() => {
-                  setOrderSuccess(false);
-                  setIsEditMode(false);
-                  setCancelPromptVisible(false);
-                  setFormError(null);
-                  setOrderModalVisible(true);
-                }}
-                activeOpacity={0.88}
-              >
-                <Ionicons
-                  name="flash"
-                  size={17}
-                  color="#DFB76C"
-                  style={{ marginRight: 6 }}
-                />
-                <Text style={styles.directOrderBtnText}>Direct Order</Text>
-              </TouchableOpacity>
             </>
-          ) : (
-            <TouchableOpacity
-              style={styles.manageOrderBtn}
-              onPress={() => {
-                setOrderSuccess(false);
-                setIsEditMode(false);
-                setCancelPromptVisible(false);
-                setFormError(null);
-                setOrderModalVisible(true);
-              }}
-              activeOpacity={0.88}
-            >
-              <Ionicons
-                name="clipboard-outline"
-                size={18}
-                color={colors.navy}
-                style={{ marginRight: 8 }}
-              />
-              <Text style={styles.manageOrderBtnText}>Manage Order Inquiry</Text>
-              <View style={styles.activeInquiryDot} />
-            </TouchableOpacity>
           )}
         </View>
       </View>
@@ -1633,78 +1695,148 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#15803D',
   },
-  bottomButtonsRow: {
+  bottomControlsRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
   },
-  addToBagBtn: {
+  bagStepperPod: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F8FAFC',
+    borderRadius: radius.pill,
+    borderWidth: 1.5,
+    borderColor: 'rgba(223, 183, 108, 0.45)',
+    paddingHorizontal: 4,
+    paddingVertical: 3,
+    height: 48,
+    minWidth: 120,
+    justifyContent: 'space-between',
+  },
+  preAddStepperPod: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F8FAFC',
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: 'rgba(23, 25, 28, 0.12)',
+    paddingHorizontal: 4,
+    paddingVertical: 3,
+    height: 48,
+    minWidth: 110,
+    justifyContent: 'space-between',
+  },
+  stepperActionBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  stepperActionBtnDisabled: {
+    backgroundColor: 'rgba(23, 25, 28, 0.04)',
+    elevation: 0,
+    shadowOpacity: 0,
+  },
+  stepperCenterInfo: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 6,
+    minWidth: 36,
+  },
+  stepperCountText: {
+    fontSize: 15,
+    fontFamily: fonts.body,
+    fontWeight: '800',
+    color: colors.navy,
+    lineHeight: 18,
+  },
+  stepperCountSub: {
+    fontSize: 9,
+    fontFamily: fonts.body,
+    fontWeight: '700',
+    color: colors.charcoalSub,
+    textTransform: 'uppercase',
+    letterSpacing: 0.3,
+  },
+  addToBagMainBtn: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: colors.goldSoft,
-    height: 46,
+    height: 48,
     borderRadius: radius.pill,
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: colors.goldBorder,
+    shadowColor: colors.gold,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 3,
   },
-  addToBagBtnSuccess: {
+  addToBagMainBtnSuccess: {
     backgroundColor: '#DCFCE7',
     borderColor: '#86EFAC',
   },
-  addToBagBtnText: {
+  addToBagMainBtnText: {
     fontSize: 13,
     fontFamily: fonts.body,
-    fontWeight: '700',
+    fontWeight: '800',
     color: colors.navy,
   },
-  addToBagBtnTextSuccess: {
+  addToBagMainBtnTextSuccess: {
     color: '#166534',
   },
-  directOrderBtn: {
-    flex: 1.15,
+  viewBagMainBtn: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: colors.navy,
-    height: 46,
+    height: 48,
     borderRadius: radius.pill,
+    paddingHorizontal: 14,
     shadowColor: colors.navy,
     shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.2,
+    shadowOpacity: 0.25,
     shadowRadius: 6,
     elevation: 4,
   },
-  directOrderBtnText: {
-    fontSize: 13,
-    fontFamily: fonts.body,
-    fontWeight: '700',
-    color: '#FFFFFF',
+  viewBagIconBadge: {
+    position: 'relative',
+    marginRight: 8,
   },
-  manageOrderBtn: {
-    flex: 1,
-    flexDirection: 'row',
+  viewBagCountDot: {
+    position: 'absolute',
+    top: -4,
+    right: -6,
+    backgroundColor: colors.gold,
+    borderRadius: 6,
+    minWidth: 14,
+    height: 14,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.goldSoft,
-    height: 46,
-    borderRadius: radius.pill,
-    borderWidth: 1.5,
-    borderColor: colors.gold,
+    paddingHorizontal: 2,
+    borderWidth: 1,
+    borderColor: colors.navy,
   },
-  manageOrderBtnText: {
-    fontSize: 13.5,
-    fontFamily: fonts.body,
-    fontWeight: '700',
+  viewBagCountDotText: {
+    fontSize: 8,
+    fontWeight: '800',
     color: colors.navy,
   },
-  activeInquiryDot: {
-    width: 7,
-    height: 7,
-    borderRadius: 3.5,
-    backgroundColor: colors.gold,
-    marginLeft: 8,
+  viewBagMainBtnText: {
+    fontSize: 13,
+    fontFamily: fonts.body,
+    fontWeight: '800',
+    color: '#FFFFFF',
   },
 
   // Modal Sheet (True Fullscreen dark overlay with statusBarTranslucent)
