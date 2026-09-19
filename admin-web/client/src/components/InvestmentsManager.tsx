@@ -552,7 +552,7 @@ export const InvestmentsManager: React.FC = () => {
                       <h3 className="showcase-title">{inv.title}</h3>
                     </div>
 
-                    <p className="showcase-blurb">{inv.description || inv.blurb}</p>
+                    <p className="showcase-blurb">{inv.blurb}</p>
 
                     {/* Metadata Pills */}
                     <div className="showcase-meta-row">

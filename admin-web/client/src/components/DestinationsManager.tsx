@@ -512,7 +512,7 @@ export const DestinationsManager: React.FC = () => {
                   </div>
                 </div>
 
-                <p className="showcase-blurb">{item.description || item.blurb}</p>
+                <p className="showcase-blurb">{item.blurb}</p>
 
                 {/* Metadata Micro-Chips Row */}
                 <div className="showcase-meta-row">

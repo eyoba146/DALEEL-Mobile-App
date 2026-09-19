@@ -604,7 +604,7 @@ export const MarketplaceManager: React.FC = () => {
                       </div>
                     </div>
 
-                    <p className="showcase-blurb">{prod.description || prod.blurb}</p>
+                    <p className="showcase-blurb">{prod.blurb}</p>
 
                     <div className="showcase-meta-row">
                       {prod.materials && (
