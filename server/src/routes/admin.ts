@@ -1577,7 +1577,7 @@ adminRouter.post(
           });
           if (otherEventPass) {
             const wrongMsg = `This pass is valid for "${otherEventPass.event.title}", not the currently selected event!`;
-            return res.status(400).json({
+            return res.json({
               success: false,
               reason: 'WRONG_EVENT',
               message: wrongMsg,
@@ -1588,7 +1588,7 @@ adminRouter.post(
           }
         }
         const notFoundMsg = `No reservation pass found matching "${cleanCode}".`;
-        return res.status(404).json({
+        return res.json({
           success: false,
           reason: 'NOT_FOUND',
           message: notFoundMsg,
@@ -1602,7 +1602,7 @@ adminRouter.post(
 
       if (currentStatus === 'checked_in') {
         const alreadyMsg = `Already Checked In! Guest was previously admitted.`;
-        return res.status(409).json({
+        return res.json({
           success: false,
           reason: 'ALREADY_CHECKED_IN',
           message: alreadyMsg,
@@ -1617,7 +1617,7 @@ adminRouter.post(
 
       if (currentStatus === 'cancelled' || currentStatus === 'rejected') {
         const cancelMsg = `Admission Denied. This pass was ${rsvp.status.toUpperCase()}.`;
-        return res.status(400).json({
+        return res.json({
           success: false,
           reason: 'CANCELLED',
           message: cancelMsg,

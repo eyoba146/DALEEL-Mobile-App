@@ -183,6 +183,8 @@ export const EventCheckInDesk: React.FC<EventCheckInDeskProps> = ({
   const [selectedCameraId, setSelectedCameraId] = useState<string>('');
   const html5QrCodeRef = useRef<Html5Qrcode | null>(null);
   const isScanningRef = useRef(false);
+  const lastScannedCodeRef = useRef<string>('');
+  const lastScannedAtRef = useRef<number>(0);
 
   // Scan Result Banner
   const [scanResult, setScanResult] = useState<ScanResult | null>(null);
@@ -243,6 +245,106 @@ export const EventCheckInDesk: React.FC<EventCheckInDeskProps> = ({
     }
   }, [selectedEventId, fetchAttendance]);
 
+  // Apply Scan Outcome Banner, Audio & Telemetry
+  const applyScanOutcome = (data: any, cleanCode: string, timestamp: string) => {
+    if (data && data.success) {
+      playFeedbackAudio('success');
+      const tickets = data.rsvp?.ticketsCount || 1;
+      setScanResult({
+        status: 'success',
+        title: 'ADMISSION GRANTED • PASS VERIFIED',
+        badge: 'ADMITTED',
+        message: `${data.rsvp?.fullName || 'Guest'} (${tickets} Ticket${tickets > 1 ? 's' : ''})`,
+        details: 'Pass successfully verified at gate. Attendee admitted.',
+        rsvp: data.rsvp,
+        timestamp,
+        scannedCode: data.rsvp?.passCode || cleanCode,
+      });
+      toastSuccess(`Checked in: ${data.rsvp?.fullName} (${tickets} ticket${tickets > 1 ? 's' : ''})`);
+      setManualCode('');
+      fetchAttendance();
+      return;
+    }
+
+    const reason = data?.reason || data?.data?.reason || '';
+    const rsvp = data?.rsvp || data?.data?.rsvp;
+    const targetEventTitle = data?.targetEventTitle || data?.data?.targetEventTitle;
+    const backendMessage = data?.message || data?.data?.message || data?.error || data?.data?.error || '';
+
+    if (reason === 'ALREADY_CHECKED_IN' || backendMessage.toLowerCase().includes('already checked in')) {
+      playFeedbackAudio('warning');
+      const guestName = rsvp?.fullName || 'Guest';
+      const tickets = rsvp?.ticketsCount || 1;
+      setScanResult({
+        status: 'warning',
+        title: 'ALREADY ADMITTED • DUPLICATE SCAN',
+        badge: 'DUPLICATE SCAN',
+        message: `${guestName} (${tickets} Ticket${tickets > 1 ? 's' : ''})`,
+        details: 'This attendee pass was already scanned and admitted earlier. Duplicate entry rejected.',
+        rsvp: rsvp,
+        timestamp,
+        reason: 'ALREADY_CHECKED_IN',
+        scannedCode: rsvp?.passCode || cleanCode,
+      });
+      toastError(`Already Admitted: ${guestName} was previously admitted.`);
+    } else if (reason === 'WRONG_EVENT') {
+      playFeedbackAudio('error');
+      setScanResult({
+        status: 'error',
+        title: 'WRONG VENUE • PASS REGISTERED FOR OTHER EVENT',
+        badge: 'WRONG VENUE',
+        message: targetEventTitle ? `Pass issued for "${targetEventTitle}"` : 'Pass belongs to another event',
+        details: backendMessage || 'This pass is not registered for the currently active event desk. Please direct the attendee to their correct event venue.',
+        timestamp,
+        reason: 'WRONG_EVENT',
+        scannedCode: cleanCode,
+        targetEventTitle: targetEventTitle,
+      });
+      toastError(targetEventTitle ? `Wrong Event: Pass is valid for "${targetEventTitle}"` : 'Pass belongs to another event venue.');
+    } else if (reason === 'CANCELLED') {
+      playFeedbackAudio('error');
+      const guestName = rsvp?.fullName || 'Guest';
+      const tickets = rsvp?.ticketsCount || 1;
+      setScanResult({
+        status: 'error',
+        title: 'ADMISSION DENIED • RESERVATION REVOKED',
+        badge: 'REVOKED PASS',
+        message: `${guestName} (${tickets} Ticket${tickets > 1 ? 's' : ''})`,
+        details: backendMessage || 'This pass reservation was cancelled and is not valid for entry.',
+        rsvp: rsvp,
+        timestamp,
+        reason: 'CANCELLED',
+        scannedCode: rsvp?.passCode || cleanCode,
+      });
+      toastError(`Admission Denied: Pass for ${guestName} has been revoked.`);
+    } else if (reason === 'NOT_FOUND' || backendMessage.toLowerCase().includes('not found')) {
+      playFeedbackAudio('error');
+      setScanResult({
+        status: 'error',
+        title: 'ADMISSION REJECTED • UNRECOGNIZED PASS',
+        badge: 'NOT FOUND',
+        message: `No reservation matching "${cleanCode}"`,
+        details: 'This code was not found in the registration system for this event. Check for typos or search the attendee’s name in the live roster.',
+        timestamp,
+        reason: 'NOT_FOUND',
+        scannedCode: cleanCode,
+      });
+      toastError(`Unrecognized pass code: "${cleanCode}". Not found in roster.`);
+    } else {
+      playFeedbackAudio('error');
+      setScanResult({
+        status: 'error',
+        title: 'ADMISSION REJECTED • VERIFICATION FAILED',
+        badge: 'VERIFY FAILED',
+        message: backendMessage || 'Verification error encountered',
+        details: 'The system could not verify this ticket pass. Please check your connection and retry.',
+        timestamp,
+        scannedCode: cleanCode,
+      });
+      toastError(backendMessage || 'Verification failed. Please retry.');
+    }
+  };
+
   // Handle Pass Verification (Used by both camera & manual input)
   const handleProcessCheckIn = async (codeToVerify: string) => {
     if (!codeToVerify.trim()) return;
@@ -256,102 +358,9 @@ export const EventCheckInDesk: React.FC<EventCheckInDeskProps> = ({
 
     try {
       const res = await adminApi.checkInEventPass(cleanCode, selectedEventId);
-      if (res && res.success) {
-        playFeedbackAudio('success');
-        const tickets = res.rsvp?.ticketsCount || 1;
-        setScanResult({
-          status: 'success',
-          title: 'ADMISSION GRANTED • PASS VERIFIED',
-          badge: 'ADMITTED',
-          message: `${res.rsvp?.fullName || 'Guest'} (${tickets} Ticket${tickets > 1 ? 's' : ''})`,
-          details: 'Pass successfully verified at gate. Attendee admitted.',
-          rsvp: res.rsvp,
-          timestamp: now,
-          scannedCode: res.rsvp?.passCode || cleanCode,
-        });
-        toastSuccess(`Checked in: ${res.rsvp?.fullName} (${tickets} ticket${tickets > 1 ? 's' : ''})`);
-        setManualCode('');
-        fetchAttendance();
-      }
+      applyScanOutcome(res, cleanCode, now);
     } catch (err: any) {
-      console.error('Check-in error response:', err);
-      const reason = err.reason || err.data?.reason || '';
-      const rsvp = err.rsvp || err.data?.rsvp;
-      const targetEventTitle = err.targetEventTitle || err.data?.targetEventTitle;
-      const backendMessage = err.message || err.data?.message || err.data?.error || '';
-
-      if (reason === 'ALREADY_CHECKED_IN' || backendMessage.toLowerCase().includes('already checked in')) {
-        playFeedbackAudio('warning');
-        const guestName = rsvp?.fullName || 'Guest';
-        const tickets = rsvp?.ticketsCount || 1;
-        setScanResult({
-          status: 'warning',
-          title: 'ALREADY ADMITTED • DUPLICATE SCAN',
-          badge: 'DUPLICATE SCAN',
-          message: `${guestName} (${tickets} Ticket${tickets > 1 ? 's' : ''})`,
-          details: 'This attendee pass was already scanned and admitted earlier. Duplicate entry rejected.',
-          rsvp: rsvp,
-          timestamp: now,
-          reason: 'ALREADY_CHECKED_IN',
-          scannedCode: rsvp?.passCode || cleanCode,
-        });
-        toastError(`Already Admitted: ${guestName} was previously admitted.`);
-      } else if (reason === 'WRONG_EVENT') {
-        playFeedbackAudio('error');
-        setScanResult({
-          status: 'error',
-          title: 'WRONG VENUE • PASS REGISTERED FOR OTHER EVENT',
-          badge: 'WRONG VENUE',
-          message: targetEventTitle ? `Pass issued for "${targetEventTitle}"` : 'Pass belongs to another event',
-          details: backendMessage || 'This pass is not registered for the currently active event desk. Please direct the attendee to their correct event venue.',
-          timestamp: now,
-          reason: 'WRONG_EVENT',
-          scannedCode: cleanCode,
-          targetEventTitle: targetEventTitle,
-        });
-        toastError(targetEventTitle ? `Wrong Event: Pass is valid for "${targetEventTitle}"` : 'Pass belongs to another event venue.');
-      } else if (reason === 'CANCELLED') {
-        playFeedbackAudio('error');
-        const guestName = rsvp?.fullName || 'Guest';
-        const tickets = rsvp?.ticketsCount || 1;
-        setScanResult({
-          status: 'error',
-          title: 'ADMISSION DENIED • RESERVATION REVOKED',
-          badge: 'REVOKED PASS',
-          message: `${guestName} (${tickets} Ticket${tickets > 1 ? 's' : ''})`,
-          details: backendMessage || 'This pass reservation was cancelled and is not valid for entry.',
-          rsvp: rsvp,
-          timestamp: now,
-          reason: 'CANCELLED',
-          scannedCode: rsvp?.passCode || cleanCode,
-        });
-        toastError(`Admission Denied: Pass for ${guestName} has been revoked.`);
-      } else if (reason === 'NOT_FOUND' || backendMessage.toLowerCase().includes('not found') || err.status === 404) {
-        playFeedbackAudio('error');
-        setScanResult({
-          status: 'error',
-          title: 'ADMISSION REJECTED • UNRECOGNIZED PASS',
-          badge: 'NOT FOUND',
-          message: `No reservation matching "${cleanCode}"`,
-          details: 'This code was not found in the registration system for this event. Check for typos or search the attendee’s name in the live roster.',
-          timestamp: now,
-          reason: 'NOT_FOUND',
-          scannedCode: cleanCode,
-        });
-        toastError(`Unrecognized pass code: "${cleanCode}". Not found in roster.`);
-      } else {
-        playFeedbackAudio('error');
-        setScanResult({
-          status: 'error',
-          title: 'ADMISSION REJECTED • VERIFICATION FAILED',
-          badge: 'VERIFY FAILED',
-          message: backendMessage || 'Verification error encountered',
-          details: 'The system could not verify this ticket pass. Please check your connection and retry.',
-          timestamp: now,
-          scannedCode: cleanCode,
-        });
-        toastError(backendMessage || 'Verification failed. Please retry.');
-      }
+      applyScanOutcome(err, cleanCode, now);
     } finally {
       setIsSubmittingCheckIn(false);
     }
@@ -445,6 +454,25 @@ export const EventCheckInDesk: React.FC<EventCheckInDeskProps> = ({
       const html5QrCode = new Html5Qrcode('gate-qr-reader');
       html5QrCodeRef.current = html5QrCode;
 
+      const onScanSuccess = (decodedText: string) => {
+        if (!decodedText || isScanningRef.current) return;
+        const clean = decodedText.trim();
+        const now = Date.now();
+
+        // Prevent spamming the same code if camera remains pointed at the same phone screen
+        if (clean === lastScannedCodeRef.current && now - lastScannedAtRef.current < 6000) {
+          return;
+        }
+
+        lastScannedCodeRef.current = clean;
+        lastScannedAtRef.current = now;
+        isScanningRef.current = true;
+        handleProcessCheckIn(clean);
+        setTimeout(() => {
+          isScanningRef.current = false;
+        }, 2000);
+      };
+
       try {
         await html5QrCode.start(
           cameraConfig,
@@ -453,15 +481,7 @@ export const EventCheckInDesk: React.FC<EventCheckInDeskProps> = ({
             qrbox: { width: 250, height: 250 },
             aspectRatio: 1.0,
           },
-          (decodedText) => {
-            if (!isScanningRef.current) {
-              isScanningRef.current = true;
-              handleProcessCheckIn(decodedText);
-              setTimeout(() => {
-                isScanningRef.current = false;
-              }, 2500);
-            }
-          },
+          onScanSuccess,
           () => {}
         );
       } catch (startErr: any) {
@@ -474,15 +494,7 @@ export const EventCheckInDesk: React.FC<EventCheckInDeskProps> = ({
             qrbox: { width: 250, height: 250 },
             aspectRatio: 1.0,
           },
-          (decodedText) => {
-            if (!isScanningRef.current) {
-              isScanningRef.current = true;
-              handleProcessCheckIn(decodedText);
-              setTimeout(() => {
-                isScanningRef.current = false;
-              }, 2500);
-            }
-          },
+          onScanSuccess,
           () => {}
         );
       }
