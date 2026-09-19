@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useAdminAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 import type { AppModule } from '../context/AuthContext';
 import { adminApi, type SidebarCounts } from '../api';
 import {
@@ -32,27 +33,31 @@ interface NavItem {
 }
 
 interface NavSection {
-  title: string;
+  titleKey: string;
+  defaultTitle: string;
   items: NavItem[];
 }
 
 const NAV_SECTIONS: NavSection[] = [
   {
-    title: 'EXECUTIVE CORE',
+    titleKey: 'nav.section.core',
+    defaultTitle: 'EXECUTIVE CORE',
     items: [
       { id: 'dashboard', label: 'Overview & Ops', icon: LayoutDashboard },
       { id: 'inquiries', label: 'Master Triage Desk', icon: Inbox },
     ],
   },
   {
-    title: 'HERITAGE & TOURISM',
+    titleKey: 'nav.section.heritage',
+    defaultTitle: 'HERITAGE & TOURISM',
     items: [
       { id: 'destinations', label: 'Destinations & Sites', icon: Compass },
       { id: 'events', label: 'Events & Gatherings', icon: Calendar },
     ],
   },
   {
-    title: 'COMMERCE & DIRECTORY',
+    titleKey: 'nav.section.commerce',
+    defaultTitle: 'COMMERCE & DIRECTORY',
     items: [
       { id: 'services', label: 'Verified Services', icon: Briefcase },
       { id: 'marketplace', label: 'Artisan Marketplace', icon: ShoppingBag },
@@ -60,7 +65,8 @@ const NAV_SECTIONS: NavSection[] = [
     ],
   },
   {
-    title: 'GOVERNANCE & ACCOUNT',
+    titleKey: 'nav.section.governance',
+    defaultTitle: 'GOVERNANCE & ACCOUNT',
     items: [
       { id: 'users', label: 'Registered Members', icon: UserCheck },
       { id: 'team', label: 'Administrative Team', icon: Users },
@@ -74,6 +80,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onSelectTab,
 }) => {
   const { adminUser, logout, canAccess } = useAdminAuth();
+  const { t } = useLanguage();
   const [counts, setCounts] = useState<SidebarCounts | null>(null);
 
   useEffect(() => {
@@ -118,19 +125,19 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const getRoleDisplayName = (role?: string) => {
     switch (role) {
       case 'SUPER_ADMIN':
-        return 'Full Administrator';
+        return t('role.super_admin', 'Full Administrator');
       case 'DESTINATION_MANAGER':
-        return 'Tourism & Heritage Lead';
+        return t('role.destination_manager', 'Tourism & Heritage Lead');
       case 'SERVICE_MANAGER':
-        return 'Services Directory Lead';
+        return t('role.service_manager', 'Services Directory Lead');
       case 'EVENT_MANAGER':
-        return 'Events Coordinator';
+        return t('role.event_manager', 'Events Coordinator');
       case 'MARKETPLACE_MANAGER':
-        return 'Marketplace Lead';
+        return t('role.marketplace_manager', 'Marketplace Lead');
       case 'INVESTMENT_OFFICER':
-        return 'Investment Officer';
+        return t('role.investment_officer', 'Investment Officer');
       default:
-        return 'Administrator';
+        return t('role.admin', 'Administrator');
     }
   };
 
@@ -144,8 +151,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <Shield size={22} color="#DFB76C" />
         </div>
         <div>
-          <div style={styles.brandName}>DALEEL</div>
-          <div style={styles.brandSub}>MANAGEMENT PORTAL</div>
+          <div style={styles.brandName}>{t('brand.title', 'DALEEL')}</div>
+          <div style={styles.brandSub}>{t('brand.sub', 'MANAGEMENT PORTAL')}</div>
         </div>
       </div>
 
@@ -158,7 +165,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         onClick={() => onSelectTab('profile')}
         role="button"
         tabIndex={0}
-        title="Open Security & Profile Settings"
+        title={t('sidebar.securityProfile', 'Security & Profile Settings')}
       >
         <div style={styles.profileCardHeader}>
           <div style={styles.avatarCircle}>
@@ -175,9 +182,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
         <div style={styles.profileActionRow}>
           <span style={styles.profileSecLink}>
             <ShieldCheck size={13} color="#8C6A21" />
-            <span>Security & Profile</span>
+            <span>{t('sidebar.securityProfile', 'Security & Profile')}</span>
           </span>
-          <span style={styles.profileEditBadge}>Manage</span>
+          <span style={styles.profileEditBadge}>{t('sidebar.manage', 'Manage')}</span>
         </div>
       </div>
 
@@ -188,13 +195,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
           if (visibleItems.length === 0) return null;
 
           return (
-            <div key={section.title} style={styles.sectionBlock}>
-              <div style={styles.sectionHeader}>{section.title}</div>
+            <div key={section.titleKey} style={styles.sectionBlock}>
+              <div style={styles.sectionHeader}>{t(section.titleKey, section.defaultTitle)}</div>
               <div style={styles.sectionList}>
                 {visibleItems.map((item) => {
                   const Icon = item.icon;
                   const isActive = currentTab === item.id;
                   const badgeCount = getBadgeCount(item.id);
+                  const label = t(`nav.${item.id}`, item.label);
                   return (
                     <button
                       key={item.id}
@@ -212,7 +220,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                           fontWeight: isActive ? 700 : 600,
                         }}
                       >
-                        {item.label}
+                        {label}
                       </span>
                       {badgeCount > 0 && (
                         <span
@@ -237,16 +245,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <div style={styles.telemetryHeader}>
             <div style={styles.telemetryTitleGroup}>
               <Activity size={13} color="#10B981" />
-              <span style={styles.telemetryTitle}>Platform Status</span>
+              <span style={styles.telemetryTitle}>{t('status.platformStatus', 'Platform Status')}</span>
             </div>
             <div style={styles.telemetryPill}>
               <span style={styles.pulseDot} />
-              <span>Operational</span>
+              <span>{t('status.operational', 'Operational')}</span>
             </div>
           </div>
           <div style={styles.telemetryMeta}>
-            <span>All Services Online</span>
-            <span>Encrypted Session Active</span>
+            <span>{t('status.allOnline', 'All Services Online')}</span>
+            <span>{t('status.encrypted', 'Encrypted Session Active')}</span>
           </div>
         </div>
       </nav>
@@ -261,11 +269,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
           onClick={() => onSelectTab('profile')}
         >
           <User size={15} color={isProfileActive ? '#DFB76C' : '#07152B'} />
-          <span>Security & Profile</span>
+          <span>{t('sidebar.securityProfile', 'Security & Profile')}</span>
         </button>
         <button style={styles.logoutBtn} onClick={logout}>
           <LogOut size={15} color="#C53030" />
-          <span>Sign Out</span>
+          <span>{t('sidebar.signOut', 'Sign Out')}</span>
         </button>
       </div>
     </aside>

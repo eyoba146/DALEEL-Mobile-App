@@ -104,12 +104,16 @@ export default function ActivityScreen() {
     const s = status.toLowerCase();
     let bg = '#F1F5F9';
     let text = '#475569';
-    let label = status.toUpperCase();
+    let label = status.replace(/_/g, ' ').toUpperCase();
 
     if (s === 'confirmed' || s === 'completed') {
       bg = '#DCFCE7';
       text = '#166534';
       label = type === 'event' ? 'CONFIRMED PASS' : 'CONFIRMED';
+    } else if (s === 'checked_in') {
+      bg = '#DCFCE7';
+      text = '#166534';
+      label = 'CHECKED IN';
     } else if (s === 'dispatched') {
       bg = '#E0F2FE';
       text = '#0369A1';
@@ -165,21 +169,21 @@ export default function ActivityScreen() {
         {/* Ticket Body */}
         <View style={styles.ticketBody}>
           <View style={styles.ticketRow}>
-            <View style={{ flex: 1, paddingRight: spacing.sm }}>
+            <View style={{ flex: 1, minWidth: 0, paddingRight: spacing.sm }}>
               <Text style={styles.ticketEventTitle} numberOfLines={2}>
                 {item.title}
               </Text>
               <View style={styles.ticketMetaRow}>
-                <Ionicons name="location-outline" size={14} color={colors.goldText} />
-                <Text style={styles.ticketMetaText} numberOfLines={1}>
+                <Ionicons name="location-outline" size={14} color={colors.goldText} style={{ marginTop: 2, flexShrink: 0 }} />
+                <Text style={styles.ticketMetaText} numberOfLines={2}>
                   {item.meta.venue ? `${item.meta.venue}, ` : ''}
                   {item.meta.city || 'Addis Ababa'}
                 </Text>
               </View>
               {item.meta.time && (
                 <View style={styles.ticketMetaRow}>
-                  <Ionicons name="time-outline" size={14} color={colors.goldText} />
-                  <Text style={styles.ticketMetaText}>{item.meta.time}</Text>
+                  <Ionicons name="time-outline" size={14} color={colors.goldText} style={{ flexShrink: 0 }} />
+                  <Text style={styles.ticketMetaText} numberOfLines={1}>{item.meta.time}</Text>
                 </View>
               )}
             </View>
@@ -188,6 +192,7 @@ export default function ActivityScreen() {
               <Image
                 source={{ uri: resolveMediaUrl(item.image) || undefined }}
                 style={styles.ticketThumbnail}
+                resizeMode="cover"
               />
             )}
           </View>
@@ -206,8 +211,8 @@ export default function ActivityScreen() {
             </View>
             <View style={styles.ticketDetailCol}>
               <Text style={styles.ticketDetailLabel}>STATUS</Text>
-              <Text style={[styles.ticketDetailValue, { color: isConfirmed ? '#16803C' : colors.navy }]}>
-                {isCheckedIn ? 'Admitted' : isConfirmed ? 'Confirmed' : 'In Review'}
+              <Text style={[styles.ticketDetailValue, { color: isCheckedIn || isConfirmed ? '#16803C' : colors.navy }]}>
+                {isCheckedIn ? 'Checked In' : isConfirmed ? 'Confirmed' : 'In Review'}
               </Text>
             </View>
           </View>
@@ -232,7 +237,7 @@ export default function ActivityScreen() {
                   color={colors.gold}
                 />
                 <Text style={styles.qrConfirmedTitle}>
-                  {isCheckedIn ? 'PASS ADMITTED AT VENUE' : 'OFFICIAL DIGITAL GATE PASS'}
+                  {isCheckedIn ? 'GATE PASS CHECKED IN' : 'OFFICIAL DIGITAL GATE PASS'}
                 </Text>
               </View>
 
@@ -799,20 +804,24 @@ const styles = StyleSheet.create({
   },
   ticketMetaRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    marginTop: 3,
+    alignItems: 'flex-start',
+    gap: 6,
+    marginTop: 4,
   },
   ticketMetaText: {
     fontFamily: fonts.bodyMedium,
-    fontSize: 13,
+    fontSize: 12.5,
     color: colors.charcoalLight,
+    flex: 1,
+    lineHeight: 17,
   },
   ticketThumbnail: {
     width: 72,
     height: 72,
     borderRadius: radius.md,
     backgroundColor: '#F1F5F9',
+    marginLeft: 8,
+    flexShrink: 0,
   },
   ticketDetailsGrid: {
     flexDirection: 'row',

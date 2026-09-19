@@ -1,15 +1,20 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
+  Animated,
+  LayoutAnimation,
   Modal,
+  Platform,
   RefreshControl,
   ScrollView,
   StyleSheet,
   Switch,
   Text,
   TouchableOpacity,
+  UIManager,
   View,
 } from 'react-native';
 import ScreenHeader from '../components/ScreenHeader';
@@ -78,6 +83,119 @@ function getCategoryConfig(type: string) {
   }
 }
 
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
+
+function AnimatedNotificationCard({
+  item,
+  onPress,
+  onDismiss,
+  t,
+}: {
+  item: AppNotification;
+  onPress: () => void;
+  onDismiss: () => void;
+  t: (key: string, fallback?: string) => string;
+}) {
+  const animatedOpacity = useRef(new Animated.Value(1)).current;
+  const animatedScale = useRef(new Animated.Value(1)).current;
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const handleDelete = () => {
+    if (isDeleting) return;
+    setIsDeleting(true);
+
+    Animated.parallel([
+      Animated.timing(animatedOpacity, {
+        toValue: 0,
+        duration: 220,
+        useNativeDriver: true,
+      }),
+      Animated.timing(animatedScale, {
+        toValue: 0.85,
+        duration: 220,
+        useNativeDriver: true,
+      }),
+    ]).start(() => {
+      if (Platform.OS === 'android' || Platform.OS === 'ios') {
+        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+      }
+      onDismiss();
+    });
+  };
+
+  const cfg = getCategoryConfig(item.type);
+
+  return (
+    <Animated.View
+      style={{
+        opacity: animatedOpacity,
+        transform: [{ scale: animatedScale }],
+      }}
+    >
+      <TouchableOpacity
+        style={[styles.notifCard, !item.isRead && styles.notifCardUnread]}
+        activeOpacity={0.88}
+        onPress={onPress}
+      >
+        {/* Category Icon */}
+        <View style={[styles.iconCircle, { backgroundColor: cfg.bg }]}>
+          <Ionicons name={cfg.icon} size={20} color={cfg.color} />
+        </View>
+
+        {/* Notification Content */}
+        <View style={styles.cardContent}>
+          <View style={styles.cardHeaderRow}>
+            <View style={[styles.tagPill, { backgroundColor: cfg.bg }]}>
+              <Text style={[styles.tagPillText, { color: cfg.color }]}>{cfg.tag}</Text>
+            </View>
+            <Text style={styles.timeText}>{formatRelativeTime(item.createdAt)}</Text>
+          </View>
+
+          <Text style={[styles.notifTitle, !item.isRead && styles.notifTitleUnread]}>
+            {item.title}
+          </Text>
+          <Text style={styles.notifMessage} numberOfLines={3}>
+            {item.message}
+          </Text>
+
+          {item.actionUrl && (
+            <View style={styles.actionLinkRow}>
+              <Text style={styles.actionLinkText}>
+                {item.type === 'event'
+                  ? 'View Admission Pass'
+                  : item.type === 'order'
+                  ? 'Track Order'
+                  : item.type === 'investment'
+                  ? 'View Opportunity'
+                  : t('common.viewDetails', 'View Details')}
+              </Text>
+              <Ionicons name="arrow-forward" size={12} color={colors.navy} style={{ marginLeft: 4 }} />
+            </View>
+          )}
+        </View>
+
+        {/* Right Side Unread Indicator & Delete Button */}
+        <View style={styles.rightActionCol}>
+          {!item.isRead && <View style={styles.unreadIndicatorDot} />}
+          <TouchableOpacity
+            style={styles.dismissBtn}
+            onPress={(e) => {
+              e.stopPropagation();
+              handleDelete();
+            }}
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+            accessibilityLabel="Delete notification"
+          >
+            <Ionicons name="trash-outline" size={16} color="rgba(23, 25, 28, 0.35)" />
+          </TouchableOpacity>
+        </View>
+      </TouchableOpacity>
+    </Animated.View>
+  );
+}
+
 export default function NotificationsScreen() {
   const router = useRouter();
   const { token } = useAuth();
@@ -90,6 +208,7 @@ export default function NotificationsScreen() {
     markAsRead,
     markAllAsRead,
     dismissNotification,
+    clearAllNotifications,
   } = useNotifications();
 
   const [activeCategory, setActiveCategory] = useState<NotificationCategory>('All');
@@ -178,6 +297,26 @@ export default function NotificationsScreen() {
     }
   };
 
+  const handleConfirmClearAll = () => {
+    Alert.alert(
+      t('notifications.clearConfirmTitle', 'Clear All Notifications'),
+      t('notifications.clearConfirmBody', 'Are you sure you want to remove all notifications? This action cannot be undone.'),
+      [
+        { text: t('common.cancel', 'Cancel'), style: 'cancel' },
+        {
+          text: t('notifications.clearAll', 'Clear All'),
+          style: 'destructive',
+          onPress: async () => {
+            if (Platform.OS === 'android' || Platform.OS === 'ios') {
+              LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+            }
+            await clearAllNotifications();
+          },
+        },
+      ]
+    );
+  };
+
   return (
     <View style={styles.screen}>
       <ScreenHeader
@@ -208,16 +347,29 @@ export default function NotificationsScreen() {
           </Text>
         </View>
 
-        {unreadCount > 0 && (
-          <TouchableOpacity
-            style={styles.markAllBtn}
-            onPress={markAllAsRead}
-            activeOpacity={0.8}
-          >
-            <Ionicons name="checkmark-done" size={15} color={colors.navy} style={{ marginRight: 4 }} />
-            <Text style={styles.markAllText}>{t('notifications.markAllRead', 'Mark all as read')}</Text>
-          </TouchableOpacity>
-        )}
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          {unreadCount > 0 && (
+            <TouchableOpacity
+              style={styles.markAllBtn}
+              onPress={markAllAsRead}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="checkmark-done" size={14} color={colors.navy} style={{ marginRight: 4 }} />
+              <Text style={styles.markAllText}>{t('notifications.markAllRead', 'Mark read')}</Text>
+            </TouchableOpacity>
+          )}
+
+          {notifications.length > 0 && (
+            <TouchableOpacity
+              style={styles.clearAllBtn}
+              onPress={handleConfirmClearAll}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="trash-outline" size={13} color="#DC2626" style={{ marginRight: 4 }} />
+              <Text style={styles.clearAllText}>{t('notifications.clearAll', 'Clear all')}</Text>
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
 
       {/* Horizontal Category Filters */}
@@ -265,73 +417,15 @@ export default function NotificationsScreen() {
           />
         }
       >
-        {filteredNotifications.map((item) => {
-          const cfg = getCategoryConfig(item.type);
-          return (
-            <TouchableOpacity
-              key={item.id}
-              style={[styles.notifCard, !item.isRead && styles.notifCardUnread]}
-              activeOpacity={0.88}
-              onPress={() => handleCardPress(item)}
-            >
-              {/* Category Icon */}
-              <View style={[styles.iconCircle, { backgroundColor: cfg.bg }]}>
-                <Ionicons name={cfg.icon} size={20} color={cfg.color} />
-              </View>
-
-              {/* Notification Content */}
-              <View style={styles.cardContent}>
-                <View style={styles.cardHeaderRow}>
-                  <View style={[styles.tagPill, { backgroundColor: cfg.bg }]}>
-                    <Text style={[styles.tagPillText, { color: cfg.color }]}>{cfg.tag}</Text>
-                  </View>
-                  <Text style={styles.timeText}>{formatRelativeTime(item.createdAt)}</Text>
-                </View>
-
-                <Text style={[styles.notifTitle, !item.isRead && styles.notifTitleUnread]}>
-                  {item.title}
-                </Text>
-                <Text style={styles.notifMessage} numberOfLines={3}>
-                  {item.message}
-                </Text>
-
-                {item.actionUrl && (
-                  <View style={styles.actionLinkRow}>
-                    <Text style={styles.actionLinkText}>
-                      {item.type === 'event'
-                        ? 'View Admission Pass'
-                        : item.type === 'order'
-                        ? 'Track Order'
-                        : item.type === 'investment'
-                        ? 'View Opportunity'
-                        : t('common.viewDetails', 'View Details')}
-                    </Text>
-                    <Ionicons name="arrow-forward" size={12} color={colors.navy} style={{ marginLeft: 4 }} />
-                  </View>
-                )}
-              </View>
-
-              {/* Right Side Unread Indicator / Dismiss */}
-              <View style={styles.rightActionCol}>
-                {!item.isRead ? (
-                  <View style={styles.unreadIndicatorDot} />
-                ) : (
-                  <TouchableOpacity
-                    style={styles.dismissBtn}
-                    onPress={(e) => {
-                      e.stopPropagation();
-                      dismissNotification(item.id);
-                    }}
-                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                    accessibilityLabel="Delete notification"
-                  >
-                    <Ionicons name="close-circle-outline" size={18} color="rgba(23, 25, 28, 0.28)" />
-                  </TouchableOpacity>
-                )}
-              </View>
-            </TouchableOpacity>
-          );
-        })}
+        {filteredNotifications.map((item) => (
+          <AnimatedNotificationCard
+            key={item.id}
+            item={item}
+            onPress={() => handleCardPress(item)}
+            onDismiss={() => dismissNotification(item.id)}
+            t={t}
+          />
+        ))}
 
         {/* Empty State */}
         {filteredNotifications.length === 0 && (
@@ -618,6 +712,20 @@ const styles = StyleSheet.create({
     fontFamily: fonts.body,
     fontWeight: '700',
     color: colors.navy,
+  },
+  clearAllBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FEE2E2',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: radius.pill,
+  },
+  clearAllText: {
+    fontSize: 11.5,
+    fontFamily: fonts.body,
+    fontWeight: '700',
+    color: '#DC2626',
   },
 
   // Categories

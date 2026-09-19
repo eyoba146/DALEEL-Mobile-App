@@ -104,7 +104,23 @@ notificationsRouter.patch('/read-all', async (req: Request, res: Response) => {
   }
 });
 
-// 4. Dismiss / delete notification
+// 4. Clear all notifications for user
+notificationsRouter.delete('/', async (req: Request, res: Response) => {
+  try {
+    const userId = getOptionalUserId(req);
+    if (userId) {
+      await prisma.notification.deleteMany({
+        where: { userId },
+      });
+    }
+    res.json({ success: true, message: 'All notifications cleared' });
+  } catch (error) {
+    console.error('Error clearing notifications:', error);
+    res.status(500).json({ error: 'Failed to clear notifications' });
+  }
+});
+
+// 4b. Dismiss / delete single notification
 notificationsRouter.delete('/:id', async (req: Request, res: Response) => {
   try {
     const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;

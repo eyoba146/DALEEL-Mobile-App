@@ -315,7 +315,7 @@ export default function EventDetailScreen() {
                   </View>
                   <View style={[styles.statusPill, styles.statusPillConfirmed]}>
                     <Text style={[styles.statusPillText, styles.statusPillTextConfirmed]}>
-                      {existingRsvp.status === 'checked_in' ? 'ADMITTED' : 'CONFIRMED PASS'}
+                      {existingRsvp.status === 'checked_in' ? 'CHECKED IN' : 'CONFIRMED PASS'}
                     </Text>
                   </View>
                 </View>
@@ -346,6 +346,19 @@ export default function EventDetailScreen() {
                 )}
 
                 <View style={styles.confirmedPassMetaRow}>
+                  <View style={{ flex: 1, paddingRight: 8 }}>
+                    <Text style={styles.confirmedPassMetaLabel}>VENUE & LOCATION</Text>
+                    <Text style={styles.confirmedPassMetaVal} numberOfLines={1}>
+                      {event.venue ? `${event.venue}, ` : ''}{event.city || 'Addis Ababa'}
+                    </Text>
+                  </View>
+                  <View style={{ alignItems: 'flex-end' }}>
+                    <Text style={styles.confirmedPassMetaLabel}>DATE & TIME</Text>
+                    <Text style={styles.confirmedPassMetaVal}>{event.date}{event.time ? ` • ${event.time}` : ''}</Text>
+                  </View>
+                </View>
+
+                <View style={[styles.confirmedPassMetaRow, { borderTopWidth: 1, borderTopColor: '#F1F5F9', marginTop: 10, paddingTop: 10 }]}>
                   <View>
                     <Text style={styles.confirmedPassMetaLabel}>ATTENDEE</Text>
                     <Text style={styles.confirmedPassMetaVal}>{existingRsvp.fullName}</Text>

@@ -578,6 +578,11 @@ export const notificationsApi = {
       `/notifications/${id}`,
       { method: 'DELETE', token }
     ),
+  clearAll: (token?: string | null) =>
+    apiRequest<{ success: boolean; message: string }>(
+      '/notifications',
+      { method: 'DELETE', token }
+    ),
   getPreferences: (token?: string | null) =>
     apiRequest<NotificationPreferences>('/notifications/preferences', { token }),
   updatePreferences: (data: Partial<NotificationPreferences>, token?: string | null) =>

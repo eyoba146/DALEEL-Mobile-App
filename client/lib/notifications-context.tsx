@@ -60,6 +60,7 @@ type NotificationsContextType = {
   markAsRead: (id: string) => Promise<void>;
   markAllAsRead: () => Promise<void>;
   dismissNotification: (id: string) => Promise<void>;
+  clearAllNotifications: () => Promise<void>;
   triggerAlert: (notification: AppNotification) => void;
 };
 
@@ -165,14 +166,14 @@ export function NotificationsProvider({ children }: { children: React.ReactNode 
 
   const dismissNotification = useCallback(
     async (id: string) => {
-      const target = notifications.find((n) => n.id === id);
-      const wasUnread = target && !target.isRead;
-
-      // Optimistic update
-      setNotifications((prev) => prev.filter((n) => n.id !== id));
-      if (wasUnread) {
-        setUnreadCount((prev) => Math.max(0, prev - 1));
-      }
+      // Instant optimistic local removal
+      setNotifications((prev) => {
+        const target = prev.find((n) => n.id === id);
+        if (target && !target.isRead) {
+          setUnreadCount((c) => Math.max(0, c - 1));
+        }
+        return prev.filter((n) => n.id !== id);
+      });
       if (activeAlert?.id === id) {
         setActiveAlert(null);
       }
@@ -183,8 +184,21 @@ export function NotificationsProvider({ children }: { children: React.ReactNode 
         console.warn('Failed to dismiss notification:', err);
       }
     },
-    [notifications, token, activeAlert?.id]
+    [token, activeAlert?.id]
   );
+
+  const clearAllNotifications = useCallback(async () => {
+    // Instant optimistic clearing
+    setNotifications([]);
+    setUnreadCount(0);
+    setActiveAlert(null);
+
+    try {
+      await notificationsApi.clearAll(token);
+    } catch (err) {
+      console.warn('Failed to clear all notifications:', err);
+    }
+  }, [token]);
 
   const triggerAlert = useCallback((notification: AppNotification) => {
     setActiveAlert(notification);
@@ -215,6 +229,7 @@ export function NotificationsProvider({ children }: { children: React.ReactNode 
         markAsRead,
         markAllAsRead,
         dismissNotification,
+        clearAllNotifications,
         triggerAlert,
       }}
     >

@@ -1,7 +1,9 @@
 import React from 'react';
 import { useAdminAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
+import type { Language } from '../utils/translations';
 import type { AppModule } from '../context/AuthContext';
-import { CalendarDays, ShieldCheck } from 'lucide-react';
+import { CalendarDays, ShieldCheck, Globe } from 'lucide-react';
 
 interface HeaderProps {
   currentTab: AppModule;
@@ -51,29 +53,61 @@ const TAB_TITLES: Record<AppModule, { title: string; subtitle: string }> = {
   },
 };
 
+const LOCALE_MAP: Record<Language, string> = {
+  en: 'en-US',
+  am: 'am-ET',
+  om: 'om-ET',
+  ar: 'ar-SA',
+};
+
 export const Header: React.FC<HeaderProps> = ({ currentTab, onSelectTab }) => {
   const { adminUser } = useAdminAuth();
+  const { language, setLanguage, languages, t } = useLanguage();
 
-  const formattedDate = new Intl.DateTimeFormat('en-US', {
+  const formattedDate = new Intl.DateTimeFormat(LOCALE_MAP[language] || 'en-US', {
     weekday: 'long',
     month: 'short',
     day: 'numeric',
     year: 'numeric',
   }).format(new Date());
 
-  const meta = TAB_TITLES[currentTab] || { title: 'DALEEL Management', subtitle: 'Platform Administration' };
+  const title = t(`tab.${currentTab}.title`, TAB_TITLES[currentTab]?.title || 'DALEEL Management');
+  const subtitle = t(`tab.${currentTab}.sub`, TAB_TITLES[currentTab]?.subtitle || 'Platform Administration');
   const isProfileActive = currentTab === 'profile';
 
   return (
     <header style={styles.header}>
       {/* Title & Subtitle */}
       <div>
-        <h2 style={styles.title}>{meta.title}</h2>
-        <div style={styles.subtitle}>{meta.subtitle}</div>
+        <h2 style={styles.title}>{title}</h2>
+        <div style={styles.subtitle}>{subtitle}</div>
       </div>
 
       {/* Right User & Date Group */}
       <div style={styles.rightGroup}>
+        {/* Multilingual Selector Segmented Pills */}
+        <div style={styles.langContainer} role="group" aria-label="Language selection">
+          <Globe size={13} color="#8C6A21" style={{ marginLeft: '4px', marginRight: '2px' }} />
+          {languages.map((lang) => {
+            const isActive = language === lang.code;
+            return (
+              <button
+                key={lang.code}
+                type="button"
+                style={{
+                  ...styles.langPill,
+                  ...(isActive ? styles.langPillActive : styles.langPillInactive),
+                }}
+                onClick={() => setLanguage(lang.code)}
+                title={`${lang.name} (${lang.nativeName})`}
+                aria-label={`Change language to ${lang.name}`}
+              >
+                {lang.badge}
+              </button>
+            );
+          })}
+        </div>
+
         {/* Date Display */}
         <div style={styles.dateChip}>
           <CalendarDays size={14} color="#8C6A21" />
@@ -89,7 +123,7 @@ export const Header: React.FC<HeaderProps> = ({ currentTab, onSelectTab }) => {
           onClick={() => onSelectTab('profile')}
           role="button"
           tabIndex={0}
-          title="Click to view Security & Profile"
+          title={t('sidebar.securityProfile', 'Security & Profile')}
         >
           <div style={styles.userAvatar}>
             {adminUser?.name?.charAt(0).toUpperCase() || 'A'}
@@ -97,7 +131,9 @@ export const Header: React.FC<HeaderProps> = ({ currentTab, onSelectTab }) => {
           <div style={styles.userMeta}>
             <span style={styles.userName}>{adminUser?.name}</span>
             <span style={styles.userRole}>
-              {adminUser?.adminRole === 'SUPER_ADMIN' ? 'Full Administrator' : 'Coordinator'}
+              {adminUser?.adminRole === 'SUPER_ADMIN'
+                ? t('role.super_admin', 'Full Administrator')
+                : t('role.coordinator', 'Coordinator')}
             </span>
           </div>
           <div style={styles.securityIcon}>
@@ -138,6 +174,40 @@ const styles: { [key: string]: React.CSSProperties } = {
     display: 'flex',
     alignItems: 'center',
     gap: '14px',
+  },
+  langContainer: {
+    display: 'flex',
+    alignItems: 'center',
+    padding: '3px 4px',
+    backgroundColor: '#F8FAFC',
+    border: '1px solid #E2E8F0',
+    borderRadius: '9999px',
+    gap: '3px',
+    boxShadow: '0 1px 2px rgba(7, 21, 43, 0.03)',
+  },
+  langPill: {
+    padding: '4px 10px',
+    borderRadius: '9999px',
+    fontSize: '11.5px',
+    fontWeight: 700,
+    cursor: 'pointer',
+    border: '1px solid transparent',
+    transition: 'all 0.18s cubic-bezier(0.4, 0, 0.2, 1)',
+    outline: 'none',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    userSelect: 'none',
+  },
+  langPillActive: {
+    backgroundColor: '#07152B',
+    color: '#DFB76C',
+    borderColor: '#DFB76C',
+    boxShadow: '0 2px 6px rgba(7, 21, 43, 0.25)',
+  },
+  langPillInactive: {
+    backgroundColor: 'transparent',
+    color: '#475569',
   },
   dateChip: {
     display: 'flex',
