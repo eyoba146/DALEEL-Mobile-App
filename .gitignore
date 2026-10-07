@@ -1,6 +1,7 @@
 # ── Dependencies ──────────────────────────────────
 node_modules/
 client/node_modules/
+admin-app/node_modules/
 server/node_modules/
 package-lock.json.bak
 yarn.lock.bak
@@ -32,6 +33,7 @@ GoogleService-Info.plist
 # ── Build Artifacts ───────────────────────────────
 .expo/
 client/.expo/
+admin-app/.expo/
 dist/
 client/dist/
 server/dist/
