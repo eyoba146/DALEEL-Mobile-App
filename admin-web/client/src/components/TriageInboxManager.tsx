@@ -418,8 +418,11 @@ export const TriageInboxManager: React.FC = () => {
       </div>
 
       {/* Workspace Row (Table + In-Page Inspector) */}
-      <div style={styles.workspaceRow}>
-        <div style={{ ...styles.tableWrapper, ...(inspectingItem ? styles.tableWrapperShrunk : {}) }}>
+      <div className="triage-workspace-row" style={styles.workspaceRow}>
+        <div
+          className="triage-table-wrapper"
+          style={{ ...styles.tableWrapper, ...(inspectingItem ? styles.tableWrapperShrunk : {}) }}
+        >
           {loading ? (
             <div style={styles.loadingBox}>
               <RefreshCw size={22} color="#8C6A21" style={{ animation: 'spin 1.2s linear infinite' }} />
@@ -444,7 +447,7 @@ export const TriageInboxManager: React.FC = () => {
               </div>
             </div>
           ) : (
-            <div style={styles.tableCard}>
+            <div className="table-responsive-container" style={styles.tableCard}>
               <table style={styles.table}>
                 <thead>
                   <tr style={styles.thRow}>
@@ -561,7 +564,7 @@ export const TriageInboxManager: React.FC = () => {
 
         {/* Dedicated In-Page Inspection Panel (STRICTLY NO POPUPS) */}
         {inspectingItem && (
-          <aside style={styles.inspectorPanel}>
+          <aside className="triage-inspector-panel" style={styles.inspectorPanel}>
             <div style={styles.inspectorHeader}>
               <div style={styles.inspectorTitleRow}>
                 <ShieldCheck size={16} color="#8C6A21" />
@@ -905,11 +908,12 @@ const styles: { [key: string]: React.CSSProperties } = {
     backgroundColor: '#FFFFFF',
     border: '1px solid #E4E9F0',
     borderRadius: '14px',
-    overflow: 'hidden',
+    overflowX: 'auto',
     boxShadow: '0 2px 10px rgba(7, 21, 43, 0.03)',
   },
   table: {
     width: '100%',
+    minWidth: '700px',
     borderCollapse: 'collapse',
     textAlign: 'left',
   },

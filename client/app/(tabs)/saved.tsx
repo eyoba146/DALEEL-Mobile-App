@@ -1,9 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  Animated,
   Dimensions,
   Image,
   RefreshControl,
@@ -13,7 +11,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   destinations as sampleDestinations,
   events as sampleEvents,
@@ -22,82 +20,30 @@ import {
   services as sampleServices,
 } from '../../assets/data/sample';
 import { contentApi, Destination, EventItem, InvestmentOpportunity, Product, Service } from '../../lib/api';
-import ScreenHeader from '../../components/ScreenHeader';
 import { useFavorites } from '../../lib/favorites-context';
 import { useLanguage } from '../../lib/language-context';
-import { colors, fonts, radius, spacing } from '../../theme/tokens';
+import { colors, fonts, radius, shadow, spacing } from '../../theme/tokens';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 type FilterType = 'all' | 'destination' | 'service' | 'event' | 'investment' | 'product';
 
-function AnimatedCardWrapper({
-  index,
-  filterKey,
-  children,
-}: {
-  index: number;
-  filterKey: string;
-  children: React.ReactNode;
-}) {
-  const anim = React.useRef(new Animated.Value(0)).current;
-
-  React.useEffect(() => {
-    anim.setValue(0);
-    Animated.spring(anim, {
-      toValue: 1,
-      tension: 65,
-      friction: 9,
-      delay: Math.min(index * 45, 250),
-      useNativeDriver: true,
-    }).start();
-  }, [filterKey, index, anim]);
-
-  const translateY = anim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [18, 0],
-  });
-
-  const scale = anim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0.97, 1],
-  });
-
-  return (
-    <Animated.View
-      style={{
-        opacity: anim,
-        transform: [{ translateY }, { scale }],
-      }}
-    >
-      {children}
-    </Animated.View>
-  );
-}
+const FILTER_TABS: { key: FilterType; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
+  { key: 'all', label: 'All Items', icon: 'sparkles' },
+  { key: 'destination', label: 'Heritage', icon: 'compass-outline' },
+  { key: 'service', label: 'Services', icon: 'briefcase-outline' },
+  { key: 'event', label: 'Events', icon: 'calendar-outline' },
+  { key: 'investment', label: 'Investments', icon: 'trending-up-outline' },
+  { key: 'product', label: 'Artisans', icon: 'shirt-outline' },
+];
 
 export default function SavedScreen() {
+  const insets = useSafeAreaInsets();
   const router = useRouter();
   const { t } = useLanguage();
   const { favorites, isLoading, toggleFavorite, refreshFavorites } = useFavorites();
   const [filter, setFilter] = useState<FilterType>('all');
   const [isRefreshing, setIsRefreshing] = useState(false);
-
-  // ── Dynamic Carousel Fades ──
-  const scrollX = React.useRef(new Animated.Value(0)).current;
-  const [carouselContentWidth, setCarouselContentWidth] = useState(1);
-  const [carouselLayoutWidth, setCarouselLayoutWidth] = useState(0);
-
-  const maxScroll = Math.max(40, carouselContentWidth - carouselLayoutWidth);
-  const leftFadeOpacity = scrollX.interpolate({
-    inputRange: [0, 20],
-    outputRange: [0, 1],
-    extrapolate: 'clamp',
-  });
-  const rightFadeOpacity = scrollX.interpolate({
-    inputRange: [Math.max(0, maxScroll - 30), maxScroll],
-    outputRange: [1, 0],
-    extrapolate: 'clamp',
-  });
 
   // Content dictionaries
   const [allDestinations, setAllDestinations] = useState<Destination[]>(sampleDestinations as any);
@@ -146,79 +92,102 @@ export default function SavedScreen() {
   };
 
   // Map favorites to concrete content items
-  const savedItems = favorites
-    .map((fav) => {
-      if (fav.itemType === 'destination') {
-        const item = allDestinations.find((d) => d.id === fav.itemId);
-        return item ? { ...item, _type: 'destination' as const } : null;
-      }
-      if (fav.itemType === 'service') {
-        const item = allServices.find((s) => s.id === fav.itemId);
-        return item ? { ...item, _type: 'service' as const } : null;
-      }
-      if (fav.itemType === 'event') {
-        const item = allEvents.find((e) => e.id === fav.itemId);
-        return item ? { ...item, _type: 'event' as const } : null;
-      }
-      if (fav.itemType === 'investment') {
-        const item = allInvestments.find((inv) => inv.id === fav.itemId);
-        return item ? { ...item, _type: 'investment' as const } : null;
-      }
-      if (fav.itemType === 'product') {
-        const item = allProducts.find((p) => p.id === fav.itemId);
-        return item ? { ...item, _type: 'product' as const } : null;
-      }
-      return null;
-    })
-    .filter(Boolean) as Array<
-    | (Destination & { _type: 'destination' })
-    | (Service & { _type: 'service' })
-    | (EventItem & { _type: 'event' })
-    | (InvestmentOpportunity & { _type: 'investment' })
-    | (Product & { _type: 'product' })
-  >;
+  const savedItems = useMemo(() => {
+    return favorites
+      .map((fav) => {
+        if (fav.itemType === 'destination') {
+          const item = allDestinations.find((d) => d.id === fav.itemId);
+          return item ? { ...item, _type: 'destination' as const } : null;
+        }
+        if (fav.itemType === 'service') {
+          const item = allServices.find((s) => s.id === fav.itemId);
+          return item ? { ...item, _type: 'service' as const } : null;
+        }
+        if (fav.itemType === 'event') {
+          const item = allEvents.find((e) => e.id === fav.itemId);
+          return item ? { ...item, _type: 'event' as const } : null;
+        }
+        if (fav.itemType === 'investment') {
+          const item = allInvestments.find((inv) => inv.id === fav.itemId);
+          return item ? { ...item, _type: 'investment' as const } : null;
+        }
+        if (fav.itemType === 'product') {
+          const item = allProducts.find((p) => p.id === fav.itemId);
+          return item ? { ...item, _type: 'product' as const } : null;
+        }
+        return null;
+      })
+      .filter(Boolean) as Array<
+      | (Destination & { _type: 'destination' })
+      | (Service & { _type: 'service' })
+      | (EventItem & { _type: 'event' })
+      | (InvestmentOpportunity & { _type: 'investment' })
+      | (Product & { _type: 'product' })
+    >;
+  }, [favorites, allDestinations, allServices, allEvents, allInvestments, allProducts]);
 
-  const filteredItems = filter === 'all' ? savedItems : savedItems.filter((i) => i._type === filter);
+  const filteredItems = useMemo(() => {
+    return filter === 'all' ? savedItems : savedItems.filter((i) => i._type === filter);
+  }, [savedItems, filter]);
 
   return (
     <View style={styles.screen}>
-      <ScreenHeader
-        title={t('saved.title', 'Saved Items')}
-        subtitle={t('saved.subtitle', 'Your bookmarked places, services & events')}
-        badgeCount={savedItems.length}
-      />
+      {/* ── HERO HEADER ── */}
+      <View style={[styles.heroHeader, { paddingTop: Math.max(insets.top, 14) }]}>
+        <View style={styles.headerTitleRow}>
+          <View>
+            <View style={styles.headerBadge}>
+              <Ionicons name="bookmark" size={11} color={colors.gold} />
+              <Text style={styles.headerBadgeText}>PERSONAL SANCTUARY</Text>
+            </View>
+            <Text style={styles.headerTitle}>Saved Bookmarks</Text>
+          </View>
+          <View style={styles.countBadge}>
+            <Text style={styles.countBadgeText}>{savedItems.length} SAVED</Text>
+          </View>
+        </View>
 
-      {/* Filter sub-bar */}
-      <View style={styles.filterBar}>
-        {(
-          [
-            { key: 'all' as const, label: t('saved.filters.all', 'All') },
-            { key: 'destination' as const, label: t('saved.filters.destinations', 'Places') },
-            { key: 'service' as const, label: t('saved.filters.services', 'Services') },
-            { key: 'event' as const, label: t('saved.filters.events', 'Events') },
-            { key: 'investment' as const, label: t('saved.filters.investments', 'Investments') },
-            { key: 'product' as const, label: t('saved.filters.crafts', 'Marketplace') },
-          ]
-        ).map((tab) => {
-          const isActive = filter === tab.key;
-          return (
-            <TouchableOpacity
-              key={tab.key}
-              style={[styles.filterPill, isActive && styles.filterPillActive]}
-              onPress={() => setFilter(tab.key)}
-              activeOpacity={0.8}
-            >
-              <Text style={[styles.filterText, isActive && styles.filterTextActive]}>
-                {tab.label}
-              </Text>
-            </TouchableOpacity>
-          );
-        })}
+        {/* Filter Pills */}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.filterPillsTrack}
+        >
+          {FILTER_TABS.map((tab) => {
+            const isActive = filter === tab.key;
+            const count = tab.key === 'all' ? savedItems.length : savedItems.filter((i) => i._type === tab.key).length;
+            return (
+              <TouchableOpacity
+                key={tab.key}
+                style={[styles.filterPill, isActive && styles.filterPillActive]}
+                onPress={() => setFilter(tab.key)}
+                activeOpacity={0.8}
+              >
+                <Ionicons
+                  name={tab.icon}
+                  size={13}
+                  color={isActive ? colors.navy : 'rgba(255, 255, 255, 0.75)'}
+                />
+                <Text style={[styles.filterPillText, isActive && styles.filterPillTextActive]}>
+                  {tab.label}
+                </Text>
+                {count > 0 && (
+                  <View style={[styles.pillCount, isActive && styles.pillCountActive]}>
+                    <Text style={[styles.pillCountText, isActive && styles.pillCountTextActive]}>
+                      {count}
+                    </Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
       </View>
 
+      {/* ── SAVED CONTENT LIST ── */}
       <ScrollView
         style={{ flex: 1 }}
-        contentContainerStyle={styles.content}
+        contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
@@ -229,382 +198,258 @@ export default function SavedScreen() {
           />
         }
       >
-        {filteredItems.map((item, index) => {
-          if (item._type === 'destination') {
-            return (
-              <AnimatedCardWrapper key={`dest-${item.id}`} index={index} filterKey={filter}>
-                <TouchableOpacity
-                  style={styles.card}
-                  activeOpacity={0.92}
-                  onPress={() => router.push({ pathname: '/destination/[id]', params: { id: item.id } })}
-                >
-                  <Image source={{ uri: item.image }} style={styles.cardImage} resizeMode="cover" />
-                  <View style={styles.cardBody}>
-                    <View style={styles.typeBadge}>
-                      <Text style={styles.typeBadgeText}>{t('saved.badges.destination', 'DESTINATION')}</Text>
-                    </View>
-                    <Text style={styles.cardName}>{item.name}</Text>
-                    <Text style={styles.cardBlurb} numberOfLines={2}>
-                      {item.blurb}
-                    </Text>
-                    <View style={styles.metaRow}>
-                      <Ionicons name="location-outline" size={13} color="#718096" />
-                      <Text style={styles.metaText}>{item.region}, Ethiopia</Text>
-                    </View>
-                  </View>
-
-                  <TouchableOpacity
-                    style={styles.bookmarkBtn}
-                    onPress={(e) => {
-                      e.stopPropagation?.();
-                      toggleFavorite('destination', item.id);
-                    }}
-                    activeOpacity={0.7}
-                  >
-                    <Ionicons name="bookmark" size={20} color={colors.gold} />
-                  </TouchableOpacity>
-                </TouchableOpacity>
-              </AnimatedCardWrapper>
-            );
-          }
-
-          if (item._type === 'service') {
-            return (
-              <AnimatedCardWrapper key={`serv-${item.id}`} index={index} filterKey={filter}>
-                <TouchableOpacity
-                  style={styles.card}
-                  activeOpacity={0.92}
-                  onPress={() => router.push({ pathname: '/service/[id]', params: { id: item.id } })}
-                >
-                  <Image source={{ uri: item.image }} style={styles.cardImage} resizeMode="cover" />
-                  <View style={styles.cardBody}>
-                    <View style={[styles.typeBadge, { backgroundColor: '#FEFCBF' }]}>
-                      <Text style={[styles.typeBadgeText, { color: '#744210' }]}>{t('saved.badges.service', 'SERVICE')}</Text>
-                    </View>
-                    <Text style={styles.cardName}>{item.name}</Text>
-                    <Text style={styles.cardCategory}>{item.category}</Text>
-                    <View style={styles.metaRow}>
-                      <Ionicons name="location-outline" size={13} color="#718096" />
-                      <Text style={styles.metaText}>{item.location}</Text>
-                    </View>
-                  </View>
-
-                  <TouchableOpacity
-                    style={styles.bookmarkBtn}
-                    onPress={(e) => {
-                      e.stopPropagation?.();
-                      toggleFavorite('service', item.id);
-                    }}
-                    activeOpacity={0.7}
-                  >
-                    <Ionicons name="bookmark" size={20} color={colors.gold} />
-                  </TouchableOpacity>
-                </TouchableOpacity>
-              </AnimatedCardWrapper>
-            );
-          }
-
-          if (item._type === 'event') {
-            const dateStr =
-              typeof item.date === 'string'
-                ? item.date.split('T')[0]
-                : typeof (item.date as any) === 'object'
-                ? new Date(item.date).toISOString().split('T')[0]
-                : 'Upcoming';
-
-            return (
-              <AnimatedCardWrapper key={`event-${item.id}`} index={index} filterKey={filter}>
-                <TouchableOpacity
-                  style={styles.card}
-                  activeOpacity={0.92}
-                  onPress={() => router.push({ pathname: '/event/[id]', params: { id: item.id } })}
-                >
-                  <Image source={{ uri: item.image }} style={styles.cardImage} resizeMode="cover" />
-                  <View style={styles.cardBody}>
-                    <View style={[styles.typeBadge, { backgroundColor: '#E2E8F0' }]}>
-                      <Text style={[styles.typeBadgeText, { color: colors.navy }]}>{t('saved.badges.event', 'CULTURAL EVENT')}</Text>
-                    </View>
-                    <Text style={styles.cardName}>{item.title}</Text>
-                    <View style={styles.metaRow}>
-                      <Ionicons name="calendar-outline" size={13} color="#718096" />
-                      <Text style={styles.metaText}>
-                        {dateStr} • {item.city}
-                      </Text>
-                    </View>
-                  </View>
-
-                  <TouchableOpacity
-                    style={styles.bookmarkBtn}
-                    onPress={(e) => {
-                      e.stopPropagation?.();
-                      toggleFavorite('event', item.id);
-                    }}
-                    activeOpacity={0.7}
-                  >
-                    <Ionicons name="bookmark" size={20} color={colors.gold} />
-                  </TouchableOpacity>
-                </TouchableOpacity>
-              </AnimatedCardWrapper>
-            );
-          }
-
-          if (item._type === 'investment') {
-            return (
-              <AnimatedCardWrapper key={`inv-${item.id}`} index={index} filterKey={filter}>
-                <TouchableOpacity
-                  style={styles.card}
-                  activeOpacity={0.92}
-                  onPress={() => router.push({ pathname: '/investment/[id]', params: { id: item.id } })}
-                >
-                  <Image source={{ uri: item.image }} style={styles.cardImage} resizeMode="cover" />
-                  <View style={styles.cardBody}>
-                    <View style={[styles.typeBadge, { backgroundColor: '#EBF8FF' }]}>
-                      <Text style={[styles.typeBadgeText, { color: '#2B6CB0' }]}>{t('saved.badges.investment', 'INVESTMENT')}</Text>
-                    </View>
-                    <Text style={styles.cardName}>{item.title}</Text>
-                    <Text style={styles.cardCategory}>{item.sector}</Text>
-                    <View style={styles.metaRow}>
-                      <Ionicons name="location-outline" size={13} color="#718096" />
-                      <Text style={styles.metaText}>{item.location}</Text>
-                    </View>
-                  </View>
-
-                  <TouchableOpacity
-                    style={styles.bookmarkBtn}
-                    onPress={(e) => {
-                      e.stopPropagation?.();
-                      toggleFavorite('investment', item.id);
-                    }}
-                    activeOpacity={0.7}
-                  >
-                    <Ionicons name="bookmark" size={20} color={colors.gold} />
-                  </TouchableOpacity>
-                </TouchableOpacity>
-              </AnimatedCardWrapper>
-            );
-          }
-
-          if (item._type === 'product') {
-            return (
-              <AnimatedCardWrapper key={`prod-${item.id}`} index={index} filterKey={filter}>
-                <TouchableOpacity
-                  style={styles.card}
-                  activeOpacity={0.92}
-                  onPress={() => router.push({ pathname: '/product/[id]', params: { id: item.id } })}
-                >
-                  <Image source={{ uri: item.image }} style={styles.cardImage} resizeMode="cover" />
-                  <View style={styles.cardBody}>
-                    <View style={[styles.typeBadge, { backgroundColor: 'rgba(198, 148, 10, 0.15)' }]}>
-                      <Text style={[styles.typeBadgeText, { color: colors.goldRich }]}>{t('saved.badges.craft', 'ARTISAN CRAFT')}</Text>
-                    </View>
-                    <Text style={styles.cardName} numberOfLines={1}>{item.title}</Text>
-                    <Text style={styles.cardCategory}>
-                      {item.price.toLocaleString()} {item.currency} • {item.category}
-                    </Text>
-                    <View style={styles.metaRow}>
-                      <Ionicons name="storefront-outline" size={13} color="#718096" />
-                      <Text style={styles.metaText} numberOfLines={1}>{item.sellerName}</Text>
-                    </View>
-                  </View>
-
-                  <TouchableOpacity
-                    style={styles.bookmarkBtn}
-                    onPress={(e) => {
-                      e.stopPropagation?.();
-                      toggleFavorite('product', item.id);
-                    }}
-                    activeOpacity={0.7}
-                  >
-                    <Ionicons name="bookmark" size={20} color={colors.gold} />
-                  </TouchableOpacity>
-                </TouchableOpacity>
-              </AnimatedCardWrapper>
-            );
-          }
-
-          return null;
-        })}
-
-        {filteredItems.length === 0 && (
+        {filteredItems.length === 0 ? (
           <View style={styles.emptyContainer}>
-            {/* 1. Concentric Glowing Gold Badge */}
-            <View style={styles.emptyGlowOuter}>
-              <View style={styles.emptyGlowMiddle}>
-                <View style={styles.emptyGlowCore}>
-                  <Ionicons name="bookmark" size={30} color={colors.goldRich} />
-                </View>
-              </View>
+            <View style={styles.emptyIconCircle}>
+              <Ionicons name="bookmark-outline" size={32} color={colors.navy} />
             </View>
-
-            {/* 2. Headline & Narrative */}
-            <View style={styles.emptyEyebrowBadge}>
-              <Ionicons name="sparkles" size={11} color={colors.goldRich} />
-              <Text style={styles.emptyEyebrowText}>{t('saved.emptyEyebrow', 'YOUR PERSONAL COLLECTION')}</Text>
-            </View>
-            
-            <Text style={styles.emptyHeadline}>
-              {t('saved.emptyHeadline', 'Nothing Saved Yet')}
+            <Text style={styles.emptyTitle}>No Bookmarks Here Yet</Text>
+            <Text style={styles.emptySub}>
+              Tap the bookmark icon on any destination, verified service, cultural event, or artisan piece to save it to your private collection.
             </Text>
 
-            <Text style={styles.emptySubtext}>
-              {t('saved.emptyHint', 'As you discover Ethiopia’s timeless heritage, vetted diaspora services, and cultural events, tap the bookmark icon to curate your personal collection here.')}
-            </Text>
-
-            {/* 3. Quick Action Exploration Cards */}
-            <View style={styles.emptyActionsGrid}>
+            <View style={styles.emptyNavGrid}>
               <TouchableOpacity
-                style={styles.emptyActionCard}
+                style={styles.emptyNavCard}
                 onPress={() => router.push('/(tabs)/explore')}
-                activeOpacity={0.88}
+                activeOpacity={0.85}
               >
-                <View style={styles.emptyActionIconCircle}>
-                  <Ionicons name="compass" size={20} color={colors.navy} />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.emptyActionTitle}>Explore Heritage</Text>
-                  <Text style={styles.emptyActionDesc}>Lalibela, Simien, Addis & Harar</Text>
-                </View>
-                <Ionicons name="arrow-forward" size={16} color={colors.goldRich} />
+                <Ionicons name="compass-outline" size={20} color={colors.navy} />
+                <Text style={styles.emptyNavText}>Explore Heritage</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={styles.emptyActionCard}
+                style={styles.emptyNavCard}
                 onPress={() => router.push('/(tabs)/services')}
-                activeOpacity={0.88}
+                activeOpacity={0.85}
               >
-                <View style={styles.emptyActionIconCircle}>
-                  <Ionicons name="briefcase" size={19} color={colors.navy} />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.emptyActionTitle}>Vetted Services</Text>
-                  <Text style={styles.emptyActionDesc}>Relocation, legal, banking & tours</Text>
-                </View>
-                <Ionicons name="arrow-forward" size={16} color={colors.goldRich} />
+                <Ionicons name="briefcase-outline" size={20} color={colors.navy} />
+                <Text style={styles.emptyNavText}>Find Services</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.emptyNavCard}
+                onPress={() => router.push('/investments')}
+                activeOpacity={0.85}
+              >
+                <Ionicons name="trending-up-outline" size={20} color={colors.navy} />
+                <Text style={styles.emptyNavText}>Investments</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.emptyNavCard}
+                onPress={() => router.push('/marketplace')}
+                activeOpacity={0.85}
+              >
+                <Ionicons name="shirt-outline" size={20} color={colors.navy} />
+                <Text style={styles.emptyNavText}>Marketplace</Text>
               </TouchableOpacity>
             </View>
+          </View>
+        ) : (
+          <View style={styles.itemsStack}>
+            {filteredItems.map((item) => {
+              if (item._type === 'destination') {
+                return (
+                  <TouchableOpacity
+                    key={`dest-${item.id}`}
+                    style={styles.destSavedCard}
+                    activeOpacity={0.92}
+                    onPress={() => router.push({ pathname: '/destination/[id]', params: { id: item.id } })}
+                  >
+                    <Image source={{ uri: item.image }} style={styles.destSavedImage} />
+                    <View style={styles.destSavedOverlay} />
 
-            {/* 4. Suggested Starters Carousel */}
-            <View style={styles.suggestedSection}>
-              <View style={styles.suggestedHeaderRow}>
-                <View style={styles.suggestedHeaderIconCircle}>
-                  <Ionicons name="sparkles" size={13} color={colors.goldRich} />
-                </View>
-                <Text style={styles.suggestedHeaderTitle}>Popular to Start Your Collection</Text>
-                <View style={styles.suggestedScrollHint}>
-                  <Text style={styles.suggestedScrollHintText}>Scroll</Text>
-                  <Ionicons name="arrow-forward" size={11} color={colors.goldRich} />
-                </View>
-              </View>
+                    <View style={styles.cardTypeTag}>
+                      <Text style={styles.cardTypeTagText}>HERITAGE SITE</Text>
+                    </View>
 
-              <View style={styles.carouselContainer}>
-                <Animated.ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={styles.suggestedScrollContent}
-                  snapToInterval={244}
-                  decelerationRate="fast"
-                  onContentSizeChange={(w) => setCarouselContentWidth(w)}
-                  onLayout={(e) => setCarouselLayoutWidth(e.nativeEvent.layout.width)}
-                  onScroll={Animated.event(
-                    [{ nativeEvent: { contentOffset: { x: scrollX } } }],
-                    { useNativeDriver: true }
-                  )}
-                  scrollEventThrottle={16}
-                >
-                  {allDestinations.slice(0, 4).map((d) => (
                     <TouchableOpacity
-                      key={d.id}
-                      style={styles.suggestedCard}
-                      onPress={() => router.push({ pathname: '/destination/[id]', params: { id: d.id } })}
-                      activeOpacity={0.9}
+                      style={styles.removeBookmarkBtn}
+                      onPress={(e) => {
+                        e.stopPropagation?.();
+                        toggleFavorite('destination', item.id);
+                      }}
+                      activeOpacity={0.7}
                     >
-                      <Image source={{ uri: d.image }} style={styles.suggestedImage} resizeMode="cover" />
-                      <LinearGradient
-                        colors={['transparent', 'rgba(7, 21, 43, 0.35)', 'rgba(7, 21, 43, 0.9)']}
-                        locations={[0, 0.45, 1]}
-                        style={StyleSheet.absoluteFill}
-                      />
-                      <View style={styles.suggestedBody}>
-                        <View style={styles.suggestedPill}>
-                          <Ionicons name="location-sharp" size={9} color="#DFB76C" style={{ marginRight: 3 }} />
-                          <Text style={styles.suggestedPillText}>{d.region}</Text>
-                        </View>
-                        <Text style={styles.suggestedName} numberOfLines={1}>{d.name}</Text>
-                        <TouchableOpacity
-                          style={styles.suggestedSaveBtn}
-                          onPress={(e) => {
-                            e.stopPropagation?.();
-                            toggleFavorite('destination', d.id);
-                          }}
-                          activeOpacity={0.8}
-                        >
-                          <Ionicons name="bookmark-outline" size={13} color={colors.navy} />
-                          <Text style={styles.suggestedSaveBtnText}>Save</Text>
-                        </TouchableOpacity>
-                      </View>
+                      <Ionicons name="bookmark" size={17} color={colors.gold} />
                     </TouchableOpacity>
-                  ))}
 
-                  {allServices.slice(0, 3).map((s) => (
+                    <View style={styles.destSavedBody}>
+                      <Text style={styles.destSavedRegion}>{item.region}, Ethiopia</Text>
+                      <Text style={styles.destSavedName}>{item.name}</Text>
+                      <Text style={styles.destSavedBlurb} numberOfLines={2}>
+                        {item.blurb}
+                      </Text>
+
+                      <View style={styles.destSavedActionRow}>
+                        <Text style={styles.destSavedActionText}>Open Heritage Guide</Text>
+                        <Ionicons name="arrow-forward" size={12} color="#FFFFFF" />
+                      </View>
+                    </View>
+                  </TouchableOpacity>
+                );
+              }
+
+              if (item._type === 'service') {
+                return (
+                  <TouchableOpacity
+                    key={`serv-${item.id}`}
+                    style={styles.serviceSavedCard}
+                    activeOpacity={0.92}
+                    onPress={() => router.push({ pathname: '/service/[id]', params: { id: item.id } })}
+                  >
+                    <View style={styles.serviceSavedTop}>
+                      <Image source={{ uri: item.image }} style={styles.serviceSavedAvatar} />
+                      <View style={{ flex: 1, marginLeft: 12 }}>
+                        <View style={styles.typeTagRow}>
+                          <Text style={styles.serviceTypeTagText}>VERIFIED CONCIERGE</Text>
+                          {item.verified && (
+                            <View style={styles.verifiedCheckPill}>
+                              <Ionicons name="checkmark-circle" size={12} color={colors.goldRich} />
+                              <Text style={styles.verifiedCheckText}>VERIFIED</Text>
+                            </View>
+                          )}
+                        </View>
+                        <Text style={styles.serviceSavedName} numberOfLines={1}>{item.name}</Text>
+                        <Text style={styles.serviceSavedCategory}>{item.category} • {item.location}</Text>
+                      </View>
+
+                      <TouchableOpacity
+                        style={styles.removeBookmarkBtnLight}
+                        onPress={(e) => {
+                          e.stopPropagation?.();
+                          toggleFavorite('service', item.id);
+                        }}
+                        activeOpacity={0.7}
+                      >
+                        <Ionicons name="bookmark" size={18} color={colors.goldRich} />
+                      </TouchableOpacity>
+                    </View>
+
+                    <View style={styles.serviceSavedFooter}>
+                      <Text style={styles.serviceActionText}>View Consultation Details</Text>
+                      <Ionicons name="arrow-forward" size={12} color={colors.navy} />
+                    </View>
+                  </TouchableOpacity>
+                );
+              }
+
+              if (item._type === 'event') {
+                return (
+                  <TouchableOpacity
+                    key={`event-${item.id}`}
+                    style={styles.eventSavedCard}
+                    activeOpacity={0.92}
+                    onPress={() => router.push({ pathname: '/event/[id]', params: { id: item.id } })}
+                  >
+                    <Image source={{ uri: item.image }} style={styles.eventSavedImg} />
+                    <View style={{ flex: 1, padding: 12 }}>
+                      <Text style={styles.eventTypeTagText}>CULTURAL EVENT</Text>
+                      <Text style={styles.eventSavedTitle} numberOfLines={1}>{item.title}</Text>
+                      <Text style={styles.eventSavedMeta}>
+                        <Ionicons name="calendar-outline" size={11} color={colors.charcoalLight} /> {item.date} • {item.city}
+                      </Text>
+                      <View style={styles.eventSavedAction}>
+                        <Text style={styles.eventActionText}>View Event</Text>
+                        <Ionicons name="arrow-forward" size={11} color={colors.navy} />
+                      </View>
+                    </View>
+
                     <TouchableOpacity
-                      key={s.id}
-                      style={styles.suggestedCard}
-                      onPress={() => router.push({ pathname: '/service/[id]', params: { id: s.id } })}
-                      activeOpacity={0.9}
+                      style={styles.removeBookmarkBtnLight}
+                      onPress={(e) => {
+                        e.stopPropagation?.();
+                        toggleFavorite('event', item.id);
+                      }}
+                      activeOpacity={0.7}
                     >
-                      <Image source={{ uri: s.image }} style={styles.suggestedImage} resizeMode="cover" />
-                      <LinearGradient
-                        colors={['transparent', 'rgba(7, 21, 43, 0.35)', 'rgba(7, 21, 43, 0.9)']}
-                        locations={[0, 0.45, 1]}
-                        style={StyleSheet.absoluteFill}
-                      />
-                      <View style={styles.suggestedBody}>
-                        <View style={styles.suggestedPill}>
-                          <Ionicons name="briefcase" size={9} color="#DFB76C" style={{ marginRight: 3 }} />
-                          <Text style={styles.suggestedPillText}>{s.category}</Text>
-                        </View>
-                        <Text style={styles.suggestedName} numberOfLines={1}>{s.name}</Text>
-                        <TouchableOpacity
-                          style={styles.suggestedSaveBtn}
-                          onPress={(e) => {
-                            e.stopPropagation?.();
-                            toggleFavorite('service', s.id);
-                          }}
-                          activeOpacity={0.8}
-                        >
-                          <Ionicons name="bookmark-outline" size={13} color={colors.navy} />
-                          <Text style={styles.suggestedSaveBtnText}>Save</Text>
-                        </TouchableOpacity>
-                      </View>
+                      <Ionicons name="bookmark" size={18} color={colors.goldRich} />
                     </TouchableOpacity>
-                  ))}
-                </Animated.ScrollView>
+                  </TouchableOpacity>
+                );
+              }
 
-                {/* Dynamic Left Edge Fade (Navy) */}
-                <Animated.View style={[styles.carouselFadeLeft, { opacity: leftFadeOpacity }]} pointerEvents="none">
-                  <LinearGradient
-                    colors={['rgba(7, 21, 43, 1)', 'rgba(7, 21, 43, 0)']}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 0 }}
-                    style={StyleSheet.absoluteFill}
-                  />
-                </Animated.View>
+              if (item._type === 'investment') {
+                return (
+                  <TouchableOpacity
+                    key={`inv-${item.id}`}
+                    style={styles.invSavedCard}
+                    activeOpacity={0.92}
+                    onPress={() => router.push({ pathname: '/investment/[id]', params: { id: item.id } })}
+                  >
+                    <View style={styles.invSavedHeader}>
+                      <View>
+                        <Text style={styles.invTypeTagText}>DIASPORA VENTURE</Text>
+                        <Text style={styles.invSavedTitle}>{item.title}</Text>
+                      </View>
+                      <TouchableOpacity
+                        style={styles.removeBookmarkBtnLight}
+                        onPress={(e) => {
+                          e.stopPropagation?.();
+                          toggleFavorite('investment', item.id);
+                        }}
+                        activeOpacity={0.7}
+                      >
+                        <Ionicons name="bookmark" size={18} color={colors.goldRich} />
+                      </TouchableOpacity>
+                    </View>
 
-                {/* Dynamic Right Edge Fade (Navy) */}
-                <Animated.View style={[styles.carouselFadeRight, { opacity: rightFadeOpacity }]} pointerEvents="none">
-                  <LinearGradient
-                    colors={['rgba(7, 21, 43, 0)', 'rgba(7, 21, 43, 1)']}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 0 }}
-                    style={StyleSheet.absoluteFill}
-                  />
-                </Animated.View>
-              </View>
-            </View>
+                    <View style={styles.invSavedMetricsRow}>
+                      <View>
+                        <Text style={styles.invMetricLabel}>SECTOR</Text>
+                        <Text style={styles.invMetricValue}>{item.sector}</Text>
+                      </View>
+                      <View>
+                        <Text style={styles.invMetricLabel}>MIN CAPITAL</Text>
+                        <Text style={styles.invMetricValue}>{item.minInvestment ? `$${item.minInvestment.toLocaleString()}` : 'Inquiry'}</Text>
+                      </View>
+                      {item.expectedReturn && (
+                        <View>
+                          <Text style={styles.invMetricLabel}>TARGET</Text>
+                          <Text style={[styles.invMetricValue, { color: colors.goldRich }]}>{item.expectedReturn}</Text>
+                        </View>
+                      )}
+                    </View>
+                  </TouchableOpacity>
+                );
+              }
+
+              if (item._type === 'product') {
+                return (
+                  <TouchableOpacity
+                    key={`prod-${item.id}`}
+                    style={styles.prodSavedCard}
+                    activeOpacity={0.92}
+                    onPress={() => router.push({ pathname: '/product/[id]', params: { id: item.id } })}
+                  >
+                    <Image source={{ uri: item.image }} style={styles.prodSavedImg} />
+                    <View style={{ flex: 1, padding: 12 }}>
+                      <Text style={styles.prodTypeTagText}>ARTISAN CRAFT</Text>
+                      <Text style={styles.prodSavedTitle} numberOfLines={1}>{item.title}</Text>
+                      <Text style={styles.prodSavedSeller}>{item.sellerName}</Text>
+                      <Text style={styles.prodSavedPrice}>{item.currency || '$'} {item.price}</Text>
+                    </View>
+                    <TouchableOpacity
+                      style={styles.removeBookmarkBtnLight}
+                      onPress={(e) => {
+                        e.stopPropagation?.();
+                        toggleFavorite('product', item.id);
+                      }}
+                      activeOpacity={0.7}
+                    >
+                      <Ionicons name="bookmark" size={18} color={colors.goldRich} />
+                    </TouchableOpacity>
+                  </TouchableOpacity>
+                );
+              }
+
+              return null;
+            })}
           </View>
         )}
 
-        <View style={{ height: 32 }} />
+        <View style={{ height: 48 }} />
       </ScrollView>
     </View>
   );
@@ -613,403 +458,469 @@ export default function SavedScreen() {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: colors.ivory,
+    backgroundColor: colors.background,
   },
-  // ── Slim Nav Header ─────────────────────────────────
-  header: {
+
+  // ── HERO HEADER ──────────────────────────────────────────
+  heroHeader: {
+    backgroundColor: colors.navy,
+    paddingHorizontal: 20,
+    paddingBottom: 16,
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
+    ...shadow.header,
+  },
+  headerTitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    height: 56,
-    backgroundColor: '#FFFFFF',
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.border,
-  },
-  title: {
-    fontFamily: fonts.heading,
-    fontSize: 22,
-    color: colors.charcoal,
-    letterSpacing: -0.4,
-  },
-  headerCount: {
-    backgroundColor: colors.goldSoft,
-    borderRadius: 10,
-    paddingHorizontal: 9,
-    paddingVertical: 3,
-    borderWidth: 1,
-    borderColor: colors.goldBorder,
-  },
-  headerCountText: {
-    fontFamily: fonts.bodySemiBold,
-    fontSize: 12,
-    color: colors.goldRich,
-  },
-  // ── Filter sub-bar ─────────────────────────────────
-  filterBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    backgroundColor: '#FFFFFF',
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.border,
-  },
-  filterPill: {
-    paddingHorizontal: 13,
-    paddingVertical: 5,
-    borderRadius: 20,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  filterPillActive: {
-    backgroundColor: colors.navy,
-    borderColor: colors.navy,
-  },
-  filterText: {
-    fontFamily: fonts.bodyMedium,
-    fontSize: 12,
-    color: colors.charcoalSub,
-  },
-  filterTextActive: {
-    color: '#FFFFFF',
-    fontFamily: fonts.bodySemiBold,
-  },
-  // ── Legacy shims ───────────────────────────────────
-  tagBadge: { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  tagText: { fontFamily: fonts.bodySemiBold, fontSize: 11, color: colors.gold, letterSpacing: 1.2 },
-  subtitle: { fontFamily: fonts.body, fontSize: 13, color: colors.charcoalSub },
-  filterRow: { flexDirection: 'row', gap: 8 },
-
-  content: {
-    padding: 20,
-  },
-  card: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 14,
     marginBottom: 14,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 18,
-    borderWidth: 1.5,
-    borderColor: colors.border,
   },
-  cardImage: {
-    width: 76,
-    height: 76,
-    borderRadius: 14,
-  },
-  cardBody: {
-    flex: 1,
-    marginLeft: 14,
-    justifyContent: 'center',
-  },
-  typeBadge: {
+  headerBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: 'rgba(223, 183, 108, 0.16)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: radius.pill,
     alignSelf: 'flex-start',
-    backgroundColor: colors.surface,
-    paddingHorizontal: 7,
-    paddingVertical: 2,
-    borderRadius: 6,
     marginBottom: 4,
   },
-  typeBadgeText: {
-    fontFamily: fonts.bodySemiBold,
+  headerBadgeText: {
+    fontFamily: fonts.bodyBold,
     fontSize: 9,
+    color: colors.gold,
+    letterSpacing: 1,
+  },
+  headerTitle: {
+    fontFamily: fonts.heading,
+    fontSize: 26,
+    color: '#FFFFFF',
+    letterSpacing: -0.3,
+  },
+  countBadge: {
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+  },
+  countBadgeText: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 10,
+    color: '#FFFFFF',
+    letterSpacing: 0.5,
+  },
+
+  filterPillsTrack: {
+    gap: 8,
+    paddingRight: 10,
+  },
+  filterPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
+  },
+  filterPillActive: {
+    backgroundColor: colors.gold,
+    borderColor: colors.gold,
+  },
+  filterPillText: {
+    fontFamily: fonts.bodyMedium,
+    fontSize: 11.5,
+    color: 'rgba(255, 255, 255, 0.8)',
+  },
+  filterPillTextActive: {
+    fontFamily: fonts.bodyBold,
+    color: colors.navy,
+  },
+  pillCount: {
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+    borderRadius: 8,
+  },
+  pillCountActive: {
+    backgroundColor: colors.navy,
+  },
+  pillCountText: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 9.5,
+    color: '#FFFFFF',
+  },
+  pillCountTextActive: {
+    color: colors.gold,
+  },
+
+  // ── CONTENT BODY ─────────────────────────────────────────
+  scrollContent: {
+    paddingTop: 18,
+    paddingBottom: 40,
+  },
+  itemsStack: {
+    paddingHorizontal: 20,
+    gap: 14,
+  },
+
+  // Destination Card
+  destSavedCard: {
+    height: 220,
+    borderRadius: radius.lg,
+    overflow: 'hidden',
+    position: 'relative',
+    backgroundColor: colors.navy,
+    ...shadow.card,
+  },
+  destSavedImage: {
+    width: '100%',
+    height: '100%',
+    position: 'absolute',
+  },
+  destSavedOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(7, 21, 43, 0.55)',
+  },
+  cardTypeTag: {
+    position: 'absolute',
+    top: 12,
+    left: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 4,
+    zIndex: 2,
+  },
+  cardTypeTagText: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 8.5,
     color: colors.navy,
     letterSpacing: 0.5,
   },
-  cardName: {
-    fontFamily: fonts.bodySemiBold,
-    fontSize: 15,
-    color: colors.charcoal,
-    marginBottom: 2,
+  removeBookmarkBtn: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(7, 21, 43, 0.75)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 2,
   },
-  cardCategory: {
-    fontFamily: fonts.bodySemiBold,
-    fontSize: 12,
+  destSavedBody: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    padding: 14,
+    zIndex: 2,
+  },
+  destSavedRegion: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 10.5,
     color: colors.gold,
+    letterSpacing: 0.5,
     marginBottom: 2,
   },
-  cardBlurb: {
-    fontFamily: fonts.body,
-    fontSize: 12,
-    color: colors.charcoalSub,
-    lineHeight: 17,
+  destSavedName: {
+    fontFamily: fonts.heading,
+    fontSize: 20,
+    color: '#FFFFFF',
+    marginBottom: 4,
   },
-  metaRow: {
+  destSavedBlurb: {
+    fontFamily: fonts.body,
+    fontSize: 11.5,
+    color: 'rgba(255, 255, 255, 0.85)',
+    lineHeight: 16,
+    marginBottom: 10,
+  },
+  destSavedActionRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    marginTop: 4,
   },
-  metaText: {
-    fontFamily: fonts.body,
-    fontSize: 12,
-    color: colors.charcoalSub,
-  },
-  bookmarkBtn: {
-    padding: 10,
-  },
-
-  // ── 10x Empty State Styles ─────────────────────────
-  emptyContainer: {
-    width: '100%',
-    paddingHorizontal: 0,
-    paddingTop: 36,
-    paddingBottom: 40,
-    alignItems: 'center',
-  },
-  emptyGlowOuter: {
-    width: 96,
-    height: 96,
-    borderRadius: 48,
-    backgroundColor: 'rgba(223, 183, 108, 0.1)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1.5,
-    borderColor: 'rgba(223, 183, 108, 0.25)',
-    marginBottom: 16,
-  },
-  emptyGlowMiddle: {
-    width: 76,
-    height: 76,
-    borderRadius: 38,
-    backgroundColor: 'rgba(223, 183, 108, 0.2)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  emptyGlowCore: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: '#FFFFFF',
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: colors.gold,
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 3,
-  },
-  emptyEyebrowBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(223, 183, 108, 0.15)',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: radius.pill,
-    gap: 5,
-    marginBottom: 8,
-    borderWidth: 1,
-    borderColor: 'rgba(223, 183, 108, 0.35)',
-  },
-  emptyEyebrowText: {
+  destSavedActionText: {
     fontFamily: fonts.bodyBold,
-    fontSize: 10,
-    color: colors.goldRich,
-    letterSpacing: 1,
-  },
-  emptyHeadline: {
-    fontFamily: fonts.heading,
-    fontSize: 26,
-    color: colors.navy,
-    textAlign: 'center',
-    marginBottom: 8,
-  },
-  emptySubtext: {
-    fontFamily: fonts.body,
-    fontSize: 13.5,
-    color: colors.charcoalSub,
-    textAlign: 'center',
-    lineHeight: 21,
-    paddingHorizontal: 10,
-    marginBottom: 24,
+    fontSize: 11.5,
+    color: '#FFFFFF',
   },
 
-  // Action Cards Grid
-  emptyActionsGrid: {
-    width: '100%',
-    flexDirection: 'row',
-    gap: 12,
-    marginBottom: 30,
-  },
-  emptyActionCard: {
-    flex: 1,
+  // Service Card
+  serviceSavedCard: {
     backgroundColor: '#FFFFFF',
-    borderRadius: radius.xl,
+    borderRadius: radius.md,
     padding: 14,
     borderWidth: 1,
-    borderColor: 'rgba(0,0,0,0.06)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 8,
-    elevation: 2,
-    alignItems: 'flex-start',
-    gap: 8,
+    borderColor: colors.border,
+    ...shadow.card,
   },
-  emptyActionIconCircle: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: colors.surface,
-    justifyContent: 'center',
+  serviceSavedTop: {
+    flexDirection: 'row',
     alignItems: 'center',
   },
-  emptyActionTitle: {
+  serviceSavedAvatar: {
+    width: 52,
+    height: 52,
+    borderRadius: radius.sm,
+    backgroundColor: colors.surface,
+  },
+  typeTagRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 2,
+  },
+  serviceTypeTagText: {
     fontFamily: fonts.bodyBold,
-    fontSize: 13.5,
+    fontSize: 8.5,
+    color: colors.charcoalLight,
+    letterSpacing: 0.5,
+  },
+  verifiedCheckPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+    backgroundColor: 'rgba(223, 183, 108, 0.15)',
+    paddingHorizontal: 4,
+    paddingVertical: 1,
+    borderRadius: 3,
+  },
+  verifiedCheckText: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 7.5,
+    color: colors.goldRich,
+  },
+  serviceSavedName: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 14,
     color: colors.navy,
   },
-  emptyActionDesc: {
+  serviceSavedCategory: {
     fontFamily: fonts.body,
     fontSize: 11,
     color: colors.charcoalSub,
     marginTop: 2,
-    lineHeight: 15,
   },
-
-  // Suggested Starters Section (Premium Navy VIP UI)
-  suggestedSection: {
-    width: SCREEN_WIDTH - 24,
-    alignSelf: 'center',
-    backgroundColor: colors.navy,
-    paddingVertical: 18,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
-    marginTop: 12,
-    overflow: 'hidden',
+  removeBookmarkBtnLight: {
+    padding: 6,
   },
-  suggestedHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    marginBottom: 14,
-    gap: 8,
-  },
-  suggestedHeaderIconCircle: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  suggestedHeaderTitle: {
-    fontFamily: fonts.bodyBold,
-    fontSize: 14,
-    color: '#FFFFFF',
-    flex: 1,
-  },
-  suggestedScrollHint: {
+  serviceSavedFooter: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: 'rgba(223, 183, 108, 0.12)',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: radius.pill,
+    marginTop: 10,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: colors.separator,
   },
-  suggestedScrollHintText: {
-    fontFamily: fonts.bodySemiBold,
-    fontSize: 10.5,
-    color: colors.goldRich,
-  },
-  carouselContainer: {
-    position: 'relative',
-    width: '100%',
-  },
-  carouselFadeLeft: {
-    position: 'absolute',
-    left: 0,
-    top: 0,
-    bottom: 0,
-    width: 28,
-    zIndex: 10,
-    borderTopLeftRadius: 16,
-    borderBottomLeftRadius: 16,
-  },
-  carouselFadeRight: {
-    position: 'absolute',
-    right: 0,
-    top: 0,
-    bottom: 0,
-    width: 28,
-    zIndex: 10,
-    borderTopRightRadius: 16,
-    borderBottomRightRadius: 16,
-  },
-  suggestedScrollContent: {
-    paddingHorizontal: 20,
-    gap: 14,
-  },
-  suggestedCard: {
-    width: 230,
-    height: 200,
-    borderRadius: radius.xl,
-    overflow: 'hidden',
-    position: 'relative',
-    backgroundColor: '#0F2447',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.12)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.12,
-    shadowRadius: 6,
-    elevation: 3,
-  },
-  suggestedImage: {
-    width: '100%',
-    height: '100%',
-  },
-  suggestedBody: {
-    position: 'absolute',
-    bottom: 12,
-    left: 12,
-    right: 12,
-  },
-  suggestedPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    alignSelf: 'flex-start',
-    backgroundColor: 'rgba(7, 21, 43, 0.75)',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: radius.pill,
-    marginBottom: 6,
-    borderWidth: 1,
-    borderColor: 'rgba(223, 183, 108, 0.4)',
-  },
-  suggestedPillText: {
-    fontFamily: fonts.bodySemiBold,
-    fontSize: 10,
-    color: '#FFFFFF',
-  },
-  suggestedName: {
-    fontFamily: fonts.bodyBold,
-    fontSize: 14,
-    color: '#FFFFFF',
-    marginBottom: 8,
-    textShadowColor: 'rgba(0,0,0,0.6)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 3,
-  },
-  suggestedSaveBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    alignSelf: 'flex-start',
-    backgroundColor: colors.gold,
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-    borderRadius: radius.pill,
-    gap: 5,
-  },
-  suggestedSaveBtnText: {
+  serviceActionText: {
     fontFamily: fonts.bodyBold,
     fontSize: 11,
+    color: colors.navy,
+  },
+
+  // Event Card
+  eventSavedCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: radius.md,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: colors.border,
+    ...shadow.card,
+  },
+  eventSavedImg: {
+    width: 90,
+    height: '100%',
+    minHeight: 85,
+    backgroundColor: colors.surface,
+  },
+  eventTypeTagText: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 8,
+    color: colors.goldRich,
+    letterSpacing: 0.5,
+    marginBottom: 2,
+  },
+  eventSavedTitle: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 13,
+    color: colors.navy,
+  },
+  eventSavedMeta: {
+    fontFamily: fonts.body,
+    fontSize: 10.5,
+    color: colors.charcoalSub,
+    marginTop: 3,
+  },
+  eventSavedAction: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    marginTop: 6,
+  },
+  eventActionText: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 10.5,
+    color: colors.navy,
+  },
+
+  // Investment Card
+  invSavedCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: radius.md,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: colors.border,
+    ...shadow.card,
+  },
+  invSavedHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  },
+  invTypeTagText: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 8.5,
+    color: colors.goldRich,
+    letterSpacing: 0.5,
+    marginBottom: 2,
+  },
+  invSavedTitle: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 14,
+    color: colors.navy,
+  },
+  invSavedMetricsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 10,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: colors.separator,
+  },
+  invMetricLabel: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 8,
+    color: colors.charcoalLight,
+    letterSpacing: 0.5,
+  },
+  invMetricValue: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 12,
+    color: colors.navy,
+    marginTop: 1,
+  },
+
+  // Product Card
+  prodSavedCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: radius.md,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: colors.border,
+    ...shadow.card,
+  },
+  prodSavedImg: {
+    width: 80,
+    height: '100%',
+    minHeight: 80,
+    backgroundColor: colors.surface,
+  },
+  prodTypeTagText: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 8,
+    color: colors.goldRich,
+    letterSpacing: 0.5,
+    marginBottom: 2,
+  },
+  prodSavedTitle: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 13,
+    color: colors.navy,
+  },
+  prodSavedSeller: {
+    fontFamily: fonts.body,
+    fontSize: 10.5,
+    color: colors.charcoalLight,
+    marginTop: 2,
+  },
+  prodSavedPrice: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 12,
+    color: colors.navy,
+    marginTop: 2,
+  },
+
+  // Empty State
+  emptyContainer: {
+    alignItems: 'center',
+    paddingHorizontal: 28,
+    paddingVertical: 50,
+  },
+  emptyIconCircle: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  emptyTitle: {
+    fontFamily: fonts.heading,
+    fontSize: 22,
+    color: colors.navy,
+    marginBottom: 6,
+    textAlign: 'center',
+  },
+  emptySub: {
+    fontFamily: fonts.body,
+    fontSize: 13,
+    color: colors.charcoalSub,
+    textAlign: 'center',
+    lineHeight: 19,
+    marginBottom: 28,
+  },
+  emptyNavGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+    width: '100%',
+  },
+  emptyNavCard: {
+    width: (SCREEN_WIDTH - 56 - 12) / 2,
+    backgroundColor: '#FFFFFF',
+    borderRadius: radius.md,
+    paddingVertical: 16,
+    alignItems: 'center',
+    gap: 8,
+    borderWidth: 1,
+    borderColor: colors.border,
+    ...shadow.card,
+  },
+  emptyNavText: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 12,
     color: colors.navy,
   },
 });

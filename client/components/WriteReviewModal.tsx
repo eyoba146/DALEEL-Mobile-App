@@ -53,6 +53,29 @@ export const WriteReviewModal: React.FC<Props> = ({
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
+  // Field validation tracking
+  const [touchedAuthor, setTouchedAuthor] = useState(false);
+  const [touchedComment, setTouchedComment] = useState(false);
+  const [submittedReview, setSubmittedReview] = useState(false);
+
+  const authorTrimmed = authorName.trim();
+  const authorError = (touchedAuthor || submittedReview)
+    ? !authorTrimmed
+      ? 'Please provide your name or diaspora community location.'
+      : authorTrimmed.length < 2
+      ? 'Name must be at least 2 characters.'
+      : null
+    : null;
+
+  const commentTrimmed = comment.trim();
+  const commentError = (touchedComment || submittedReview)
+    ? !commentTrimmed
+      ? 'Please write a review describing your experience.'
+      : commentTrimmed.length < 10
+      ? 'Review must be at least 10 characters.'
+      : null
+    : null;
+
   const handlePickImage = async () => {
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
@@ -80,13 +103,19 @@ export const WriteReviewModal: React.FC<Props> = ({
   };
 
   const handleSubmit = async () => {
-    if (!comment.trim()) {
-      setErrorMsg('Please write a brief comment describing your experience.');
+    setSubmittedReview(true);
+    setErrorMsg(null);
+
+    if (!authorTrimmed || authorTrimmed.length < 2) {
+      setTouchedAuthor(true);
+      return;
+    }
+    if (!commentTrimmed || commentTrimmed.length < 10) {
+      setTouchedComment(true);
       return;
     }
 
     setSubmitting(true);
-    setErrorMsg(null);
 
     try {
       const res = await reviewsApi.createReview(
@@ -184,12 +213,22 @@ export const WriteReviewModal: React.FC<Props> = ({
             {/* Author Name */}
             <Text style={styles.inputLabel}>Your Name / Diaspora Location *</Text>
             <TextInput
-              style={styles.inputField}
+              style={[styles.inputField, !!authorError && styles.inputFieldError]}
               placeholder="e.g. Hanna Berhane (Atlanta, USA)"
               placeholderTextColor={colors.charcoalLight}
               value={authorName}
-              onChangeText={setAuthorName}
+              onChangeText={(val) => {
+                setAuthorName(val);
+                if (errorMsg) setErrorMsg(null);
+              }}
+              onBlur={() => setTouchedAuthor(true)}
             />
+            {!!authorError && (
+              <View style={styles.fieldErrorRow}>
+                <Ionicons name="alert-circle" size={13} color={colors.error} />
+                <Text style={styles.fieldErrorText}>{authorError}</Text>
+              </View>
+            )}
 
             {/* Review Title */}
             <Text style={styles.inputLabel}>Review Headline</Text>
@@ -204,14 +243,24 @@ export const WriteReviewModal: React.FC<Props> = ({
             {/* Review Comment */}
             <Text style={styles.inputLabel}>Detailed Feedback / Craft Experience *</Text>
             <TextInput
-              style={[styles.inputField, styles.textArea]}
+              style={[styles.inputField, styles.textArea, !!commentError && styles.inputFieldError]}
               placeholder="Describe the authenticity, customer coordination, craftsmanship, packaging, or timeliness…"
               placeholderTextColor={colors.charcoalLight}
               multiline
               numberOfLines={4}
               value={comment}
-              onChangeText={setComment}
+              onChangeText={(val) => {
+                setComment(val);
+                if (errorMsg) setErrorMsg(null);
+              }}
+              onBlur={() => setTouchedComment(true)}
             />
+            {!!commentError && (
+              <View style={styles.fieldErrorRow}>
+                <Ionicons name="alert-circle" size={13} color={colors.error} />
+                <Text style={styles.fieldErrorText}>{commentError}</Text>
+              </View>
+            )}
 
             {/* Photo Attachments */}
             <Text style={styles.inputLabel}>Attach Photos of Received Piece (Optional)</Text>
@@ -256,11 +305,11 @@ export const WriteReviewModal: React.FC<Props> = ({
               activeOpacity={0.88}
             >
               {submitting ? (
-                <ActivityIndicator size="small" color={colors.navy} />
+                <ActivityIndicator size="small" color="#FFFFFF" />
               ) : (
                 <>
                   <Text style={styles.submitBtnText}>Post Community Review</Text>
-                  <Ionicons name="checkmark-circle" size={18} color={colors.navy} style={{ marginLeft: 6 }} />
+                  <Ionicons name="checkmark-circle" size={18} color="#FFFFFF" style={{ marginLeft: 6 }} />
                 </>
               )}
             </TouchableOpacity>
@@ -393,6 +442,24 @@ const styles = StyleSheet.create({
     color: colors.charcoal,
     fontFamily: fonts.body,
   },
+  inputFieldError: {
+    borderColor: colors.error,
+    backgroundColor: '#FFF5F5',
+  },
+  fieldErrorRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 4,
+    marginBottom: 4,
+    marginLeft: 2,
+  },
+  fieldErrorText: {
+    fontFamily: fonts.bodyMedium,
+    fontSize: 12,
+    color: colors.error,
+    lineHeight: 16,
+  },
   textArea: {
     height: 75,
     textAlignVertical: 'top',
@@ -464,12 +531,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.gold,
+    backgroundColor: colors.navy,
     paddingVertical: 13,
     borderRadius: radius.pill,
-    shadowColor: colors.gold,
+    shadowColor: colors.navy,
     shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.25,
+    shadowOpacity: 0.2,
     shadowRadius: 6,
     elevation: 3,
     marginBottom: 8,
@@ -477,7 +544,7 @@ const styles = StyleSheet.create({
   submitBtnText: {
     fontSize: 14,
     fontWeight: '800',
-    color: colors.navy,
+    color: '#FFFFFF',
     fontFamily: fonts.bodyBold,
   },
 });

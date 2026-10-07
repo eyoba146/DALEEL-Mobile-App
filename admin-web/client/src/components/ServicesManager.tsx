@@ -17,6 +17,7 @@ import {
   MapPin,
   LayoutGrid,
   List,
+  AlertCircle,
 } from 'lucide-react';
 import { useDynamicCategories } from '../utils/categories';
 import { CategoryFilterBar } from './CategoryFilterBar';
@@ -105,6 +106,18 @@ export const ServicesManager: React.FC = () => {
     longitude: 38.7615 as number | null,
   });
 
+  // Validation States
+  const [touchedName, setTouchedName] = useState(false);
+  const [touchedBlurb, setTouchedBlurb] = useState(false);
+  const [touchedEmail, setTouchedEmail] = useState(false);
+  const [touchedPhone, setTouchedPhone] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
+
+  const nameError = (touchedName || submitted) && formData.name.trim().length < 2 ? 'Business name is required (min 2 characters)' : '';
+  const blurbError = (touchedBlurb || submitted) && formData.blurb.trim().length < 10 ? 'Summary overview must be at least 10 characters' : '';
+  const emailError = (touchedEmail || submitted) && formData.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email.trim()) ? 'Please enter a valid email address' : '';
+  const phoneError = (touchedPhone || submitted) && formData.phone.trim() && !/^[+]?[0-9\s\-().]{7,20}$/.test(formData.phone.trim()) ? 'Please enter a valid phone number' : '';
+
   const loadData = async () => {
     setLoading(true);
     try {
@@ -142,6 +155,11 @@ export const ServicesManager: React.FC = () => {
       latitude: 9.0105,
       longitude: 38.7615,
     });
+    setTouchedName(false);
+    setTouchedBlurb(false);
+    setTouchedEmail(false);
+    setTouchedPhone(false);
+    setSubmitted(false);
     setErrorMessage('');
     setIsEditorActive(true);
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -164,6 +182,11 @@ export const ServicesManager: React.FC = () => {
       latitude: item.latitude ?? 9.0105,
       longitude: item.longitude ?? 38.7615,
     });
+    setTouchedName(false);
+    setTouchedBlurb(false);
+    setTouchedEmail(false);
+    setTouchedPhone(false);
+    setSubmitted(false);
     setErrorMessage('');
     setIsEditorActive(true);
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -192,8 +215,19 @@ export const ServicesManager: React.FC = () => {
 
   const handleSave = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    if (!formData.name.trim()) {
-      const msg = 'Business name is required.';
+    setSubmitted(true);
+    setTouchedName(true);
+    setTouchedBlurb(true);
+    if (formData.email.trim()) setTouchedEmail(true);
+    if (formData.phone.trim()) setTouchedPhone(true);
+
+    if (
+      formData.name.trim().length < 2 ||
+      formData.blurb.trim().length < 10 ||
+      (formData.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email.trim())) ||
+      (formData.phone.trim() && !/^[+]?[0-9\s\-().]{7,20}$/.test(formData.phone.trim()))
+    ) {
+      const msg = 'Please resolve the highlighted fields before saving the service partner.';
       setErrorMessage(msg);
       toastError(msg);
       return;
@@ -281,7 +315,7 @@ export const ServicesManager: React.FC = () => {
               disabled={isSaving}
               onClick={handleSave}
             >
-              <Check size={16} color="#07152B" />
+              <Check size={16} color="#FFFFFF" />
               <span>{isSaving ? 'Saving...' : editingItem ? 'Save Partner Profile' : 'Onboard Partner'}</span>
             </button>
           </div>
@@ -290,7 +324,7 @@ export const ServicesManager: React.FC = () => {
         {errorMessage && <div style={styles.errorBox}>{errorMessage}</div>}
 
         {/* 2-Column Dedicated Editor Workspace */}
-        <div style={styles.editorGrid}>
+        <div className="editor-grid-responsive" style={styles.editorGrid}>
           {/* Left Column: Business & Contact Info */}
           <div style={styles.formCard}>
             <h3 style={styles.cardSectionTitle}>Partner Business Profile</h3>
@@ -301,12 +335,21 @@ export const ServicesManager: React.FC = () => {
                 <label style={styles.label}>Business Name *</label>
                 <input
                   type="text"
-                  required
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  onBlur={() => setTouchedName(true)}
                   placeholder="e.g. Ethiopian Diaspora Trust Law Firm"
-                  style={styles.fullInput}
+                  style={{
+                    ...styles.fullInput,
+                    ...(nameError ? styles.inputFieldError : {}),
+                  }}
                 />
+                {nameError && (
+                  <div style={styles.inlineErrorRow}>
+                    <AlertCircle size={13} color="#DC2626" style={{ flexShrink: 0 }} />
+                    <span>{nameError}</span>
+                  </div>
+                )}
               </div>
 
               <div>
@@ -320,7 +363,7 @@ export const ServicesManager: React.FC = () => {
                 />
               </div>
 
-              <div style={styles.inputRow}>
+              <div className="input-row-responsive" style={styles.inputRow}>
                 <div style={{ flex: 1 }}>
                   <label style={styles.label}>City / Region</label>
                   <input
@@ -355,24 +398,43 @@ export const ServicesManager: React.FC = () => {
                 <label style={styles.label}>Summary Overview *</label>
                 <input
                   type="text"
-                  required
                   value={formData.blurb}
                   onChange={(e) => setFormData({ ...formData, blurb: e.target.value })}
+                  onBlur={() => setTouchedBlurb(true)}
                   placeholder="Licensed legal & property deeds notary advisory in Addis Ababa..."
-                  style={styles.fullInput}
+                  style={{
+                    ...styles.fullInput,
+                    ...(blurbError ? styles.inputFieldError : {}),
+                  }}
                 />
+                {blurbError && (
+                  <div style={styles.inlineErrorRow}>
+                    <AlertCircle size={13} color="#DC2626" style={{ flexShrink: 0 }} />
+                    <span>{blurbError}</span>
+                  </div>
+                )}
               </div>
 
-              <div style={styles.inputRow}>
+              <div className="input-row-responsive" style={styles.inputRow}>
                 <div style={{ flex: 1 }}>
                   <label style={styles.label}>Direct Phone</label>
                   <input
                     type="text"
                     value={formData.phone}
                     onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                    onBlur={() => setTouchedPhone(true)}
                     placeholder="+251 11 662 1000"
-                    style={styles.fullInput}
+                    style={{
+                      ...styles.fullInput,
+                      ...(phoneError ? styles.inputFieldError : {}),
+                    }}
                   />
+                  {phoneError && (
+                    <div style={styles.inlineErrorRow}>
+                      <AlertCircle size={13} color="#DC2626" style={{ flexShrink: 0 }} />
+                      <span>{phoneError}</span>
+                    </div>
+                  )}
                 </div>
                 <div style={{ flex: 1 }}>
                   <label style={styles.label}>Official Email</label>
@@ -380,9 +442,19 @@ export const ServicesManager: React.FC = () => {
                     type="email"
                     value={formData.email}
                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    onBlur={() => setTouchedEmail(true)}
                     placeholder="contact@partner.et"
-                    style={styles.fullInput}
+                    style={{
+                      ...styles.fullInput,
+                      ...(emailError ? styles.inputFieldError : {}),
+                    }}
                   />
+                  {emailError && (
+                    <div style={styles.inlineErrorRow}>
+                      <AlertCircle size={13} color="#DC2626" style={{ flexShrink: 0 }} />
+                      <span>{emailError}</span>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -443,7 +515,7 @@ export const ServicesManager: React.FC = () => {
             <span>Refresh</span>
           </button>
           <button className="btn btn-primary" onClick={handleOpenCreate}>
-            <Plus size={16} color="#07152B" />
+            <Plus size={16} color="#FFFFFF" />
             <span>Onboard Partner</span>
           </button>
         </div>
@@ -885,12 +957,14 @@ export const ServicesManager: React.FC = () => {
 
 const styles: { [key: string]: React.CSSProperties } = {
   container: {
-    padding: '32px',
+    padding: '24px 28px',
     maxWidth: '1400px',
     margin: '0 auto',
     display: 'flex',
     flexDirection: 'column',
-    gap: '24px',
+    gap: '20px',
+    width: '100%',
+    boxSizing: 'border-box',
   },
   topRow: {
     display: 'flex',
@@ -920,6 +994,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     gap: '10px',
     borderBottom: '1px solid #E4E9F0',
     paddingBottom: '4px',
+    flexWrap: 'wrap',
   },
   tabBtn: {
     display: 'inline-flex',
@@ -960,7 +1035,9 @@ const styles: { [key: string]: React.CSSProperties } = {
     position: 'relative',
     display: 'flex',
     alignItems: 'center',
-    width: '360px',
+    flex: '1 1 260px',
+    minWidth: '220px',
+    maxWidth: '420px',
   },
   searchInput: {
     width: '100%',
@@ -1215,6 +1292,19 @@ const styles: { [key: string]: React.CSSProperties } = {
     borderRadius: '8px',
     fontSize: '13.5px',
     color: '#07152B',
+  },
+  inputFieldError: {
+    border: '1.5px solid #EF4444',
+    backgroundColor: '#FFF5F5',
+  },
+  inlineErrorRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '6px',
+    marginTop: '6px',
+    color: '#DC2626',
+    fontSize: '12px',
+    fontWeight: 500,
   },
   imagePreviewWrap: {
     marginTop: '8px',

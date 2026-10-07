@@ -16,7 +16,7 @@ import { events as sampleEvents } from '../assets/data/sample';
 import ScreenHeader from '../components/ScreenHeader';
 import { contentApi, EventItem, categoriesApi, CategoryItem } from '../lib/api';
 import { useFavorites } from '../lib/favorites-context';
-import { colors, fonts, radius, spacing } from '../theme/tokens';
+import { colors, fonts, radius, shadow, spacing } from '../theme/tokens';
 
 function resolveEventIcon(name: string): keyof typeof Ionicons.glyphMap {
   const n = name.toLowerCase();
@@ -156,15 +156,15 @@ const AnimatedEventCard = React.memo(function AnimatedEventCard({
           {/* Footer Action Strip */}
           <View style={styles.cardFooter}>
             <View style={styles.priceTag}>
-              <Ionicons name="ticket-outline" size={14} color={colors.navy} style={{ marginRight: 5 }} />
+              <Ionicons name="calendar-outline" size={14} color={colors.navy} style={{ marginRight: 5 }} />
               <Text style={styles.priceText} numberOfLines={1}>
-                {item.price || 'Free Admission'}
+                {item.price || 'Free RSVP'}
               </Text>
             </View>
 
             <TouchableOpacity style={styles.viewDetailsBtn} onPress={onPress} activeOpacity={0.85}>
               <Text style={styles.viewDetailsText}>View Event</Text>
-              <Ionicons name="arrow-forward" size={14} color={colors.navy} style={{ marginLeft: 4 }} />
+              <Ionicons name="arrow-forward" size={14} color="#FFFFFF" style={{ marginLeft: 4 }} />
             </TouchableOpacity>
           </View>
         </View>
@@ -344,7 +344,7 @@ export default function EventsScreen() {
                 }}
                 activeOpacity={0.8}
               >
-                <Ionicons name="refresh" size={15} color={colors.navy} style={{ marginRight: 6 }} />
+                <Ionicons name="refresh" size={15} color="#FFFFFF" style={{ marginRight: 6 }} />
                 <Text style={styles.resetFilterText}>Reset Search & Filters</Text>
               </TouchableOpacity>
             </View>
@@ -417,7 +417,7 @@ export default function EventsScreen() {
                     <Ionicons
                       name={cat.icon}
                       size={14}
-                      color={isActive ? colors.navy : colors.charcoalSub}
+                      color={isActive ? '#FFFFFF' : colors.charcoalSub}
                       style={{ marginRight: 5 }}
                     />
                     <Text style={[styles.catText, isActive && styles.catTextActive]}>
@@ -470,40 +470,36 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginHorizontal: 16,
-    height: 46,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 23,
-    paddingHorizontal: 6,
-    borderWidth: 1.2,
-    borderColor: 'rgba(198, 148, 10, 0.28)',
-    shadowColor: colors.charcoal,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 5,
-    elevation: 2,
+    height: 48,
+    backgroundColor: colors.card,
+    borderRadius: radius.md,
+    paddingHorizontal: 8,
+    borderWidth: 1,
+    borderColor: colors.border,
+    ...shadow.card,
   },
   searchBarPodFocused: {
-    borderColor: colors.gold,
-    backgroundColor: '#FFFFFF',
-    shadowOpacity: 0.1,
+    borderColor: colors.navy,
+    backgroundColor: colors.card,
+    borderWidth: 1.5,
   },
   searchIconCircle: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: 'rgba(198, 148, 10, 0.12)',
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 8,
   },
   searchIconCircleFocused: {
-    backgroundColor: colors.gold,
+    backgroundColor: colors.navySoft,
   },
   searchInput: {
     flex: 1,
-    fontSize: 13.5,
+    fontSize: 14,
     fontFamily: fonts.body,
-    color: colors.charcoal,
+    color: colors.textPrimary,
     height: '100%',
     paddingVertical: 0,
   },
@@ -511,16 +507,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 6,
   },
   countBadgePill: {
-    backgroundColor: 'rgba(23, 25, 28, 0.05)',
+    backgroundColor: colors.navySoft,
     paddingHorizontal: 9,
     paddingVertical: 3,
-    borderRadius: 12,
+    borderRadius: radius.xs,
     marginRight: 4,
   },
   countBadgeText: {
     fontSize: 11,
-    fontFamily: fonts.bodyMedium,
-    color: colors.charcoalSub,
+    fontFamily: fonts.bodyBold,
+    color: colors.navy,
   },
 
   // Category Pills
@@ -533,28 +529,28 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 14,
-    paddingVertical: 6,
-    borderRadius: 18,
-    backgroundColor: '#FFFFFF',
+    paddingVertical: 7,
+    borderRadius: radius.pill,
+    backgroundColor: colors.card,
     borderWidth: 1,
-    borderColor: 'rgba(23, 25, 28, 0.08)',
+    borderColor: colors.border,
   },
   catPillActive: {
-    backgroundColor: colors.gold,
-    borderColor: colors.gold,
-    shadowColor: colors.gold,
+    backgroundColor: colors.navy,
+    borderColor: colors.navy,
+    shadowColor: colors.navy,
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
+    shadowOpacity: 0.15,
     shadowRadius: 4,
     elevation: 2,
   },
   catText: {
-    fontSize: 12.5,
+    fontSize: 12,
     fontFamily: fonts.bodyMedium,
-    color: colors.charcoal,
+    color: colors.textSecondary,
   },
   catTextActive: {
-    color: colors.navy,
+    color: '#FFFFFF',
     fontFamily: fonts.bodySemiBold,
   },
 
@@ -562,37 +558,33 @@ const styles = StyleSheet.create({
   heroAnnouncement: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
+    backgroundColor: colors.navySoft,
+    borderRadius: radius.md,
     padding: 14,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: 'rgba(198, 148, 10, 0.3)',
-    shadowColor: colors.charcoal,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 5,
-    elevation: 2,
+    borderColor: colors.border,
+    ...shadow.card,
   },
   announcementIcon: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: 'rgba(198, 148, 10, 0.12)',
+    width: 36,
+    height: 36,
+    borderRadius: radius.sm,
+    backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
   },
   announcementTitle: {
-    fontSize: 13.5,
+    fontSize: 13,
     fontFamily: fonts.bodyBold,
-    color: colors.charcoal,
+    color: colors.navy,
     marginBottom: 2,
   },
   announcementSub: {
     fontSize: 12,
     fontFamily: fonts.body,
-    color: colors.charcoalSub,
+    color: colors.textSecondary,
     lineHeight: 16,
   },
 
@@ -601,16 +593,12 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   card: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
+    backgroundColor: colors.card,
+    borderRadius: radius.lg,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: 'rgba(23, 25, 28, 0.07)',
-    shadowColor: colors.charcoal,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    elevation: 3,
+    borderColor: colors.border,
+    ...shadow.card,
   },
   imageWrap: {
     height: 180,
@@ -628,16 +616,12 @@ const styles = StyleSheet.create({
     top: 12,
     left: 12,
     backgroundColor: '#FFFFFF',
-    borderRadius: 12,
+    borderRadius: radius.xs,
     width: 48,
     height: 52,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.18,
-    shadowRadius: 4,
-    elevation: 4,
+    ...shadow.card,
   },
   calendarMonthText: {
     fontSize: 10,
@@ -656,13 +640,15 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 12,
     left: 12,
-    backgroundColor: 'rgba(15, 46, 34, 0.88)',
-    paddingHorizontal: 10,
+    backgroundColor: 'rgba(7, 21, 43, 0.85)',
+    paddingHorizontal: 9,
     paddingVertical: 4,
-    borderRadius: 10,
+    borderRadius: radius.xs,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
   },
   categoryPillText: {
-    fontSize: 10.5,
+    fontSize: 10,
     fontFamily: fonts.bodyBold,
     color: colors.gold,
     letterSpacing: 0.5,
@@ -672,12 +658,14 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 12,
     right: 12,
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: 'rgba(15, 46, 34, 0.72)',
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: 'rgba(7, 21, 43, 0.82)',
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
   },
   floatingBookmarkActive: {
     backgroundColor: colors.navy,
@@ -690,7 +678,7 @@ const styles = StyleSheet.create({
   eventTitle: {
     fontSize: 17,
     fontFamily: fonts.heading,
-    color: colors.charcoal,
+    color: colors.textPrimary,
     lineHeight: 23,
     marginBottom: 8,
   },
@@ -700,21 +688,21 @@ const styles = StyleSheet.create({
     marginBottom: 5,
   },
   metaText: {
-    fontSize: 13,
+    fontSize: 12,
     fontFamily: fonts.bodyMedium,
-    color: colors.charcoalSub,
+    color: colors.textSecondary,
     flex: 1,
   },
   timeText: {
-    fontSize: 12.5,
+    fontSize: 12,
     fontFamily: fonts.body,
-    color: colors.charcoalLight,
+    color: colors.textTertiary,
     flex: 1,
   },
   blurbText: {
     fontSize: 13,
     fontFamily: fonts.body,
-    color: colors.charcoalLight,
+    color: colors.textSecondary,
     lineHeight: 18,
     marginTop: 6,
     marginBottom: 12,
@@ -727,16 +715,16 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingTop: 12,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(23, 25, 28, 0.06)',
+    borderTopColor: colors.border,
     marginTop: 4,
   },
   priceTag: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(198, 148, 10, 0.12)',
+    backgroundColor: colors.surfaceWarm,
     paddingHorizontal: 10,
     paddingVertical: 5,
-    borderRadius: 10,
+    borderRadius: radius.xs,
     maxWidth: '60%',
   },
   priceText: {
@@ -747,32 +735,33 @@ const styles = StyleSheet.create({
   viewDetailsBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.gold,
+    backgroundColor: colors.navy,
     paddingHorizontal: 14,
     paddingVertical: 7,
-    borderRadius: 12,
+    borderRadius: radius.xs,
   },
   viewDetailsText: {
-    fontSize: 12.5,
+    fontSize: 12,
     fontFamily: fonts.bodyBold,
-    color: colors.navy,
+    color: '#FFFFFF',
   },
 
   // Empty Card
   emptyCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
+    backgroundColor: colors.card,
+    borderRadius: radius.lg,
     padding: 30,
     alignItems: 'center',
     marginTop: 20,
     borderWidth: 1,
-    borderColor: 'rgba(23, 25, 28, 0.08)',
+    borderColor: colors.border,
+    ...shadow.card,
   },
   emptyIconCircle: {
-    width: 68,
-    height: 68,
-    borderRadius: 34,
-    backgroundColor: 'rgba(198, 148, 10, 0.12)',
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 14,
@@ -780,13 +769,13 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 18,
     fontFamily: fonts.heading,
-    color: colors.charcoal,
+    color: colors.textPrimary,
     marginBottom: 6,
   },
   emptyText: {
-    fontSize: 13.5,
+    fontSize: 13,
     fontFamily: fonts.body,
-    color: colors.charcoalSub,
+    color: colors.textSecondary,
     textAlign: 'center',
     lineHeight: 19,
     marginBottom: 18,
@@ -794,14 +783,14 @@ const styles = StyleSheet.create({
   resetFilterBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.gold,
+    backgroundColor: colors.navy,
     paddingHorizontal: 18,
     paddingVertical: 10,
-    borderRadius: 20,
+    borderRadius: radius.md,
   },
   resetFilterText: {
     fontSize: 13,
     fontFamily: fonts.bodyBold,
-    color: colors.navy,
+    color: '#FFFFFF',
   },
 });

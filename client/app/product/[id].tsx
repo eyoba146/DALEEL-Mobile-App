@@ -25,7 +25,6 @@ import { CurrencySelector } from '../../components/CurrencySelector';
 import { ReviewsSection } from '../../components/ReviewsSection';
 import { contentApi, Product, ProductOrderInquiry, ProductOrderInquiryPayload } from '../../lib/api';
 import { useAuth } from '../../lib/auth-context';
-import { useCart } from '../../lib/cart-context';
 import { useCurrency } from '../../lib/currency-context';
 import { useFavorites } from '../../lib/favorites-context';
 import { getCurrentUserLocation } from '../../lib/location';
@@ -37,7 +36,6 @@ export default function ProductDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { isFavorite, toggleFavorite } = useFavorites();
   const { user, token } = useAuth();
-  const { items, addToCart, removeFromCart, updateQuantity, itemCount } = useCart();
   const { currency, formatPrice, formatDualPrice } = useCurrency();
   const [localQty, setLocalQty] = useState(1);
   const [addedFeedback, setAddedFeedback] = useState(false);
@@ -72,6 +70,21 @@ export default function ProductDetailScreen() {
   const [submittingOrder, setSubmittingOrder] = useState(false);
   const [orderSuccess, setOrderSuccess] = useState(false);
 
+  // Field-level validation states
+  const [touchedName, setTouchedName] = useState(false);
+  const [touchedEmail, setTouchedEmail] = useState(false);
+  const [touchedPhone, setTouchedPhone] = useState(false);
+  const [touchedDelivery, setTouchedDelivery] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
+
+  const isEmailValid = (em: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em.trim());
+  const isPhoneValid = (p: string) => !p.trim() || /^[+]?[0-9\s\-().]{7,20}$/.test(p.trim());
+
+  const nameError = (touchedName || submitted) && fullName.trim().length < 2 ? 'Please enter your full name (minimum 2 letters)' : '';
+  const emailError = (touchedEmail || submitted) && !isEmailValid(email) ? 'Please enter a valid email address' : '';
+  const phoneError = (touchedPhone || submitted) && !isPhoneValid(phone) ? 'Please enter a valid phone number (min 7 digits)' : '';
+  const deliveryError = (touchedDelivery || submitted) && deliveryAddress.trim().length < 5 ? 'Please enter a detailed delivery destination (min 5 characters)' : '';
+
   const handleDetectLocation = async () => {
     setDetectingGps(true);
     setGpsStatusMessage(null);
@@ -97,33 +110,9 @@ export default function ProductDetailScreen() {
     }
   };
 
-  const cartItem = items.find((it) => it.product.id === product?.id);
-  const inBagQty = cartItem ? cartItem.quantity : 0;
-
-  const handleAddToBagWithQty = () => {
-    if (!product) return;
-    addToCart(product, localQty);
-    setAddedFeedback(true);
-    setTimeout(() => setAddedFeedback(false), 2000);
-  };
-
-  const handleIncrementBag = () => {
-    if (!product) return;
-    if (inBagQty === 0) {
-      addToCart(product, 1);
-    } else {
-      updateQuantity(product.id, inBagQty + 1);
-    }
-  };
-
-  const handleDecrementBag = () => {
-    if (!product) return;
-    if (inBagQty > 1) {
-      updateQuantity(product.id, inBagQty - 1);
-    } else if (inBagQty === 1) {
-      removeFromCart(product.id);
-      setLocalQty(1);
-    }
+  const handleOpenOrderModal = () => {
+    setQuantity(localQty);
+    setOrderModalVisible(true);
   };
 
   // Scroll tracking to hide floating top nav bar on scroll
@@ -260,10 +249,20 @@ export default function ProductDetailScreen() {
 
   // Submit or Update Inquiry
   const handleSubmitOrder = async () => {
+    setSubmitted(true);
     setFormError(null);
 
-    if (!fullName.trim() || !email.trim() || !deliveryAddress.trim()) {
-      setFormError('Please provide your full name, email address, and delivery destination address.');
+    const hasNameErr = fullName.trim().length < 2;
+    const hasEmailErr = !isEmailValid(email);
+    const hasPhoneErr = !isPhoneValid(phone);
+    const hasDeliveryErr = deliveryAddress.trim().length < 5;
+
+    if (hasNameErr || hasEmailErr || hasPhoneErr || hasDeliveryErr) {
+      if (hasNameErr) setTouchedName(true);
+      if (hasEmailErr) setTouchedEmail(true);
+      if (hasPhoneErr) setTouchedPhone(true);
+      if (hasDeliveryErr) setTouchedDelivery(true);
+      setFormError('Please resolve the highlighted field errors below before proceeding.');
       return;
     }
 
@@ -408,22 +407,6 @@ export default function ProductDetailScreen() {
               size={19}
               color={fav ? colors.gold : '#FFFFFF'}
             />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.navCircleBtn}
-            onPress={() => router.push('/cart')}
-            activeOpacity={0.8}
-            accessibilityLabel="Shopping Bag"
-          >
-            <Ionicons name="bag-handle-outline" size={19} color="#FFFFFF" />
-            {itemCount > 0 && (
-              <View style={styles.navCartBadge}>
-                <Text style={styles.navCartBadgeText}>
-                  {itemCount > 9 ? '9+' : itemCount}
-                </Text>
-              </View>
-            )}
           </TouchableOpacity>
         </View>
       </Animated.View>
@@ -648,16 +631,14 @@ export default function ProductDetailScreen() {
         </View>
       </Animated.ScrollView>
 
-      {/* Sticky Bottom Ordering & Bag Bar */}
+      {/* Sticky Bottom Ordering Bar */}
       <View style={[styles.bottomBar, { paddingBottom: Math.max(insets.bottom, 12) }]}>
         {/* Tier 1: Price & WhatsApp Link */}
         <View style={styles.bottomInfoRow}>
           <View style={styles.bottomPriceCol}>
-            <Text style={styles.bottomPriceLabel}>
-              {inBagQty > 0 ? `Subtotal in Bag (${inBagQty} pcs)` : 'Artisan Direct Price'}
-            </Text>
+            <Text style={styles.bottomPriceLabel}>Artisan Direct Price</Text>
             {(() => {
-              const currentTotal = inBagQty > 0 ? product.price * inBagQty : product.price * localQty;
+              const currentTotal = product.price * localQty;
               const dual = formatDualPrice(currentTotal);
               return (
                 <View style={styles.bottomPriceValueRow}>
@@ -685,105 +666,52 @@ export default function ProductDetailScreen() {
 
         {/* Tier 2: Stepper (+ / -) & Action Button */}
         <View style={styles.bottomControlsRow}>
-          {inBagQty > 0 ? (
-            /* STATE: IN BAG - Interactive +/- Stepper to add/remove and View Bag */
-            <>
-              <View style={styles.bagStepperPod}>
-                <TouchableOpacity
-                  style={styles.stepperActionBtn}
-                  onPress={handleDecrementBag}
-                  activeOpacity={0.75}
-                  accessibilityLabel="Decrease or remove from bag"
-                >
-                  <Ionicons
-                    name={inBagQty === 1 ? 'trash-outline' : 'remove'}
-                    size={16}
-                    color={inBagQty === 1 ? '#DC2626' : colors.navy}
-                  />
-                </TouchableOpacity>
+          <View style={styles.preAddStepperPod}>
+            <TouchableOpacity
+              style={[styles.stepperActionBtn, localQty <= 1 && styles.stepperActionBtnDisabled]}
+              onPress={() => setLocalQty((prev) => Math.max(1, prev - 1))}
+              disabled={localQty <= 1}
+              activeOpacity={0.75}
+              accessibilityLabel="Decrease quantity"
+            >
+              <Ionicons
+                name="remove"
+                size={16}
+                color={localQty <= 1 ? 'rgba(7, 21, 43, 0.3)' : colors.navy}
+              />
+            </TouchableOpacity>
 
-                <View style={styles.stepperCenterInfo}>
-                  <Text style={styles.stepperCountText}>{inBagQty}</Text>
-                  <Text style={styles.stepperCountSub}>in bag</Text>
-                </View>
+            <View style={styles.stepperCenterInfo}>
+              <Text style={styles.stepperCountText}>{localQty}</Text>
+              <Text style={styles.stepperCountSub}>qty</Text>
+            </View>
 
-                <TouchableOpacity
-                  style={styles.stepperActionBtn}
-                  onPress={handleIncrementBag}
-                  activeOpacity={0.75}
-                  accessibilityLabel="Add more to bag"
-                >
-                  <Ionicons name="add" size={16} color={colors.navy} />
-                </TouchableOpacity>
-              </View>
+            <TouchableOpacity
+              style={styles.stepperActionBtn}
+              onPress={() => setLocalQty((prev) => prev + 1)}
+              activeOpacity={0.75}
+              accessibilityLabel="Increase quantity"
+            >
+              <Ionicons name="add" size={16} color={colors.navy} />
+            </TouchableOpacity>
+          </View>
 
-              <TouchableOpacity
-                style={styles.viewBagMainBtn}
-                onPress={() => router.push('/cart')}
-                activeOpacity={0.88}
-                accessibilityLabel="View Bag and Checkout"
-              >
-                <View style={styles.viewBagIconBadge}>
-                  <Ionicons name="bag-handle" size={16} color="#FFFFFF" />
-                  <View style={styles.viewBagCountDot}>
-                    <Text style={styles.viewBagCountDotText}>{itemCount}</Text>
-                  </View>
-                </View>
-                <Text style={styles.viewBagMainBtnText}>View Bag & Checkout</Text>
-                <Ionicons name="arrow-forward" size={15} color="#DFB76C" style={{ marginLeft: 4 }} />
-              </TouchableOpacity>
-            </>
-          ) : (
-            /* STATE: NOT IN BAG - +/- Selector and Add to Bag Button */
-            <>
-              <View style={styles.preAddStepperPod}>
-                <TouchableOpacity
-                  style={[styles.stepperActionBtn, localQty <= 1 && styles.stepperActionBtnDisabled]}
-                  onPress={() => setLocalQty((prev) => Math.max(1, prev - 1))}
-                  disabled={localQty <= 1}
-                  activeOpacity={0.75}
-                  accessibilityLabel="Decrease quantity"
-                >
-                  <Ionicons
-                    name="remove"
-                    size={16}
-                    color={localQty <= 1 ? 'rgba(7, 21, 43, 0.3)' : colors.navy}
-                  />
-                </TouchableOpacity>
-
-                <View style={styles.stepperCenterInfo}>
-                  <Text style={styles.stepperCountText}>{localQty}</Text>
-                  <Text style={styles.stepperCountSub}>qty</Text>
-                </View>
-
-                <TouchableOpacity
-                  style={styles.stepperActionBtn}
-                  onPress={() => setLocalQty((prev) => prev + 1)}
-                  activeOpacity={0.75}
-                  accessibilityLabel="Increase quantity"
-                >
-                  <Ionicons name="add" size={16} color={colors.navy} />
-                </TouchableOpacity>
-              </View>
-
-              <TouchableOpacity
-                style={[styles.addToBagMainBtn, addedFeedback && styles.addToBagMainBtnSuccess]}
-                onPress={handleAddToBagWithQty}
-                activeOpacity={0.88}
-                accessibilityLabel="Add to Bag"
-              >
-                <Ionicons
-                  name={addedFeedback ? 'checkmark-circle' : 'bag-add'}
-                  size={18}
-                  color={addedFeedback ? '#166534' : colors.navy}
-                  style={{ marginRight: 6 }}
-                />
-                <Text style={[styles.addToBagMainBtnText, addedFeedback && styles.addToBagMainBtnTextSuccess]}>
-                  {addedFeedback ? 'Added to Bag!' : `Add to Bag • ${formatPrice(product.price * localQty)}`}
-                </Text>
-              </TouchableOpacity>
-            </>
-          )}
+          <TouchableOpacity
+            style={styles.addToBagMainBtn}
+            onPress={handleOpenOrderModal}
+            activeOpacity={0.88}
+            accessibilityLabel="Request Order"
+          >
+            <Ionicons
+              name="paper-plane-outline"
+              size={17}
+              color="#FFFFFF"
+              style={{ marginRight: 6 }}
+            />
+            <Text style={styles.addToBagMainBtnText}>
+              Request Order • {formatPrice(product.price * localQty)}
+            </Text>
+          </TouchableOpacity>
         </View>
       </View>
 
@@ -1089,44 +1017,68 @@ export default function ProductDetailScreen() {
                 <View style={styles.inputGroup}>
                   <Text style={styles.inputLabel}>Full Name *</Text>
                   <TextInput
-                    style={styles.textInput}
+                    style={[styles.textInput, !!nameError && styles.textInputError]}
                     placeholder="e.g. Dawit Haile"
                     placeholderTextColor={colors.charcoalSub}
                     value={fullName}
+                    onBlur={() => setTouchedName(true)}
                     onChangeText={(val) => {
                       setFullName(val);
                       if (formError) setFormError(null);
                     }}
                   />
+                  {!!nameError && (
+                    <View style={styles.fieldErrorRow}>
+                      <Ionicons name="alert-circle" size={13} color="#DC2626" />
+                      <Text style={styles.fieldErrorText}>{nameError}</Text>
+                    </View>
+                  )}
                 </View>
 
                 <View style={styles.inputGroup}>
                   <Text style={styles.inputLabel}>Email Address *</Text>
                   <TextInput
-                    style={styles.textInput}
+                    style={[styles.textInput, !!emailError && styles.textInputError]}
                     placeholder="e.g. dawit@example.com"
                     placeholderTextColor={colors.charcoalSub}
                     keyboardType="email-address"
                     autoCapitalize="none"
                     value={email}
+                    onBlur={() => setTouchedEmail(true)}
                     onChangeText={(val) => {
                       setEmail(val);
                       if (formError) setFormError(null);
                     }}
                   />
+                  {!!emailError && (
+                    <View style={styles.fieldErrorRow}>
+                      <Ionicons name="alert-circle" size={13} color="#DC2626" />
+                      <Text style={styles.fieldErrorText}>{emailError}</Text>
+                    </View>
+                  )}
                 </View>
 
                 <View style={styles.inputRow}>
                   <View style={[styles.inputGroup, { flex: 1, marginRight: 8 }]}>
                     <Text style={styles.inputLabel}>Phone Number</Text>
                     <TextInput
-                      style={styles.textInput}
+                      style={[styles.textInput, !!phoneError && styles.textInputError]}
                       placeholder="+251 9... / +1..."
                       placeholderTextColor={colors.charcoalSub}
                       keyboardType="phone-pad"
                       value={phone}
-                      onChangeText={setPhone}
+                      onBlur={() => setTouchedPhone(true)}
+                      onChangeText={(val) => {
+                        setPhone(val);
+                        if (formError) setFormError(null);
+                      }}
                     />
+                    {!!phoneError && (
+                      <View style={styles.fieldErrorRow}>
+                        <Ionicons name="alert-circle" size={13} color="#DC2626" />
+                        <Text style={styles.fieldErrorText}>{phoneError}</Text>
+                      </View>
+                    )}
                   </View>
                   <View style={[styles.inputGroup, { flex: 1, marginLeft: 8 }]}>
                     <Text style={styles.inputLabel}>WhatsApp</Text>
@@ -1161,15 +1113,22 @@ export default function ProductDetailScreen() {
                     </TouchableOpacity>
                   </View>
                   <TextInput
-                    style={styles.textInput}
+                    style={[styles.textInput, !!deliveryError && styles.textInputError]}
                     placeholder="e.g. Bole Medhanialem, Addis Ababa OR Diaspora postal address"
                     placeholderTextColor={colors.charcoalSub}
                     value={deliveryAddress}
+                    onBlur={() => setTouchedDelivery(true)}
                     onChangeText={(val) => {
                       setDeliveryAddress(val);
                       if (formError) setFormError(null);
                     }}
                   />
+                  {!!deliveryError && (
+                    <View style={styles.fieldErrorRow}>
+                      <Ionicons name="alert-circle" size={13} color="#DC2626" />
+                      <Text style={styles.fieldErrorText}>{deliveryError}</Text>
+                    </View>
+                  )}
                   {gpsStatusMessage ? (
                     <View style={styles.gpsFeedbackRow}>
                       <Ionicons
@@ -1792,26 +1751,25 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.goldSoft,
+    backgroundColor: colors.navy,
     height: 48,
     borderRadius: radius.pill,
-    borderWidth: 1.5,
-    borderColor: colors.goldBorder,
-    shadowColor: colors.gold,
+    shadowColor: colors.navy,
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
+    shadowOpacity: 0.2,
     shadowRadius: 4,
     elevation: 3,
   },
   addToBagMainBtnSuccess: {
     backgroundColor: '#DCFCE7',
+    borderWidth: 1.5,
     borderColor: '#86EFAC',
   },
   addToBagMainBtnText: {
     fontSize: 13,
     fontFamily: fonts.body,
     fontWeight: '800',
-    color: colors.navy,
+    color: '#FFFFFF',
   },
   addToBagMainBtnTextSuccess: {
     color: '#166534',
@@ -2184,6 +2142,23 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontFamily: fonts.body,
     color: colors.charcoal,
+  },
+  textInputError: {
+    borderColor: '#DC2626',
+    borderWidth: 1.5,
+    backgroundColor: '#FFF5F5',
+  },
+  fieldErrorRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 4,
+  },
+  fieldErrorText: {
+    fontSize: 11.5,
+    color: '#DC2626',
+    fontFamily: fonts.bodyMedium,
+    fontWeight: '600',
   },
   textArea: {
     minHeight: 70,

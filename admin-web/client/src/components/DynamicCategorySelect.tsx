@@ -67,7 +67,7 @@ export const DynamicCategorySelect: React.FC<DynamicCategorySelectProps> = ({
             style={styles.saveBtn}
             title="Confirm"
           >
-            <Check size={14} color="#07152B" />
+            <Check size={14} color="#FFFFFF" />
             <span>Add</span>
           </button>
           <button
@@ -193,8 +193,8 @@ const styles: { [key: string]: React.CSSProperties } = {
     alignItems: 'center',
     gap: '4px',
     padding: '8px 12px',
-    backgroundColor: '#DFB76C',
-    color: '#07152B',
+    backgroundColor: '#07152B',
+    color: '#FFFFFF',
     border: 'none',
     borderRadius: '6px',
     fontSize: '12.5px',

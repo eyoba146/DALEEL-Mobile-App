@@ -25,7 +25,7 @@ import { useFavorites } from '../../lib/favorites-context';
 import { useOfflineGuide } from '../../lib/offline-guide-context';
 import { LocationCard } from '../../components/LocationCard';
 import { ReviewsSection } from '../../components/ReviewsSection';
-import { colors, fonts, radius, spacing } from '../../theme/tokens';
+import { colors, fonts, radius, shadow, spacing } from '../../theme/tokens';
 
 const TRAVEL_PARTIES = ['Solo Traveler', 'Couple (2)', 'Family / Group (3+)'];
 const TRAVEL_TIMING = ['Dry Season (Oct-Mar)', 'Festival Dates (Timkat/Genna)', 'Flexible Dates'];
@@ -51,9 +51,35 @@ export default function DestinationDetailScreen() {
   const [planModalVisible, setPlanModalVisible] = useState(false);
   const [selectedParty, setSelectedParty] = useState(TRAVEL_PARTIES[0]);
   const [selectedTiming, setSelectedTiming] = useState(TRAVEL_TIMING[0]);
+  const [guestName, setGuestName] = useState(user?.name || '');
+  const [guestEmail, setGuestEmail] = useState(user?.email || '');
+  const [guestPhone, setGuestPhone] = useState(user?.phone || '');
   const [guestNotes, setGuestNotes] = useState('');
   const [submittingPlan, setSubmittingPlan] = useState(false);
   const [planSuccess, setPlanSuccess] = useState(false);
+
+  // Field validation states
+  const [touchedName, setTouchedName] = useState(false);
+  const [touchedEmail, setTouchedEmail] = useState(false);
+  const [touchedPhone, setTouchedPhone] = useState(false);
+  const [touchedNotes, setTouchedNotes] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
+
+  const isEmailValid = (em: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em.trim());
+  const isPhoneValid = (p: string) => !p.trim() || /^[+]?[0-9\s\-().]{7,20}$/.test(p.trim());
+
+  const nameError = (touchedName || submitted) && guestName.trim().length < 2 ? 'Please enter your full name (minimum 2 letters)' : '';
+  const emailError = (touchedEmail || submitted) && !isEmailValid(guestEmail) ? 'Please enter a valid contact email address' : '';
+  const phoneError = (touchedPhone || submitted) && !isPhoneValid(guestPhone) ? 'Please enter a valid phone number (min 7 digits)' : '';
+  const notesError = (touchedNotes || submitted) && guestNotes.trim().length > 0 && guestNotes.trim().length < 5 ? 'Please provide at least 5 characters for special requests' : '';
+
+  useEffect(() => {
+    if (user) {
+      if (!guestName) setGuestName(user.name || '');
+      if (!guestEmail) setGuestEmail(user.email || '');
+      if (!guestPhone && user.phone) setGuestPhone(user.phone || '');
+    }
+  }, [user]);
 
   useEffect(() => {
     let isMounted = true;
@@ -118,6 +144,20 @@ export default function DestinationDetailScreen() {
   };
 
   const handleSubmitJourneyRequest = async () => {
+    setSubmitted(true);
+    const hasNameErr = guestName.trim().length < 2;
+    const hasEmailErr = !isEmailValid(guestEmail);
+    const hasPhoneErr = !isPhoneValid(guestPhone);
+    const hasNotesErr = guestNotes.trim().length > 0 && guestNotes.trim().length < 5;
+
+    if (hasNameErr || hasEmailErr || hasPhoneErr || hasNotesErr) {
+      if (hasNameErr) setTouchedName(true);
+      if (hasEmailErr) setTouchedEmail(true);
+      if (hasPhoneErr) setTouchedPhone(true);
+      if (hasNotesErr) setTouchedNotes(true);
+      return;
+    }
+
     setSubmittingPlan(true);
     try {
       // If a matched guide exists, record inquiry via API
@@ -125,9 +165,9 @@ export default function DestinationDetailScreen() {
         await contentApi.createInquiry(
           matchedGuide.id,
           {
-            fullName: user?.name || 'Guest Traveler',
-            contactEmail: user?.email || 'guest@daleel.et',
-            contactPhone: user?.phone || undefined,
+            fullName: guestName.trim(),
+            contactEmail: guestEmail.trim().toLowerCase(),
+            contactPhone: guestPhone.trim() || undefined,
             timeframe: selectedTiming,
             message: `Trip to ${destination?.name} (${destination?.region}). Party: ${selectedParty}. Notes: ${guestNotes || 'Custom itinerary requested.'}`,
           },
@@ -167,7 +207,7 @@ export default function DestinationDetailScreen() {
         <Text style={styles.notFoundTitle}>Destination Not Found</Text>
         <Text style={styles.notFoundSub}>The requested location could not be loaded.</Text>
         <TouchableOpacity style={styles.backHomeBtn} onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={16} color={colors.navy} />
+          <Ionicons name="arrow-back" size={16} color="#FFFFFF" />
           <Text style={styles.backHomeBtnText}>Go Back</Text>
         </TouchableOpacity>
       </View>
@@ -344,7 +384,7 @@ export default function DestinationDetailScreen() {
                 onPress={() => downloadDestination(destination.id)}
                 activeOpacity={0.85}
               >
-                <Ionicons name="download-outline" size={16} color={colors.navy} />
+                <Ionicons name="download-outline" size={16} color="#FFFFFF" />
                 <Text style={styles.offlineDownloadBtnText}>
                   Download Offline Pocket Guide ({offlinePack?.sizeMB || 1.2} MB)
                 </Text>
@@ -579,7 +619,7 @@ export default function DestinationDetailScreen() {
           activeOpacity={0.85}
         >
           <Text style={styles.primaryActionText}>Plan Journey</Text>
-          <Ionicons name="compass" size={16} color={colors.navy} style={{ marginLeft: 6 }} />
+          <Ionicons name="compass" size={16} color="#FFFFFF" style={{ marginLeft: 6 }} />
         </TouchableOpacity>
       </View>
 
@@ -699,17 +739,76 @@ export default function DestinationDetailScreen() {
                   })}
                 </View>
 
+                {/* Contact Information */}
+                <Text style={styles.formSectionLabel}>Contact Traveler Name *</Text>
+                <TextInput
+                  style={[styles.modalInput, !!nameError && styles.inputError]}
+                  placeholder="e.g. Alazar Belay"
+                  placeholderTextColor={colors.charcoalLight}
+                  value={guestName}
+                  onBlur={() => setTouchedName(true)}
+                  onChangeText={setGuestName}
+                />
+                {!!nameError && (
+                  <View style={styles.fieldErrorRow}>
+                    <Ionicons name="alert-circle" size={13} color="#DC2626" />
+                    <Text style={styles.fieldErrorText}>{nameError}</Text>
+                  </View>
+                )}
+
+                <Text style={styles.formSectionLabel}>Contact Email Address *</Text>
+                <TextInput
+                  style={[styles.modalInput, !!emailError && styles.inputError]}
+                  placeholder="e.g. alazar@example.com"
+                  placeholderTextColor={colors.charcoalLight}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  value={guestEmail}
+                  onBlur={() => setTouchedEmail(true)}
+                  onChangeText={setGuestEmail}
+                />
+                {!!emailError && (
+                  <View style={styles.fieldErrorRow}>
+                    <Ionicons name="alert-circle" size={13} color="#DC2626" />
+                    <Text style={styles.fieldErrorText}>{emailError}</Text>
+                  </View>
+                )}
+
+                <Text style={styles.formSectionLabel}>Phone Number (Optional)</Text>
+                <TextInput
+                  style={[styles.modalInput, !!phoneError && styles.inputError]}
+                  placeholder="+251 9... / +1..."
+                  placeholderTextColor={colors.charcoalLight}
+                  keyboardType="phone-pad"
+                  value={guestPhone}
+                  onBlur={() => setTouchedPhone(true)}
+                  onChangeText={setGuestPhone}
+                />
+                {!!phoneError && (
+                  <View style={styles.fieldErrorRow}>
+                    <Ionicons name="alert-circle" size={13} color="#DC2626" />
+                    <Text style={styles.fieldErrorText}>{phoneError}</Text>
+                  </View>
+                )}
+
                 {/* Custom Notes */}
                 <Text style={styles.formSectionLabel}>Special Requests or Inquiries</Text>
                 <TextInput
-                  style={styles.textArea}
+                  style={[styles.textArea, !!notesError && styles.inputError]}
                   placeholder="e.g. Need English/Amharic guide, private 4x4 Land Cruiser, dietary preferences, or lodging booking…"
                   placeholderTextColor={colors.charcoalLight}
                   multiline
                   numberOfLines={3}
                   value={guestNotes}
+                  onBlur={() => setTouchedNotes(true)}
                   onChangeText={setGuestNotes}
                 />
+                {!!notesError && (
+                  <View style={styles.fieldErrorRow}>
+                    <Ionicons name="alert-circle" size={13} color="#DC2626" />
+                    <Text style={styles.fieldErrorText}>{notesError}</Text>
+                  </View>
+                )}
 
                 {/* Submit button */}
                 <TouchableOpacity
@@ -719,11 +818,11 @@ export default function DestinationDetailScreen() {
                   activeOpacity={0.85}
                 >
                   {submittingPlan ? (
-                    <ActivityIndicator size="small" color={colors.navy} />
+                    <ActivityIndicator size="small" color="#FFFFFF" />
                   ) : (
                     <>
                       <Text style={styles.submitPlanBtnText}>Request Itinerary Support</Text>
-                      <Ionicons name="paper-plane" size={15} color={colors.navy} style={{ marginLeft: 8 }} />
+                      <Ionicons name="paper-plane" size={15} color="#FFFFFF" style={{ marginLeft: 8 }} />
                     </>
                   )}
                 </TouchableOpacity>
@@ -777,7 +876,7 @@ const styles = StyleSheet.create({
   backHomeBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.gold,
+    backgroundColor: colors.navy,
     paddingVertical: 12,
     paddingHorizontal: 20,
     borderRadius: radius.pill,
@@ -786,7 +885,7 @@ const styles = StyleSheet.create({
     marginLeft: 6,
     fontFamily: fonts.bodySemiBold,
     fontSize: 14,
-    color: colors.navy,
+    color: '#FFFFFF',
   },
 
   // Floating Nav Safe
@@ -1177,10 +1276,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.gold,
+    backgroundColor: colors.navy,
     paddingVertical: 14,
     borderRadius: radius.xl,
-    shadowColor: colors.gold,
+    shadowColor: colors.navy,
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.25,
     shadowRadius: 6,
@@ -1189,7 +1288,7 @@ const styles = StyleSheet.create({
   primaryActionText: {
     fontFamily: fonts.bodyBold,
     fontSize: 14,
-    color: colors.navy,
+    color: '#FFFFFF',
   },
 
   // Plan Journey Modal
@@ -1333,6 +1432,17 @@ const styles = StyleSheet.create({
     fontFamily: fonts.bodyBold,
     color: colors.navy,
   },
+  modalInput: {
+    backgroundColor: '#F7F8FA',
+    borderRadius: radius.md,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 13,
+    fontFamily: fonts.body,
+    color: colors.charcoal,
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.08)',
+  },
   textArea: {
     backgroundColor: '#F7F8FA',
     borderRadius: radius.md,
@@ -1345,20 +1455,42 @@ const styles = StyleSheet.create({
     height: 70,
     textAlignVertical: 'top',
   },
+  inputError: {
+    borderColor: '#DC2626',
+    borderWidth: 1.5,
+    backgroundColor: '#FFF5F5',
+  },
+  fieldErrorRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 4,
+  },
+  fieldErrorText: {
+    fontSize: 11.5,
+    color: '#DC2626',
+    fontFamily: fonts.bodyMedium,
+    fontWeight: '600',
+  },
   submitPlanBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.gold,
+    backgroundColor: colors.navy,
     paddingVertical: 13,
     borderRadius: radius.xl,
     marginTop: 16,
     marginBottom: 10,
+    shadowColor: colors.navy,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
+    elevation: 3,
   },
   submitPlanBtnText: {
     fontFamily: fonts.bodyBold,
     fontSize: 14,
-    color: colors.navy,
+    color: '#FFFFFF',
   },
   successPod: {
     alignItems: 'center',
@@ -1490,7 +1622,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.gold,
+    backgroundColor: colors.navy,
     borderRadius: radius.lg,
     paddingVertical: 10,
     marginTop: 12,
@@ -1499,7 +1631,7 @@ const styles = StyleSheet.create({
   offlineDownloadBtnText: {
     fontFamily: fonts.bodyBold,
     fontSize: 13,
-    color: colors.navy,
+    color: '#FFFFFF',
   },
   sectionSubtitle: {
     fontFamily: fonts.body,

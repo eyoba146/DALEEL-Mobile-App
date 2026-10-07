@@ -67,6 +67,38 @@ export default function EventDetailScreen() {
   const [registeredRsvpId, setRegisteredRsvpId] = useState('');
   const [rsvpError, setRsvpError] = useState<string | null>(null);
 
+  // RSVP Field Validation Tracking
+  const [touchedRsvpName, setTouchedRsvpName] = useState(false);
+  const [touchedRsvpEmail, setTouchedRsvpEmail] = useState(false);
+  const [touchedRsvpPhone, setTouchedRsvpPhone] = useState(false);
+  const [submittedRsvp, setSubmittedRsvp] = useState(false);
+
+  const fullNameTrimmed = fullName.trim();
+  const rsvpNameError = (touchedRsvpName || submittedRsvp)
+    ? !fullNameTrimmed
+      ? 'Attendee full legal name is required.'
+      : fullNameTrimmed.length < 2
+      ? 'Name must be at least 2 characters.'
+      : null
+    : null;
+
+  const emailTrimmed = email.trim();
+  const isRsvpEmailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailTrimmed);
+  const rsvpEmailError = (touchedRsvpEmail || submittedRsvp)
+    ? !emailTrimmed
+      ? 'Email address is required for confirmation.'
+      : !isRsvpEmailValid
+      ? 'Please enter a valid email address (e.g. name@domain.com).'
+      : null
+    : null;
+
+  const phoneTrimmed = phone.trim();
+  const rsvpPhoneError = (touchedRsvpPhone || submittedRsvp) && phoneTrimmed
+    ? !/^[+]?[0-9\s\-().]{7,20}$/.test(phoneTrimmed)
+      ? 'Please enter a valid phone number (at least 7 digits).'
+      : null
+    : null;
+
   const fav = event ? isFavorite('event', event.id) : false;
 
   const loadEventDetail = useCallback(async () => {
@@ -134,13 +166,6 @@ export default function EventDetailScreen() {
   };
 
   const handleOpenRsvpModal = () => {
-    if (existingRsvp && (existingRsvp.status === 'confirmed' || existingRsvp.status === 'checked_in')) {
-      Alert.alert(
-        'Pass Officially Confirmed',
-        `Your admission pass (${existingRsvp.passCode}) is officially confirmed and locked. Confirmed tickets cannot be modified. Please present your digital QR pass at the entrance gate.`
-      );
-      return;
-    }
     if (existingRsvp) {
       setFullName(existingRsvp.fullName || user?.name || '');
       setEmail(existingRsvp.email || user?.email || '');
@@ -160,12 +185,19 @@ export default function EventDetailScreen() {
   };
 
   const handleSubmitRsvp = async () => {
-    if (existingRsvp && (existingRsvp.status === 'confirmed' || existingRsvp.status === 'checked_in')) {
-      setRsvpError('This reservation is already confirmed and cannot be modified.');
+    setSubmittedRsvp(true);
+    setRsvpError(null);
+
+    if (!fullNameTrimmed || fullNameTrimmed.length < 2) {
+      setTouchedRsvpName(true);
       return;
     }
-    if (!fullName.trim() || !email.trim()) {
-      setRsvpError('Please provide your full name and email address to confirm your pass.');
+    if (!emailTrimmed || !isRsvpEmailValid) {
+      setTouchedRsvpEmail(true);
+      return;
+    }
+    if (phoneTrimmed && !/^[+]?[0-9\s\-().]{7,20}$/.test(phoneTrimmed)) {
+      setTouchedRsvpPhone(true);
       return;
     }
 
@@ -223,7 +255,7 @@ export default function EventDetailScreen() {
         <Text style={styles.notFoundTitle}>Event Not Found</Text>
         <Text style={styles.notFoundSub}>The gathering you requested could not be located.</Text>
         <TouchableOpacity style={styles.backHomeBtn} onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={16} color={colors.navy} />
+          <Ionicons name="arrow-back" size={16} color="#FFFFFF" />
           <Text style={styles.backHomeBtnText}>Go Back</Text>
         </TouchableOpacity>
       </SafeAreaView>
@@ -311,39 +343,26 @@ export default function EventDetailScreen() {
                 <View style={styles.confirmedPassTopRow}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                     <Ionicons name="sparkles" size={15} color={colors.gold} />
-                    <Text style={styles.confirmedPassBranding}>DALEEL ADMISSION PASS</Text>
+                    <Text style={styles.confirmedPassBranding}>DALEEL EVENT RSVP</Text>
                   </View>
                   <View style={[styles.statusPill, styles.statusPillConfirmed]}>
                     <Text style={[styles.statusPillText, styles.statusPillTextConfirmed]}>
-                      {existingRsvp.status === 'checked_in' ? 'CHECKED IN' : 'CONFIRMED PASS'}
+                      CONFIRMED RSVP
                     </Text>
                   </View>
                 </View>
 
-                {/* Prominent Large QR Code Card */}
-                {existingRsvp.passCode && (
-                  <View style={styles.eventPageQrWrap}>
-                    <View style={styles.eventPageQrBox}>
-                      <Image
-                        source={{
-                          uri: `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(
-                            existingRsvp.passCode
-                          )}&color=07152B`,
-                        }}
-                        style={{ width: 160, height: 160 }}
-                        resizeMode="contain"
-                      />
-                    </View>
-                    <View style={styles.eventPageCodePill}>
-                      <Text style={styles.eventPageCodeText}>{existingRsvp.passCode}</Text>
-                    </View>
-                    <Text style={styles.eventPageQrHint}>
-                      {existingRsvp.status === 'checked_in'
-                        ? 'Admission confirmed at entrance gate • Verified'
-                        : 'Present this official QR code at the entrance gate scanner'}
+                <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#F0FDF4', padding: 12, borderRadius: 8, marginVertical: 12, borderWidth: 1, borderColor: '#BBF7D0' }}>
+                  <Ionicons name="checkmark-circle" size={22} color="#16A34A" style={{ marginRight: 10 }} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontFamily: fonts.bodyBold, fontSize: 13, color: '#166534' }}>
+                      Attendance Confirmed
+                    </Text>
+                    <Text style={{ fontFamily: fonts.bodyMedium, fontSize: 12, color: '#166534', marginTop: 2 }}>
+                      Your reservation is registered on the host attendance list.
                     </Text>
                   </View>
-                )}
+                </View>
 
                 <View style={styles.confirmedPassMetaRow}>
                   <View style={{ flex: 1, paddingRight: 8 }}>
@@ -547,24 +566,21 @@ export default function EventDetailScreen() {
         </View>
 
         {existingRsvp && (existingRsvp.status === 'confirmed' || existingRsvp.status === 'checked_in') ? (
-          <View style={styles.confirmedBottomPill}>
+          <TouchableOpacity
+            style={styles.confirmedBottomPill}
+            onPress={handleOpenRsvpModal}
+            activeOpacity={0.88}
+          >
             <Ionicons
-              name={existingRsvp.status === 'checked_in' ? 'shield-checkmark' : 'checkmark-circle'}
+              name="checkmark-circle"
               size={18}
-              color={existingRsvp.status === 'checked_in' ? '#16803C' : '#07152B'}
+              color="#16803C"
               style={{ marginRight: 6 }}
             />
-            <Text
-              style={[
-                styles.confirmedBottomPillText,
-                existingRsvp.status === 'checked_in' && { color: '#16803C' },
-              ]}
-            >
-              {existingRsvp.status === 'checked_in'
-                ? 'Admitted at Venue Gate'
-                : `Pass Confirmed (${existingRsvp.ticketsCount} Pax)`}
+            <Text style={styles.confirmedBottomPillText}>
+              RSVP Confirmed ({existingRsvp.ticketsCount} {existingRsvp.ticketsCount > 1 ? 'Guests' : 'Guest'})
             </Text>
-          </View>
+          </TouchableOpacity>
         ) : (
           <TouchableOpacity
             style={[styles.rsvpMainBtn, existingRsvp && styles.rsvpMainBtnEdit]}
@@ -572,13 +588,13 @@ export default function EventDetailScreen() {
             activeOpacity={0.88}
           >
             <Ionicons
-              name={existingRsvp ? 'create-outline' : 'ticket'}
+              name={existingRsvp ? 'create-outline' : 'calendar'}
               size={18}
-              color={colors.navy}
+              color="#FFFFFF"
               style={{ marginRight: 8 }}
             />
             <Text style={styles.rsvpMainBtnText}>
-              {existingRsvp ? 'Modify Pending Request' : 'RSVP / Get Pass'}
+              {existingRsvp ? 'Modify RSVP' : 'Confirm Attendance / RSVP'}
             </Text>
           </TouchableOpacity>
         )}
@@ -675,39 +691,69 @@ export default function EventDetailScreen() {
                 <View style={styles.inputGroup}>
                   <Text style={styles.inputLabel}>PRIMARY ATTENDEE FULL NAME *</Text>
                   <TextInput
-                    style={styles.modalInput}
+                    style={[styles.modalInput, !!rsvpNameError && styles.modalInputError]}
                     placeholder="e.g. Eyob Adamu"
                     placeholderTextColor={colors.charcoalSub}
                     value={fullName}
-                    onChangeText={setFullName}
+                    onChangeText={(val) => {
+                      setFullName(val);
+                      if (rsvpError) setRsvpError(null);
+                    }}
+                    onBlur={() => setTouchedRsvpName(true)}
                   />
+                  {!!rsvpNameError && (
+                    <View style={styles.fieldErrorRow}>
+                      <Ionicons name="alert-circle" size={13} color={colors.error} />
+                      <Text style={styles.fieldErrorText}>{rsvpNameError}</Text>
+                    </View>
+                  )}
                 </View>
 
                 {/* Attendee Email */}
                 <View style={styles.inputGroup}>
                   <Text style={styles.inputLabel}>EMAIL ADDRESS (FOR TICKET CONFIRMATION) *</Text>
                   <TextInput
-                    style={styles.modalInput}
+                    style={[styles.modalInput, !!rsvpEmailError && styles.modalInputError]}
                     placeholder="e.g. attendee@email.com"
                     placeholderTextColor={colors.charcoalSub}
                     value={email}
-                    onChangeText={setEmail}
+                    onChangeText={(val) => {
+                      setEmail(val);
+                      if (rsvpError) setRsvpError(null);
+                    }}
+                    onBlur={() => setTouchedRsvpEmail(true)}
                     keyboardType="email-address"
                     autoCapitalize="none"
                   />
+                  {!!rsvpEmailError && (
+                    <View style={styles.fieldErrorRow}>
+                      <Ionicons name="alert-circle" size={13} color={colors.error} />
+                      <Text style={styles.fieldErrorText}>{rsvpEmailError}</Text>
+                    </View>
+                  )}
                 </View>
 
                 {/* Phone / WhatsApp */}
                 <View style={styles.inputGroup}>
                   <Text style={styles.inputLabel}>PHONE / WHATSAPP (OPTIONAL)</Text>
                   <TextInput
-                    style={styles.modalInput}
+                    style={[styles.modalInput, !!rsvpPhoneError && styles.modalInputError]}
                     placeholder="e.g. +251 911 234 567 or +1 202 555 0143"
                     placeholderTextColor={colors.charcoalSub}
                     value={phone}
-                    onChangeText={setPhone}
+                    onChangeText={(val) => {
+                      setPhone(val);
+                      if (rsvpError) setRsvpError(null);
+                    }}
+                    onBlur={() => setTouchedRsvpPhone(true)}
                     keyboardType="phone-pad"
                   />
+                  {!!rsvpPhoneError && (
+                    <View style={styles.fieldErrorRow}>
+                      <Ionicons name="alert-circle" size={13} color={colors.error} />
+                      <Text style={styles.fieldErrorText}>{rsvpPhoneError}</Text>
+                    </View>
+                  )}
                 </View>
 
                 {/* Note / Inquiries */}
@@ -731,10 +777,10 @@ export default function EventDetailScreen() {
                   activeOpacity={0.88}
                 >
                   {submittingRsvp ? (
-                    <ActivityIndicator size="small" color={colors.navy} />
+                    <ActivityIndicator size="small" color="#FFFFFF" />
                   ) : (
                     <>
-                      <Ionicons name="checkmark-circle" size={18} color={colors.navy} style={{ marginRight: 8 }} />
+                      <Ionicons name="checkmark-circle" size={18} color="#FFFFFF" style={{ marginRight: 8 }} />
                       <Text style={styles.modalSubmitBtnText}>
                         {existingRsvp ? 'Save & Update Pass' : 'Complete Registration'}
                       </Text>
@@ -791,15 +837,15 @@ const styles = StyleSheet.create({
   backHomeBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.gold,
+    backgroundColor: colors.navy,
     paddingHorizontal: 20,
-    paddingVertical: 10,
+    paddingVertical: 11,
     borderRadius: 20,
   },
   backHomeBtnText: {
     fontSize: 14,
     fontFamily: fonts.bodyBold,
-    color: colors.navy,
+    color: '#FFFFFF',
     marginLeft: 6,
   },
   scrollView: {
@@ -826,7 +872,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(15, 46, 34, 0.42)',
+    backgroundColor: 'rgba(7, 21, 43, 0.45)',
   },
   floatingNavSafe: {
     position: 'absolute',
@@ -845,7 +891,7 @@ const styles = StyleSheet.create({
     width: 42,
     height: 42,
     borderRadius: 21,
-    backgroundColor: 'rgba(15, 46, 34, 0.72)',
+    backgroundColor: 'rgba(7, 21, 43, 0.65)',
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
@@ -1036,14 +1082,15 @@ const styles = StyleSheet.create({
     lineHeight: 19,
   },
 
-  // Venue Info Box
   venueInfoBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(15, 46, 34, 0.04)',
+    backgroundColor: colors.surface,
     borderRadius: 14,
     padding: 14,
     marginBottom: 10,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   venueName: {
     fontSize: 14.5,
@@ -1103,11 +1150,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.gold,
+    backgroundColor: colors.navy,
     paddingHorizontal: 22,
     paddingVertical: 13,
     borderRadius: 16,
-    shadowColor: colors.gold,
+    shadowColor: colors.navy,
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.25,
     shadowRadius: 6,
@@ -1116,7 +1163,7 @@ const styles = StyleSheet.create({
   rsvpMainBtnText: {
     fontSize: 14.5,
     fontFamily: fonts.bodyBold,
-    color: colors.navy,
+    color: '#FFFFFF',
   },
 
   // Modal Sheet
@@ -1169,15 +1216,32 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   modalInput: {
-    backgroundColor: 'rgba(23, 25, 28, 0.04)',
+    backgroundColor: colors.surface,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: 'rgba(23, 25, 28, 0.1)',
+    borderColor: colors.border,
     paddingHorizontal: 14,
     paddingVertical: 10,
     fontSize: 14,
     fontFamily: fonts.body,
     color: colors.charcoal,
+  },
+  modalInputError: {
+    borderColor: colors.error,
+    backgroundColor: '#FFF5F5',
+  },
+  fieldErrorRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 5,
+    marginLeft: 2,
+  },
+  fieldErrorText: {
+    fontFamily: fonts.bodyMedium,
+    fontSize: 12,
+    color: colors.error,
+    lineHeight: 16,
   },
   modalInputMulti: {
     height: 70,
@@ -1214,11 +1278,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.gold,
+    backgroundColor: colors.navy,
     paddingVertical: 14,
     borderRadius: 16,
     marginTop: 10,
-    shadowColor: colors.gold,
+    shadowColor: colors.navy,
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.25,
     shadowRadius: 6,
@@ -1230,7 +1294,7 @@ const styles = StyleSheet.create({
   modalSubmitBtnText: {
     fontSize: 15,
     fontFamily: fonts.bodyBold,
-    color: colors.navy,
+    color: '#FFFFFF',
   },
 
   // Success Confirmation
@@ -1477,10 +1541,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.gold,
+    backgroundColor: colors.navySoft,
     paddingHorizontal: 18,
     paddingVertical: 13,
     borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   confirmedBottomPillText: {
     fontFamily: fonts.bodyBold,

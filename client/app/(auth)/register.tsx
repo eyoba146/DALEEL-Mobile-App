@@ -1,8 +1,9 @@
-import { Ionicons } from '@expo/vector-icons';
+import { Feather, Ionicons } from '@expo/vector-icons';
 import { Link, router } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
-  Image,
+  Animated,
+  Easing,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -13,9 +14,8 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Button } from '../../components/Button';
-import { Input } from '../../components/Input';
 import { ApiError, SupportedLanguage } from '../../lib/api';
 import { useAuth } from '../../lib/auth-context';
 import { colors, fonts, radius, spacing } from '../../theme/tokens';
@@ -33,109 +33,61 @@ const POPULAR_COUNTRIES = [
 ];
 
 export default function Register() {
+  const insets = useSafeAreaInsets();
   const { register, onboarding } = useAuth();
 
-  // Wizard Step State (1, 2, or 3)
+  // Multi-step Wizard: 1 (Profile Type) -> 2 (Personal Info) -> 3 (Security & Password)
   const [step, setStep] = useState<1 | 2 | 3>(1);
 
-  // Step 1: User type & Location
+  // Smooth animated progress bar for steps (1 -> 2 -> 3)
+  const progressAnim = useRef(new Animated.Value(step === 1 ? 0.333 : step === 2 ? 0.666 : 1)).current;
+
+  useEffect(() => {
+    const target = step === 1 ? 0.333 : step === 2 ? 0.666 : 1;
+    Animated.timing(progressAnim, {
+      toValue: target,
+      duration: 450,
+      easing: Easing.bezier(0.25, 0.1, 0.25, 1),
+      useNativeDriver: false,
+    }).start();
+  }, [step]);
+
+  const progressWidth = progressAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0%', '100%'],
+  });
+
+  // Step 1: Profile Type & Location
   const [userType, setUserType] = useState<'diaspora' | 'foreign_resident'>(
     onboarding?.userType || 'diaspora'
   );
   const [country, setCountry] = useState<string>(onboarding?.country || 'United States');
-  const [isCustomCountry, setIsCustomCountry] = useState(false);
-  const [language, setLanguage] = useState<SupportedLanguage>(onboarding?.language || 'en');
+  const [language] = useState<SupportedLanguage>(onboarding?.language || 'en');
 
   // Step 2: Personal Details
   const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
 
   // Step 3: Security & Credentials
-  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
+  // Status
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  // Auto-dismiss errors after 4 seconds
+  // Auto-dismiss errors after 5 seconds
   useEffect(() => {
     if (error) {
-      const timer = setTimeout(() => setError(null), 4000);
+      const timer = setTimeout(() => setError(null), 5000);
       return () => clearTimeout(timer);
     }
   }, [error]);
 
-  const handleNextStep = () => {
-    setError(null);
-    if (step === 1) {
-      const trimmedCountry = country.trim();
-      if (!trimmedCountry) {
-        setError('Please select or enter your country of residence.');
-        return;
-      }
-      setStep(2);
-    } else if (step === 2) {
-      const trimmedName = name.trim();
-      if (!trimmedName || trimmedName.length < 2) {
-        setError('Please enter your legal full name (at least 2 characters).');
-        return;
-      }
-      setStep(3);
-    }
-  };
-
-  const handlePrevStep = () => {
-    setError(null);
-    if (step === 3) setStep(2);
-    else if (step === 2) setStep(1);
-    else router.back();
-  };
-
-  const handleRegister = async () => {
-    setError(null);
-    const trimmedName = name.trim();
-    const trimmedEmail = email.trim().toLowerCase();
-    const trimmedCountry = country.trim();
-
-    if (!trimmedEmail) {
-      setError('Please enter your email address.');
-      return;
-    }
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(trimmedEmail)) {
-      setError('Please enter a valid email address.');
-      return;
-    }
-
-    if (!password) {
-      setError('Please enter a password.');
-      return;
-    }
-    if (password.length < 8) {
-      setError('Password must be at least 8 characters.');
-      return;
-    }
-
-    if (password !== confirmPassword) {
-      setError('Passwords do not match. Please verify your password confirmation.');
-      return;
-    }
-
-    setLoading(true);
-    try {
-      await register(trimmedName, trimmedEmail, password, userType, trimmedCountry, language);
-      router.replace('/(auth)/verify-email');
-    } catch (e: any) {
-      setError(e instanceof ApiError ? e.message : e.message || 'Could not register. Try again.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Password strength score (0 to 4)
+  // Password strength calculation
   const getPasswordStrength = () => {
     if (!password) return 0;
     let score = 0;
@@ -148,142 +100,272 @@ export default function Register() {
 
   const strengthScore = getPasswordStrength();
   const strengthLabels = ['Too Weak', 'Weak', 'Fair', 'Good', 'Strong'];
-  const strengthColors = ['#E2E8F0', '#E53E3E', '#ED8936', '#ECC94B', '#38A169'];
+  const strengthColors = ['#E2E8F0', '#EF4444', '#F59E0B', '#DFB76C', '#10B981'];
+
+  // Smooth animated strength meter
+  const strengthAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.timing(strengthAnim, {
+      toValue: strengthScore / 4,
+      duration: 280,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: false,
+    }).start();
+  }, [strengthScore]);
+
+  const strengthWidth = strengthAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0%', '100%'],
+  });
+
+  // Field-level validation tracking
+  const [touchedCountry, setTouchedCountry] = useState(false);
+  const [submittedStep1, setSubmittedStep1] = useState(false);
+
+  const [touchedName, setTouchedName] = useState(false);
+  const [touchedEmail, setTouchedEmail] = useState(false);
+  const [touchedPhone, setTouchedPhone] = useState(false);
+  const [submittedStep2, setSubmittedStep2] = useState(false);
+
+  const [touchedPassword, setTouchedPassword] = useState(false);
+  const [touchedConfirmPassword, setTouchedConfirmPassword] = useState(false);
+  const [submittedStep3, setSubmittedStep3] = useState(false);
+
+  // Live field validation computations
+  const countryTrimmed = country.trim();
+  const countryError = (touchedCountry || submittedStep1)
+    ? !countryTrimmed
+      ? 'Please select or enter your country of residence.'
+      : countryTrimmed.length < 2
+      ? 'Country name must be at least 2 characters.'
+      : null
+    : null;
+
+  const nameTrimmed = name.trim();
+  const nameError = (touchedName || submittedStep2)
+    ? !nameTrimmed
+      ? 'Full legal name is required.'
+      : nameTrimmed.length < 2
+      ? 'Full name must contain at least 2 characters.'
+      : null
+    : null;
+
+  const emailTrimmed = email.trim();
+  const isEmailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailTrimmed);
+  const emailError = (touchedEmail || submittedStep2)
+    ? !emailTrimmed
+      ? 'Email address is required.'
+      : !isEmailValid
+      ? 'Please enter a valid email address (e.g. name@domain.com).'
+      : null
+    : null;
+
+  const phoneTrimmed = phone.trim();
+  const phoneError = (touchedPhone || submittedStep2) && phoneTrimmed
+    ? !/^[+]?[0-9\s\-().]{7,20}$/.test(phoneTrimmed)
+      ? 'Please enter a valid phone number (at least 7 digits).'
+      : null
+    : null;
+
+  const passwordError = (touchedPassword || submittedStep3)
+    ? !password
+      ? 'Password is required.'
+      : password.length < 8
+      ? 'Password must contain at least 8 characters.'
+      : null
+    : null;
+
+  const confirmPasswordError = (touchedConfirmPassword || submittedStep3)
+    ? !confirmPassword
+      ? 'Please re-enter your password to confirm.'
+      : password !== confirmPassword
+      ? 'Passwords do not match.'
+      : null
+    : null;
+
+  // Step 1 Validation -> Proceed to Step 2
+  const handleStep1Next = () => {
+    setSubmittedStep1(true);
+    setError(null);
+    if (!countryTrimmed || countryTrimmed.length < 2) {
+      setTouchedCountry(true);
+      return;
+    }
+    setStep(2);
+  };
+
+  // Step 2 Validation -> Proceed to Step 3
+  const handleStep2Next = () => {
+    setSubmittedStep2(true);
+    setError(null);
+    if (!nameTrimmed || nameTrimmed.length < 2) {
+      setTouchedName(true);
+      return;
+    }
+    if (!emailTrimmed || !isEmailValid) {
+      setTouchedEmail(true);
+      return;
+    }
+    if (phoneTrimmed && !/^[+]?[0-9\s\-().]{7,20}$/.test(phoneTrimmed)) {
+      setTouchedPhone(true);
+      return;
+    }
+    setStep(3);
+  };
+
+  // Step 3 Final Submission
+  const handleFinalSubmit = async () => {
+    setSubmittedStep3(true);
+    setError(null);
+    if (!password || password.length < 8) {
+      setTouchedPassword(true);
+      return;
+    }
+    if (!confirmPassword || password !== confirmPassword) {
+      setTouchedConfirmPassword(true);
+      return;
+    }
+
+    setLoading(true);
+    try {
+      await register(
+        nameTrimmed,
+        emailTrimmed.toLowerCase(),
+        password,
+        userType,
+        countryTrimmed,
+        language
+      );
+      router.replace('/(tabs)');
+    } catch (e: any) {
+      setError(
+        e instanceof ApiError
+          ? e.message
+          : e?.message || 'Could not complete registration. Check your connection.'
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
-    <SafeAreaView style={styles.screen}>
+    <View style={styles.screen}>
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={{ flex: 1 }}
       >
         <ScrollView
-          contentContainerStyle={styles.content}
+          contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
+          bounces={false}
         >
-          {/* Top Bar with Dynamic Back Button */}
-          <View style={styles.navBar}>
-            <TouchableOpacity
-              style={styles.backBtn}
-              onPress={handlePrevStep}
-              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-            >
-              <Ionicons name="arrow-back" size={20} color={colors.charcoal} />
-            </TouchableOpacity>
+          {/* ── 1. Luxury Deep Navy Editorial Header Canvas ── */}
+          <View style={[styles.heroCanvas, { paddingTop: Math.max(insets.top, 24) + 12 }]}>
+            {/* Top Navigation Row */}
+            <View style={styles.topNavRow}>
+              <TouchableOpacity
+                style={styles.backCircleBtn}
+                onPress={() => {
+                  if (step === 3) setStep(2);
+                  else if (step === 2) setStep(1);
+                  else router.back();
+                }}
+                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+              >
+                <Ionicons name="arrow-back" size={18} color="#FFFFFF" />
+              </TouchableOpacity>
 
-            <View style={styles.brandRow}>
-              <View style={styles.miniLogo}>
-                <Image source={require('../../assets/icon.png')} style={styles.miniLogoImg} />
+              <View style={styles.brandCluster}>
+                <View style={styles.compassPod}>
+                  <Ionicons name="compass" size={18} color={colors.gold} />
+                </View>
+                <Text style={styles.brandWordmark}>D A L E E L</Text>
               </View>
-              <Text style={styles.miniWordmark}>DALEEL</Text>
-            </View>
-            <View style={{ width: 42 }} />
-          </View>
 
-          {/* Stepper Progress Bar */}
-          <View style={styles.stepperContainer}>
-            <View style={styles.stepperTrack}>
-              {/* Active Progress Line */}
-              <View
-                style={[
-                  styles.stepperProgressFill,
-                  { width: step === 1 ? '16%' : step === 2 ? '50%' : '100%' },
-                ]}
-              />
+              <View style={{ width: 36 }} />
             </View>
 
-            <View style={styles.stepNodesRow}>
-              {/* Step 1 Node */}
-              <TouchableOpacity
-                style={[styles.stepNode, step >= 1 && styles.stepNodeActive]}
-                onPress={() => setStep(1)}
-                activeOpacity={0.8}
-              >
-                {step > 1 ? (
-                  <Ionicons name="checkmark" size={14} color={colors.navy} />
-                ) : (
-                  <Text style={[styles.stepNodeNum, styles.stepNodeNumActive]}>1</Text>
-                )}
-              </TouchableOpacity>
-
-              {/* Step 2 Node */}
-              <TouchableOpacity
-                style={[styles.stepNode, step >= 2 && styles.stepNodeActive]}
-                onPress={() => { if (step > 2) setStep(2); }}
-                activeOpacity={0.8}
-              >
-                {step > 2 ? (
-                  <Ionicons name="checkmark" size={14} color={colors.navy} />
-                ) : (
-                  <Text style={[styles.stepNodeNum, step >= 2 && styles.stepNodeNumActive]}>2</Text>
-                )}
-              </TouchableOpacity>
-
-              {/* Step 3 Node */}
-              <View style={[styles.stepNode, step === 3 && styles.stepNodeActive]}>
-                <Text style={[styles.stepNodeNum, step === 3 && styles.stepNodeNumActive]}>3</Text>
+            {/* Stepper Progress Indicator (Flush to Header) */}
+            <View style={styles.stepIndicatorContainer}>
+              <View style={styles.stepTrack}>
+                <Animated.View
+                  style={[
+                    styles.stepFill,
+                    { width: progressWidth },
+                  ]}
+                />
+              </View>
+              <View style={styles.stepLabelsRow}>
+                <Text style={[styles.stepLabel, step >= 1 && styles.stepLabelActive]}>
+                  1. Profile Type
+                </Text>
+                <Text style={[styles.stepLabel, step >= 2 && styles.stepLabelActive]}>
+                  2. Personal Info
+                </Text>
+                <Text style={[styles.stepLabel, step >= 3 && styles.stepLabelActive]}>
+                  3. Password
+                </Text>
               </View>
             </View>
 
-            <View style={styles.stepLabelsRow}>
-              <Text style={[styles.stepLabelText, step === 1 && styles.stepLabelTextActive]}>
-                Persona
-              </Text>
-              <Text style={[styles.stepLabelText, step === 2 && styles.stepLabelTextActive]}>
-                Profile
-              </Text>
-              <Text style={[styles.stepLabelText, step === 3 && styles.stepLabelTextActive]}>
-                Security
-              </Text>
-            </View>
+            {/* Dynamic Step Title */}
+            <Text style={styles.heroTitle}>
+              {step === 1 && 'Choose Profile Type'}
+              {step === 2 && 'Personal Information'}
+              {step === 3 && 'Create Password'}
+            </Text>
+            <Text style={styles.heroSubtitle}>
+              {step === 1 && 'Select your connection to Ethiopia and specify your current residence.'}
+              {step === 2 && 'Tell us your legal name and contact email for your concierge membership.'}
+              {step === 3 && 'Set up a secure passkey to protect your diaspora account.'}
+            </Text>
           </View>
 
-          {/* Step Header */}
-          <Text style={styles.hero}>
-            {step === 1 && 'Choose your persona'}
-            {step === 2 && 'Personal information'}
-            {step === 3 && 'Account security'}
-          </Text>
-          <Text style={styles.sub}>
-            {step === 1 && 'Select your connection to Ethiopia and where you currently reside.'}
-            {step === 2 && 'Tell us your legal name so we can personalize your digital journey.'}
-            {step === 3 && 'Set up your secure login credentials and confirm your password.'}
-          </Text>
+          {/* ── 2. Seamless Form Canvas (NO CARD EFFECT, FLUSH TO BACKGROUND) ── */}
+          <View style={[styles.formContainer, { paddingBottom: Math.max(insets.bottom, 20) + 28 }]}>
+            {/* Error Notification */}
+            {!!error && (
+              <View style={styles.errorBanner}>
+                <Ionicons name="alert-circle" size={18} color={colors.error} />
+                <Text style={styles.errorText}>{error}</Text>
+              </View>
+            )}
 
-          {/* ═══════════════════════════════════════════════════════════════
-              STEP 1: PERSONA & LOCATION
-              ═══════════════════════════════════════════════════════════════ */}
-          {step === 1 && (
-            <View>
-              {/* Select User Persona */}
-              <Text style={styles.sectionLabel}>CHOOSE YOUR PROFILE TYPE</Text>
-              <View style={styles.personaContainer}>
-                {/* Persona 1: Ethiopian Diaspora */}
+            {/* ═══════════════════════════════════════════════════════════
+                STEP 1: PROFILE TYPE & COUNTRY OF RESIDENCE
+                ═══════════════════════════════════════════════════════════ */}
+            {step === 1 && (
+              <View>
+                <Text style={styles.sectionHeading}>SELECT YOUR CONNECTION</Text>
+
+                {/* Persona Option 1: Ethiopian Diaspora */}
                 <TouchableOpacity
                   style={[
-                    styles.personaCard,
-                    userType === 'diaspora' && styles.personaCardActive,
+                    styles.personaOption,
+                    userType === 'diaspora' && styles.personaOptionActive,
                   ]}
                   onPress={() => setUserType('diaspora')}
-                  activeOpacity={0.85}
+                  activeOpacity={0.88}
                 >
-                  <View style={styles.personaHeader}>
+                  <View style={styles.personaTopRow}>
                     <View
                       style={[
-                        styles.personaIconWrap,
-                        userType === 'diaspora' && styles.personaIconWrapActive,
+                        styles.personaIconCircle,
+                        userType === 'diaspora' && styles.personaIconCircleActive,
                       ]}
                     >
                       <Ionicons
-                        name="people"
-                        size={22}
+                        name="earth"
+                        size={20}
                         color={userType === 'diaspora' ? colors.gold : colors.charcoalSub}
                       />
                     </View>
                     <View
                       style={[
-                        styles.radioCircle,
-                        userType === 'diaspora' && styles.radioCircleActive,
+                        styles.radioIndicator,
+                        userType === 'diaspora' && styles.radioIndicatorActive,
                       ]}
                     >
                       {userType === 'diaspora' && <View style={styles.radioDot} />}
@@ -298,36 +380,36 @@ export default function Register() {
                     Ethiopian Diaspora
                   </Text>
                   <Text style={styles.personaDesc}>
-                    Living abroad with Ethiopian heritage or nationality.
+                    Living abroad with Ethiopian heritage or citizenship. Unlocks cultural heritage archives, diaspora venture prospectuses, and relocation directories.
                   </Text>
                 </TouchableOpacity>
 
-                {/* Persona 2: Foreign Resident */}
+                {/* Persona Option 2: Foreign Resident */}
                 <TouchableOpacity
                   style={[
-                    styles.personaCard,
-                    userType === 'foreign_resident' && styles.personaCardActive,
+                    styles.personaOption,
+                    userType === 'foreign_resident' && styles.personaOptionActive,
                   ]}
                   onPress={() => setUserType('foreign_resident')}
-                  activeOpacity={0.85}
+                  activeOpacity={0.88}
                 >
-                  <View style={styles.personaHeader}>
+                  <View style={styles.personaTopRow}>
                     <View
                       style={[
-                        styles.personaIconWrap,
-                        userType === 'foreign_resident' && styles.personaIconWrapActive,
+                        styles.personaIconCircle,
+                        userType === 'foreign_resident' && styles.personaIconCircleActive,
                       ]}
                     >
                       <Ionicons
                         name="globe-outline"
-                        size={22}
+                        size={20}
                         color={userType === 'foreign_resident' ? colors.gold : colors.charcoalSub}
                       />
                     </View>
                     <View
                       style={[
-                        styles.radioCircle,
-                        userType === 'foreign_resident' && styles.radioCircleActive,
+                        styles.radioIndicator,
+                        userType === 'foreign_resident' && styles.radioIndicatorActive,
                       ]}
                     >
                       {userType === 'foreign_resident' && <View style={styles.radioDot} />}
@@ -339,581 +421,549 @@ export default function Register() {
                       userType === 'foreign_resident' && styles.personaTitleActive,
                     ]}
                   >
-                    Foreign Resident
+                    Foreign Resident & Visitor
                   </Text>
                   <Text style={styles.personaDesc}>
-                    International visitor, investor, expat, or diplomat in Ethiopia.
-                  </Text>
-                </TouchableOpacity>
-              </View>
-
-              {/* Country Selection */}
-              <Text style={styles.sectionLabel}>COUNTRY OF RESIDENCE</Text>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.countryScroll}
-              >
-                {POPULAR_COUNTRIES.map((c) => {
-                  const selected = country === c && !isCustomCountry;
-                  return (
-                    <TouchableOpacity
-                      key={c}
-                      style={[styles.countryChip, selected && styles.countryChipActive]}
-                      onPress={() => {
-                        setCountry(c);
-                        setIsCustomCountry(false);
-                      }}
-                      activeOpacity={0.8}
-                    >
-                      <Text
-                        style={[
-                          styles.countryChipText,
-                          selected && styles.countryChipTextActive,
-                        ]}
-                      >
-                        {c}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-                <TouchableOpacity
-                  style={[styles.countryChip, isCustomCountry && styles.countryChipActive]}
-                  onPress={() => {
-                    setIsCustomCountry(true);
-                    setCountry('');
-                  }}
-                  activeOpacity={0.8}
-                >
-                  <Text
-                    style={[
-                      styles.countryChipText,
-                      isCustomCountry && styles.countryChipTextActive,
-                    ]}
-                  >
-                    + Other Country
-                  </Text>
-                </TouchableOpacity>
-              </ScrollView>
-
-              {isCustomCountry && (
-                <View style={styles.customCountryWrap}>
-                  <TextInput
-                    style={styles.customCountryInput}
-                    placeholder="Type your country name"
-                    placeholderTextColor={colors.charcoalLight}
-                    value={country}
-                    onChangeText={setCountry}
-                    autoFocus
-                  />
-                </View>
-              )}
-
-              {/* Preferred Language */}
-              <Text style={styles.sectionLabel}>PREFERRED LANGUAGE</Text>
-              <View style={styles.langToggleRow}>
-                <TouchableOpacity
-                  style={[styles.langBtn, language === 'en' && styles.langBtnActive]}
-                  onPress={() => setLanguage('en')}
-                  activeOpacity={0.8}
-                >
-                  <Text
-                    style={[
-                      styles.langBtnText,
-                      language === 'en' && styles.langBtnTextActive,
-                    ]}
-                  >
-                    English
+                    International diplomat, expat, investor, or traveler residing in or exploring Ethiopia. Access verified English-speaking services and curated landmarks.
                   </Text>
                 </TouchableOpacity>
 
-                <TouchableOpacity
-                  style={[styles.langBtn, language === 'am' && styles.langBtnActive]}
-                  onPress={() => setLanguage('am')}
-                  activeOpacity={0.8}
-                >
-                  <Text
-                    style={[
-                      styles.langBtnText,
-                      language === 'am' && styles.langBtnTextActive,
-                    ]}
-                  >
-                    አማርኛ
-                  </Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[styles.langBtn, language === 'om' && styles.langBtnActive]}
-                  onPress={() => setLanguage('om')}
-                  activeOpacity={0.8}
-                >
-                  <Text
-                    style={[
-                      styles.langBtnText,
-                      language === 'om' && styles.langBtnTextActive,
-                    ]}
-                  >
-                    Afaan Oromoo
-                  </Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[styles.langBtn, language === 'ar' && styles.langBtnActive]}
-                  onPress={() => setLanguage('ar')}
-                  activeOpacity={0.8}
-                >
-                  <Text
-                    style={[
-                      styles.langBtnText,
-                      language === 'ar' && styles.langBtnTextActive,
-                    ]}
-                  >
-                    العربية
-                  </Text>
-                </TouchableOpacity>
-              </View>
-
-              {/* Error Message */}
-              {!!error && (
-                <View style={styles.errorRow}>
-                  <Ionicons name="alert-circle" size={16} color={colors.error} />
-                  <Text style={styles.errorText}>{error}</Text>
-                </View>
-              )}
-
-              {/* Step 1 Next Button */}
-              <Button
-                label="Continue to Personal Info →"
-                onPress={handleNextStep}
-                variant="gold"
-                style={styles.submitBtn}
-              />
-            </View>
-          )}
-
-          {/* ═══════════════════════════════════════════════════════════════
-              STEP 2: PERSONAL INFORMATION
-              ═══════════════════════════════════════════════════════════════ */}
-          {step === 2 && (
-            <View>
-              <Text style={styles.sectionLabel}>YOUR LEGAL IDENTITY</Text>
-              <View style={styles.fields}>
-                <Input
-                  label="Legal Full Name *"
-                  placeholder="e.g. Samuel Bekele"
-                  value={name}
-                  onChangeText={setName}
-                  autoCapitalize="words"
-                  autoComplete="name"
-                  autoFocus
-                  returnKeyType="next"
-                />
-
-                <Input
-                  label="Mobile Phone Number (Optional)"
-                  placeholder="e.g. +1 202 555 0192"
-                  value={phone}
-                  onChangeText={setPhone}
-                  keyboardType="phone-pad"
-                  autoComplete="tel"
-                  returnKeyType="done"
-                />
-              </View>
-
-              {/* Error Message */}
-              {!!error && (
-                <View style={styles.errorRow}>
-                  <Ionicons name="alert-circle" size={16} color={colors.error} />
-                  <Text style={styles.errorText}>{error}</Text>
-                </View>
-              )}
-
-              <View style={styles.navBtnRow}>
-                <TouchableOpacity
-                  style={styles.stepBackBtn}
-                  onPress={handlePrevStep}
-                  activeOpacity={0.8}
-                >
-                  <Ionicons name="arrow-back" size={16} color={colors.navy} style={{ marginRight: 4 }} />
-                  <Text style={styles.stepBackText}>Back</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={styles.stepNextBtn}
-                  onPress={handleNextStep}
-                  activeOpacity={0.8}
-                >
-                  <Text style={styles.stepNextText}>Continue to Security</Text>
-                  <Ionicons name="arrow-forward" size={16} color={colors.navy} style={{ marginLeft: 4 }} />
-                </TouchableOpacity>
-              </View>
-            </View>
-          )}
-
-          {/* ═══════════════════════════════════════════════════════════════
-              STEP 3: SECURITY & CREDENTIALS (PASSWORD & CONFIRM PASSWORD)
-              ═══════════════════════════════════════════════════════════════ */}
-          {step === 3 && (
-            <View>
-              <Text style={styles.sectionLabel}>EMAIL & LOGIN CREDENTIALS</Text>
-              <View style={styles.fields}>
-                <Input
-                  label="Email Address *"
-                  placeholder="name@example.com"
-                  value={email}
-                  onChangeText={setEmail}
-                  autoCapitalize="none"
-                  keyboardType="email-address"
-                  autoComplete="email"
-                  returnKeyType="next"
-                  autoFocus
-                />
-
-                {/* Password Input */}
-                <View style={{ position: 'relative' }}>
-                  <Input
-                    label="Password (min 8 characters) *"
-                    placeholder="Enter strong password"
-                    value={password}
-                    onChangeText={setPassword}
-                    secureTextEntry={!showPassword}
-                    returnKeyType="next"
-                  />
-                  <Pressable
-                    style={styles.eyeBtn}
-                    onPress={() => setShowPassword((v) => !v)}
-                    hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-                  >
+                {/* Country of Residence */}
+                <View style={[styles.inputGroup, { marginTop: spacing.md }]}>
+                  <Text style={styles.inputLabel}>COUNTRY OF RESIDENCE *</Text>
+                  <View style={[styles.inputBox, !!countryError && styles.inputBoxError]}>
                     <Ionicons
-                      name={showPassword ? 'eye-off-outline' : 'eye-outline'}
-                      size={20}
-                      color={colors.charcoalSub}
+                      name="location-outline"
+                      size={18}
+                      color={countryError ? colors.error : colors.charcoalSub}
+                      style={styles.inputIcon}
                     />
-                  </Pressable>
+                    <TextInput
+                      style={styles.textInput}
+                      value={country}
+                      onChangeText={(val) => {
+                        setCountry(val);
+                        if (error) setError(null);
+                      }}
+                      onBlur={() => setTouchedCountry(true)}
+                      placeholder="e.g. United States, United Kingdom"
+                      placeholderTextColor={colors.charcoalLight}
+                      returnKeyType="done"
+                    />
+                  </View>
+                  {!!countryError && (
+                    <View style={styles.fieldErrorRow}>
+                      <Ionicons name="alert-circle" size={13} color={colors.error} />
+                      <Text style={styles.fieldErrorText}>{countryError}</Text>
+                    </View>
+                  )}
+
+                  {/* Horizontal Country Quick Pills */}
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={styles.countryChipsRow}
+                  >
+                    {POPULAR_COUNTRIES.map((c) => (
+                      <TouchableOpacity
+                        key={c}
+                        style={[
+                          styles.countryChip,
+                          country.toLowerCase() === c.toLowerCase() && styles.countryChipActive,
+                        ]}
+                        onPress={() => {
+                          setCountry(c);
+                          if (error) setError(null);
+                        }}
+                        activeOpacity={0.8}
+                      >
+                        <Text
+                          style={[
+                            styles.countryChipText,
+                            country.toLowerCase() === c.toLowerCase() && styles.countryChipTextActive,
+                          ]}
+                        >
+                          {c}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
                 </View>
 
-                {/* Password Strength Meter */}
-                {password.length > 0 && (
-                  <View style={styles.strengthMeterWrap}>
-                    <View style={styles.strengthBarsRow}>
-                      {[1, 2, 3, 4].map((index) => (
-                        <View
-                          key={index}
+                {/* Step 1 Continue CTA */}
+                <Button
+                  label="Continue to Personal Info"
+                  onPress={handleStep1Next}
+                  variant="primary"
+                  icon="arrow-forward"
+                  iconPosition="right"
+                  style={styles.ctaButton}
+                />
+              </View>
+            )}
+
+            {/* ═══════════════════════════════════════════════════════════
+                STEP 2: PERSONAL INFORMATION
+                ═══════════════════════════════════════════════════════════ */}
+            {step === 2 && (
+              <View>
+                {/* Full Legal Name */}
+                <View style={styles.inputGroup}>
+                  <Text style={styles.inputLabel}>FULL LEGAL NAME *</Text>
+                  <View style={[styles.inputBox, !!nameError && styles.inputBoxError]}>
+                    <Ionicons
+                      name="person-outline"
+                      size={18}
+                      color={nameError ? colors.error : colors.charcoalSub}
+                      style={styles.inputIcon}
+                    />
+                    <TextInput
+                      style={styles.textInput}
+                      value={name}
+                      onChangeText={(val) => {
+                        setName(val);
+                        if (error) setError(null);
+                      }}
+                      onBlur={() => setTouchedName(true)}
+                      placeholder="e.g. Almaz Bekele"
+                      placeholderTextColor={colors.charcoalLight}
+                      autoCapitalize="words"
+                      autoComplete="name"
+                      returnKeyType="next"
+                    />
+                  </View>
+                  {!!nameError && (
+                    <View style={styles.fieldErrorRow}>
+                      <Ionicons name="alert-circle" size={13} color={colors.error} />
+                      <Text style={styles.fieldErrorText}>{nameError}</Text>
+                    </View>
+                  )}
+                </View>
+
+                {/* Email Address */}
+                <View style={styles.inputGroup}>
+                  <Text style={styles.inputLabel}>EMAIL ADDRESS *</Text>
+                  <View style={[styles.inputBox, !!emailError && styles.inputBoxError]}>
+                    <Ionicons
+                      name="mail-outline"
+                      size={18}
+                      color={emailError ? colors.error : colors.charcoalSub}
+                      style={styles.inputIcon}
+                    />
+                    <TextInput
+                      style={styles.textInput}
+                      value={email}
+                      onChangeText={(val) => {
+                        setEmail(val);
+                        if (error) setError(null);
+                      }}
+                      onBlur={() => setTouchedEmail(true)}
+                      placeholder="almaz@example.com"
+                      placeholderTextColor={colors.charcoalLight}
+                      autoCapitalize="none"
+                      keyboardType="email-address"
+                      autoComplete="email"
+                      returnKeyType="next"
+                    />
+                  </View>
+                  {!!emailError && (
+                    <View style={styles.fieldErrorRow}>
+                      <Ionicons name="alert-circle" size={13} color={colors.error} />
+                      <Text style={styles.fieldErrorText}>{emailError}</Text>
+                    </View>
+                  )}
+                </View>
+
+                {/* Contact Phone (Optional) */}
+                <View style={styles.inputGroup}>
+                  <Text style={styles.inputLabel}>CONTACT PHONE (OPTIONAL)</Text>
+                  <View style={[styles.inputBox, !!phoneError && styles.inputBoxError]}>
+                    <Ionicons
+                      name="call-outline"
+                      size={18}
+                      color={phoneError ? colors.error : colors.charcoalSub}
+                      style={styles.inputIcon}
+                    />
+                    <TextInput
+                      style={styles.textInput}
+                      value={phone}
+                      onChangeText={(val) => {
+                        setPhone(val);
+                        if (error) setError(null);
+                      }}
+                      onBlur={() => setTouchedPhone(true)}
+                      placeholder="+251 9... or +1 202..."
+                      placeholderTextColor={colors.charcoalLight}
+                      keyboardType="phone-pad"
+                      autoComplete="tel"
+                      returnKeyType="done"
+                    />
+                  </View>
+                  {!!phoneError && (
+                    <View style={styles.fieldErrorRow}>
+                      <Ionicons name="alert-circle" size={13} color={colors.error} />
+                      <Text style={styles.fieldErrorText}>{phoneError}</Text>
+                    </View>
+                  )}
+                </View>
+
+                {/* Step 2 Actions */}
+                <Button
+                  label="Continue to Security"
+                  onPress={handleStep2Next}
+                  variant="primary"
+                  icon="arrow-forward"
+                  iconPosition="right"
+                  style={styles.ctaButton}
+                />
+
+                <TouchableOpacity
+                  style={styles.backStepButton}
+                  onPress={() => setStep(1)}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons name="arrow-back" size={16} color={colors.navy} />
+                  <Text style={styles.backStepText}>Back to Profile Type</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+
+            {/* ═══════════════════════════════════════════════════════════
+                STEP 3: PASSWORD & SECURITY
+                ═══════════════════════════════════════════════════════════ */}
+            {step === 3 && (
+              <View>
+                {/* Password Input */}
+                <View style={styles.inputGroup}>
+                  <Text style={styles.inputLabel}>CREATE PASSWORD (MIN 8 CHARACTERS) *</Text>
+                  <View style={[styles.inputBox, !!passwordError && styles.inputBoxError]}>
+                    <Ionicons
+                      name="lock-closed-outline"
+                      size={18}
+                      color={passwordError ? colors.error : colors.charcoalSub}
+                      style={styles.inputIcon}
+                    />
+                    <TextInput
+                      style={styles.textInput}
+                      value={password}
+                      onChangeText={(val) => {
+                        setPassword(val);
+                        if (error) setError(null);
+                      }}
+                      onBlur={() => setTouchedPassword(true)}
+                      placeholder="At least 8 characters"
+                      placeholderTextColor={colors.charcoalLight}
+                      secureTextEntry={!showPassword}
+                      autoComplete="new-password"
+                      returnKeyType="next"
+                    />
+                    <Pressable
+                      onPress={() => setShowPassword((v) => !v)}
+                      hitSlop={12}
+                      style={styles.eyeBtn}
+                    >
+                      <Feather
+                        name={showPassword ? 'eye-off' : 'eye'}
+                        size={18}
+                        color={passwordError ? colors.error : colors.charcoalSub}
+                      />
+                    </Pressable>
+                  </View>
+                  {!!passwordError && (
+                    <View style={styles.fieldErrorRow}>
+                      <Ionicons name="alert-circle" size={13} color={colors.error} />
+                      <Text style={styles.fieldErrorText}>{passwordError}</Text>
+                    </View>
+                  )}
+
+                  {/* Password Strength Meter */}
+                  {password.length > 0 && (
+                    <View style={styles.strengthRow}>
+                      <View style={styles.strengthTrack}>
+                        <Animated.View
                           style={[
-                            styles.strengthBar,
-                            strengthScore >= index && { backgroundColor: strengthColors[strengthScore] },
+                            styles.strengthFill,
+                            {
+                              width: strengthWidth,
+                              backgroundColor: strengthColors[strengthScore],
+                            },
                           ]}
                         />
-                      ))}
+                      </View>
+                      <Text style={[styles.strengthText, { color: strengthColors[strengthScore] }]}>
+                        {strengthLabels[strengthScore]}
+                      </Text>
                     </View>
-                    <Text
-                      style={[
-                        styles.strengthLabel,
-                        { color: strengthColors[strengthScore] || colors.charcoalLight },
-                      ]}
-                    >
-                      {strengthLabels[strengthScore]}
-                    </Text>
-                  </View>
-                )}
+                  )}
+                </View>
 
                 {/* Confirm Password Input */}
-                <View style={{ position: 'relative', marginTop: 4 }}>
-                  <Input
-                    label="Confirm Password *"
-                    placeholder="Re-enter your password"
-                    value={confirmPassword}
-                    onChangeText={setConfirmPassword}
-                    secureTextEntry={!showConfirmPassword}
-                    returnKeyType="done"
-                    onSubmitEditing={handleRegister}
-                  />
-                  <Pressable
-                    style={styles.eyeBtn}
-                    onPress={() => setShowConfirmPassword((v) => !v)}
-                    hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-                  >
+                <View style={styles.inputGroup}>
+                  <Text style={styles.inputLabel}>CONFIRM PASSWORD *</Text>
+                  <View style={[styles.inputBox, !!confirmPasswordError && styles.inputBoxError]}>
                     <Ionicons
-                      name={showConfirmPassword ? 'eye-off-outline' : 'eye-outline'}
-                      size={20}
-                      color={colors.charcoalSub}
+                      name="shield-checkmark-outline"
+                      size={18}
+                      color={confirmPasswordError ? colors.error : colors.charcoalSub}
+                      style={styles.inputIcon}
                     />
-                  </Pressable>
-                </View>
-
-                {/* Live Match Verification Feedback */}
-                {confirmPassword.length > 0 && (
-                  <View style={styles.matchRow}>
-                    <Ionicons
-                      name={password === confirmPassword ? 'checkmark-circle' : 'close-circle'}
-                      size={16}
-                      color={password === confirmPassword ? '#16803C' : '#DC2626'}
+                    <TextInput
+                      style={styles.textInput}
+                      value={confirmPassword}
+                      onChangeText={(val) => {
+                        setConfirmPassword(val);
+                        if (error) setError(null);
+                      }}
+                      onBlur={() => setTouchedConfirmPassword(true)}
+                      placeholder="Re-enter your password"
+                      placeholderTextColor={colors.charcoalLight}
+                      secureTextEntry={!showConfirmPassword}
+                      autoComplete="new-password"
+                      returnKeyType="done"
                     />
-                    <Text
-                      style={[
-                        styles.matchText,
-                        { color: password === confirmPassword ? '#16803C' : '#DC2626' },
-                      ]}
+                    <Pressable
+                      onPress={() => setShowConfirmPassword((v) => !v)}
+                      hitSlop={12}
+                      style={styles.eyeBtn}
                     >
-                      {password === confirmPassword
-                        ? 'Passwords match perfectly'
-                        : 'Passwords do not match yet'}
-                    </Text>
+                      <Feather
+                        name={showConfirmPassword ? 'eye-off' : 'eye'}
+                        size={18}
+                        color={confirmPasswordError ? colors.error : colors.charcoalSub}
+                      />
+                    </Pressable>
                   </View>
-                )}
-              </View>
-
-              {/* Error Message */}
-              {!!error && (
-                <View style={styles.errorRow}>
-                  <Ionicons name="alert-circle" size={16} color={colors.error} />
-                  <Text style={styles.errorText}>{error}</Text>
+                  {!!confirmPasswordError && (
+                    <View style={styles.fieldErrorRow}>
+                      <Ionicons name="alert-circle" size={13} color={colors.error} />
+                      <Text style={styles.fieldErrorText}>{confirmPasswordError}</Text>
+                    </View>
+                  )}
                 </View>
-              )}
 
-              <View style={styles.navBtnRow}>
-                <TouchableOpacity
-                  style={styles.stepBackBtn}
-                  onPress={handlePrevStep}
-                  disabled={loading}
-                  activeOpacity={0.8}
-                >
-                  <Ionicons name="arrow-back" size={16} color={colors.navy} style={{ marginRight: 4 }} />
-                  <Text style={styles.stepBackText}>Back</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[styles.stepNextBtn, loading && { opacity: 0.7 }]}
-                  onPress={handleRegister}
-                  disabled={loading}
-                  activeOpacity={0.8}
-                >
-                  <Text style={styles.stepNextText}>
-                    {loading ? 'Creating Account…' : 'Create My Account'}
+                {/* Summary Info Pill */}
+                <View style={styles.summaryBadge}>
+                  <Ionicons name="information-circle-outline" size={16} color={colors.navy} />
+                  <Text style={styles.summaryText}>
+                    Registering as{' '}
+                    <Text style={{ fontWeight: '700' }}>
+                      {userType === 'diaspora' ? 'Ethiopian Diaspora' : 'Foreign Resident'}
+                    </Text>{' '}
+                    residing in <Text style={{ fontWeight: '700' }}>{country}</Text>.
                   </Text>
-                  <Ionicons name="shield-checkmark" size={16} color={colors.navy} style={{ marginLeft: 6 }} />
+                </View>
+
+                {/* Step 3 Final CTA */}
+                <Button
+                  label={loading ? 'Creating Membership...' : 'Complete Registration'}
+                  onPress={handleFinalSubmit}
+                  loading={loading}
+                  variant="primary"
+                  icon="checkmark-circle"
+                  iconPosition="right"
+                  style={styles.ctaButton}
+                />
+
+                <TouchableOpacity
+                  style={styles.backStepButton}
+                  onPress={() => setStep(2)}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons name="arrow-back" size={16} color={colors.navy} />
+                  <Text style={styles.backStepText}>Back to Personal Info</Text>
                 </TouchableOpacity>
+
+                <Text style={styles.termsNote}>
+                  By creating an account, you agree to DALEEL's Terms of Service and Privacy Policy.
+                </Text>
               </View>
+            )}
+
+            {/* Bottom Sign In Prompt */}
+            <View style={styles.footerRow}>
+              <Text style={styles.footerText}>Already have an account?</Text>
+              <Link href="/(auth)/login" asChild>
+                <TouchableOpacity hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                  <Text style={styles.loginLink}> Sign In</Text>
+                </TouchableOpacity>
+              </Link>
             </View>
-          )}
-
-          {/* Bottom link to Login */}
-          <View style={styles.bottomSection}>
-            <Text style={styles.footerPrompt}>Already have an account? </Text>
-            <Link href="/(auth)/login" asChild>
-              <TouchableOpacity hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}>
-                <Text style={styles.footerLink}>Sign in</Text>
-              </TouchableOpacity>
-            </Link>
           </View>
-
-          <View style={{ height: 32 }} />
         </ScrollView>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: colors.ivory,
+    backgroundColor: colors.navy,
   },
-  content: {
+  scrollContent: {
     flexGrow: 1,
-    paddingHorizontal: 22,
-    paddingTop: 32,
-    paddingBottom: 48,
+    justifyContent: 'space-between',
+    backgroundColor: colors.background,
   },
 
-  navBar: {
+  // Hero Canvas
+  heroCanvas: {
+    backgroundColor: colors.navy,
+    paddingHorizontal: spacing.xl,
+    paddingBottom: spacing.xl,
+  },
+  topNavRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 28,
+    marginBottom: spacing.md,
   },
-  backBtn: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    backgroundColor: '#FFFFFF',
+  backCircleBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: radius.pill,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1.5,
-    borderColor: colors.border,
   },
-  brandRow: {
+  brandCluster: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
   },
-  miniLogo: {
-    width: 24,
-    height: 24,
-    borderRadius: 6,
-    overflow: 'hidden',
-  },
-  miniLogoImg: {
-    width: '100%',
-    height: '100%',
-  },
-  miniWordmark: {
-    fontFamily: fonts.bodyBold,
-    fontSize: 14,
-    color: colors.navy,
-    letterSpacing: 1.5,
-  },
-
-  // ── Stepper Progress Indicator ───────────────────────
-  stepperContainer: {
-    marginTop: 4,
-    marginBottom: 24,
-    paddingHorizontal: 6,
-  },
-  stepperTrack: {
-    height: 4,
-    backgroundColor: colors.border,
-    borderRadius: 2,
-    marginBottom: -16,
-    marginHorizontal: 24,
-    overflow: 'hidden',
-  },
-  stepperProgressFill: {
-    height: '100%',
-    backgroundColor: colors.gold,
-    borderRadius: 2,
-  },
-  stepNodesRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  stepNode: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 2,
-    borderColor: colors.border,
+  compassPod: {
+    width: 30,
+    height: 30,
+    borderRadius: radius.pill,
+    backgroundColor: 'rgba(223,183,108,0.16)',
+    borderWidth: 1,
+    borderColor: 'rgba(223,183,108,0.35)',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  stepNodeActive: {
-    backgroundColor: colors.gold,
-    borderColor: colors.gold,
-    shadowColor: colors.gold,
-    shadowOpacity: 0.35,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 3,
-  },
-  stepNodeNum: {
+  brandWordmark: {
     fontFamily: fonts.bodyBold,
     fontSize: 12,
-    color: colors.charcoalLight,
+    letterSpacing: 4,
+    color: colors.gold,
+    textTransform: 'uppercase',
   },
-  stepNodeNumActive: {
-    color: colors.navy,
+
+  // Step Progress Bar in Header
+  stepIndicatorContainer: {
+    marginBottom: spacing.md,
+  },
+  stepTrack: {
+    width: '100%',
+    height: 4,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    borderRadius: 2,
+    overflow: 'hidden',
+    marginBottom: 8,
+  },
+  stepFill: {
+    height: '100%',
+    backgroundColor: colors.gold,
+    borderRadius: 2,
   },
   stepLabelsRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginTop: 6,
   },
-  stepLabelText: {
-    fontFamily: fonts.bodyMedium,
-    fontSize: 11,
-    color: colors.charcoalLight,
-    width: 60,
-    textAlign: 'center',
-  },
-  stepLabelTextActive: {
-    fontFamily: fonts.bodyBold,
-    color: colors.navy,
-  },
-
-  // ── Headers ──────────────────────────────────────────
-  hero: {
-    fontFamily: fonts.heading,
-    fontSize: 28,
-    color: colors.charcoal,
-    letterSpacing: -0.4,
-    marginBottom: 6,
-  },
-  sub: {
-    fontFamily: fonts.body,
-    fontSize: 14,
-    color: colors.charcoalSub,
-    lineHeight: 20,
-    marginBottom: 20,
-  },
-
-  sectionLabel: {
+  stepLabel: {
     fontFamily: fonts.bodySemiBold,
     fontSize: 11,
-    color: colors.charcoalSub,
-    letterSpacing: 0.8,
-    marginBottom: 10,
-    marginTop: 4,
+    color: 'rgba(255, 255, 255, 0.45)',
+  },
+  stepLabelActive: {
+    color: colors.gold,
+    fontFamily: fonts.bodyBold,
   },
 
-  // Persona Selection Cards
-  personaContainer: {
-    flexDirection: 'row',
-    gap: 12,
-    marginBottom: 18,
+  heroTitle: {
+    fontFamily: fonts.heading,
+    fontSize: 30,
+    lineHeight: 36,
+    color: '#FFFFFF',
+    marginBottom: 6,
   },
-  personaCard: {
+  heroSubtitle: {
+    fontFamily: fonts.body,
+    fontSize: 14,
+    lineHeight: 21,
+    color: '#B2C0D2',
+    maxWidth: 340,
+  },
+
+  // Form Container (Seamless on Canvas, No Card Effect)
+  formContainer: {
+    backgroundColor: colors.background,
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.xl,
     flex: 1,
+  },
+
+  sectionHeading: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 11,
+    letterSpacing: 0.8,
+    color: colors.navy,
+    marginBottom: 12,
+    textTransform: 'uppercase',
+  },
+
+  // Persona Options (Flush to Background)
+  personaOption: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 18,
-    padding: 14,
     borderWidth: 1.5,
     borderColor: colors.border,
+    borderRadius: radius.lg,
+    padding: 16,
+    marginBottom: 12,
   },
-  personaCardActive: {
-    borderColor: colors.gold,
-    backgroundColor: '#FFFDF9',
+  personaOptionActive: {
+    borderColor: colors.navy,
+    backgroundColor: '#FFFFFF',
   },
-  personaHeader: {
+  personaTopRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 10,
+    justifyContent: 'space-between',
+    marginBottom: 8,
   },
-  personaIconWrap: {
+  personaIconCircle: {
     width: 36,
     height: 36,
-    borderRadius: 10,
-    backgroundColor: colors.surface,
+    borderRadius: radius.md,
+    backgroundColor: '#F8FAFC',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  personaIconWrapActive: {
-    backgroundColor: colors.goldSoft,
+  personaIconCircleActive: {
+    backgroundColor: colors.navy,
   },
-  radioCircle: {
+  radioIndicator: {
     width: 20,
     height: 20,
-    borderRadius: 10,
-    borderWidth: 1.5,
-    borderColor: colors.border,
+    borderRadius: radius.pill,
+    borderWidth: 2,
+    borderColor: colors.borderStrong,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  radioCircleActive: {
-    borderColor: colors.gold,
+  radioIndicatorActive: {
+    borderColor: colors.navy,
   },
   radioDot: {
     width: 10,
     height: 10,
-    borderRadius: 5,
-    backgroundColor: colors.gold,
+    borderRadius: radius.pill,
+    backgroundColor: colors.navy,
   },
   personaTitle: {
-    fontFamily: fonts.bodySemiBold,
-    fontSize: 14,
-    color: colors.charcoal,
+    fontFamily: fonts.bodyBold,
+    fontSize: 15,
+    color: colors.navy,
     marginBottom: 4,
   },
   personaTitleActive: {
@@ -921,218 +971,199 @@ const styles = StyleSheet.create({
   },
   personaDesc: {
     fontFamily: fonts.body,
-    fontSize: 11,
-    color: colors.charcoalSub,
-    lineHeight: 16,
+    fontSize: 13,
+    lineHeight: 19,
+    color: colors.textSecondary,
   },
 
-  // Country selector
-  countryScroll: {
+  // Inputs
+  inputGroup: {
+    marginBottom: spacing.md,
+  },
+  inputLabel: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 11,
+    letterSpacing: 0.8,
+    color: colors.navy,
+    marginBottom: 8,
+    textTransform: 'uppercase',
+  },
+  inputBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    paddingHorizontal: 14,
+    height: 52,
+  },
+  inputBoxError: {
+    borderColor: colors.error,
+    backgroundColor: '#FFF5F5',
+  },
+  fieldErrorRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 6,
+    marginLeft: 2,
+  },
+  fieldErrorText: {
+    fontFamily: fonts.bodyMedium,
+    fontSize: 12,
+    color: colors.error,
+    lineHeight: 16,
+  },
+  inputIcon: {
+    marginRight: 10,
+  },
+  textInput: {
+    flex: 1,
+    fontFamily: fonts.body,
+    fontSize: 14.5,
+    color: colors.textPrimary,
+    height: '100%',
+  },
+  eyeBtn: {
+    padding: 4,
+  },
+
+  // Strength Meter
+  strengthRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 8,
-    paddingBottom: 4,
-    marginBottom: 14,
+    marginTop: 6,
+  },
+  strengthTrack: {
+    flex: 1,
+    height: 4,
+    backgroundColor: '#EAEFF6',
+    borderRadius: 2,
+    overflow: 'hidden',
+  },
+  strengthFill: {
+    height: '100%',
+    borderRadius: 2,
+  },
+  strengthText: {
+    fontFamily: fonts.bodySemiBold,
+    fontSize: 11,
+  },
+
+  // Country Chips
+  countryChipsRow: {
+    gap: 6,
+    paddingVertical: 10,
   },
   countryChip: {
-    paddingHorizontal: 14,
-    paddingVertical: 9,
-    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: radius.pill,
     backgroundColor: '#FFFFFF',
-    borderWidth: 1.5,
+    borderWidth: 1,
     borderColor: colors.border,
   },
   countryChipActive: {
-    borderColor: colors.navy,
     backgroundColor: colors.navy,
+    borderColor: colors.navy,
   },
   countryChipText: {
     fontFamily: fonts.bodyMedium,
-    fontSize: 13,
-    color: colors.charcoal,
+    fontSize: 12,
+    color: colors.textSecondary,
   },
   countryChipTextActive: {
     color: '#FFFFFF',
-    fontFamily: fonts.bodySemiBold,
-  },
-  customCountryWrap: {
-    marginBottom: 16,
-  },
-  customCountryInput: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 14,
-    borderWidth: 1.5,
-    borderColor: colors.gold,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    fontFamily: fonts.bodyMedium,
-    fontSize: 15,
-    color: colors.charcoal,
+    fontFamily: fonts.bodyBold,
   },
 
-  // Language toggle
-  langToggleRow: {
+  // Summary Badge
+  summaryBadge: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
-    marginBottom: 20,
-  },
-  langBtn: {
-    flexBasis: '47%',
-    flexGrow: 1,
-    backgroundColor: '#FFFFFF',
-    paddingVertical: 12,
-    borderRadius: 14,
-    borderWidth: 1.5,
-    borderColor: colors.border,
     alignItems: 'center',
+    gap: 8,
+    backgroundColor: 'rgba(7, 21, 43, 0.04)',
+    borderWidth: 1,
+    borderColor: 'rgba(7, 21, 43, 0.08)',
+    borderRadius: radius.md,
+    padding: 12,
+    marginBottom: spacing.md,
   },
-  langBtnActive: {
-    borderColor: colors.gold,
-    backgroundColor: colors.goldSoft,
+  summaryText: {
+    fontFamily: fonts.body,
+    fontSize: 12.5,
+    color: colors.navy,
+    flex: 1,
+    lineHeight: 18,
   },
-  langBtnText: {
-    fontFamily: fonts.bodyMedium,
-    fontSize: 13,
-    color: colors.charcoal,
+
+  // Buttons
+  ctaButton: {
+    marginTop: spacing.sm,
+    height: 52,
+    borderRadius: radius.md,
+    backgroundColor: colors.navy,
   },
-  langBtnTextActive: {
+  backStepButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    height: 44,
+    marginTop: 8,
+  },
+  backStepText: {
     fontFamily: fonts.bodySemiBold,
+    fontSize: 13,
     color: colors.navy,
   },
-
-  fields: {
-    gap: 4,
-    marginBottom: 12,
-  },
-  eyeBtn: {
-    position: 'absolute',
-    right: 16,
-    top: 19,
+  termsNote: {
+    fontFamily: fonts.body,
+    fontSize: 11.5,
+    color: colors.charcoalLight,
+    textAlign: 'center',
+    lineHeight: 16,
+    marginTop: spacing.md,
   },
 
-  // Password Strength Bar
-  strengthMeterWrap: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    marginTop: -4,
-    marginBottom: 10,
-    paddingHorizontal: 4,
-  },
-  strengthBarsRow: {
-    flex: 1,
-    flexDirection: 'row',
-    gap: 4,
-    height: 4,
-  },
-  strengthBar: {
-    flex: 1,
-    height: 4,
-    backgroundColor: '#E2E8F0',
-    borderRadius: 2,
-  },
-  strengthLabel: {
-    fontFamily: fonts.bodyMedium,
-    fontSize: 11,
-    width: 65,
-    textAlign: 'right',
-  },
-
-  // Password Confirmation Match Row
-  matchRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginTop: -2,
-    marginBottom: 12,
-    paddingHorizontal: 4,
-  },
-  matchText: {
-    fontFamily: fonts.bodyMedium,
-    fontSize: 12,
-  },
-
-  errorRow: {
+  // Errors
+  errorBanner: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
     backgroundColor: colors.errorSoft,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    borderRadius: 12,
     borderWidth: 1,
     borderColor: '#FED7D7',
-    marginBottom: 16,
+    borderRadius: radius.md,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    marginBottom: spacing.md,
   },
   errorText: {
     fontFamily: fonts.bodyMedium,
     fontSize: 13,
     color: colors.error,
     flex: 1,
+    lineHeight: 18,
   },
 
-  submitBtn: {
-    marginTop: 8,
-    marginBottom: 20,
-  },
-
-  navBtnRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    marginTop: 10,
-    marginBottom: 24,
-  },
-  stepBackBtn: {
+  // Footer
+  footerRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.surface,
-    borderRadius: 14,
-    paddingVertical: 15,
-    paddingHorizontal: 20,
-    borderWidth: 1,
-    borderColor: colors.border,
+    marginTop: spacing.xl,
   },
-  stepBackText: {
-    fontFamily: fonts.bodySemiBold,
-    fontSize: 15,
-    color: colors.navy,
-  },
-  stepNextBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.gold,
-    borderRadius: 14,
-    paddingVertical: 15,
-    paddingHorizontal: 20,
-    shadowColor: colors.gold,
-    shadowOpacity: 0.35,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 3 },
-    elevation: 3,
-  },
-  stepNextText: {
-    fontFamily: fonts.bodyBold,
-    fontSize: 15,
-    color: colors.navy,
-    fontWeight: '700',
-  },
-
-  bottomSection: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  footerPrompt: {
+  footerText: {
     fontFamily: fonts.body,
     fontSize: 14,
-    color: colors.charcoalSub,
+    color: colors.textSecondary,
   },
-  footerLink: {
-    fontFamily: fonts.bodySemiBold,
+  loginLink: {
+    fontFamily: fonts.bodyBold,
     fontSize: 14,
-    color: colors.gold,
+    color: colors.navy,
   },
 });

@@ -1,10 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  Animated,
   Image,
-  Linking,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -13,13 +11,12 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { services as sampleServices } from '../../assets/data/sample';
 import { categoriesApi, CategoryItem, contentApi, Service } from '../../lib/api';
 import { useFavorites } from '../../lib/favorites-context';
 import { useLanguage } from '../../lib/language-context';
-import ScreenHeader from '../../components/ScreenHeader';
-import { colors, fonts, radius, spacing } from '../../theme/tokens';
+import { colors, fonts, radius, shadow, spacing } from '../../theme/tokens';
 
 function resolveCategoryIcon(name: string): keyof typeof Ionicons.glyphMap {
   const n = name.toLowerCase();
@@ -33,272 +30,34 @@ function resolveCategoryIcon(name: string): keyof typeof Ionicons.glyphMap {
   return 'pricetag-outline';
 }
 
-function handleWhatsAppDirect(phone: string, serviceName: string) {
-  const cleanPhone = phone.replace(/[^0-9+]/g, '');
-  const text = `Hello ${serviceName}, I found your service on DALEEL Diaspora Concierge and would like to inquire about booking/consultation.`;
-  const url = `whatsapp://send?phone=${cleanPhone}&text=${encodeURIComponent(text)}`;
-  Linking.canOpenURL(url).then((supported) => {
-    if (supported) {
-      Linking.openURL(url);
-    } else {
-      Linking.openURL(`https://wa.me/${cleanPhone.replace('+', '')}?text=${encodeURIComponent(text)}`);
-    }
-  }).catch(() => {
-    Linking.openURL(`https://wa.me/${cleanPhone.replace('+', '')}?text=${encodeURIComponent(text)}`);
-  });
-}
-
-function handleCallDirect(phone: string) {
-  const cleanPhone = phone.replace(/[^0-9+]/g, '');
-  Linking.openURL(`tel:${cleanPhone}`);
-}
-
-const AnimatedServiceCard = React.memo(function AnimatedServiceCard({
-  service,
-  index,
-  filterTrigger,
-  fav,
-  onToggleFav,
-  onPress,
-}: {
-  service: Service;
-  index: number;
-  filterTrigger: string;
-  fav: boolean;
-  onToggleFav: () => void;
-  onPress: () => void;
-}) {
-  const animValue = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    animValue.setValue(0);
-    Animated.spring(animValue, {
-      toValue: 1,
-      tension: 65,
-      friction: 9,
-      delay: Math.min(index * 45, 220),
-      useNativeDriver: true,
-    }).start();
-  }, [filterTrigger, index, animValue]);
-
-  const translateY = animValue.interpolate({
-    inputRange: [0, 1],
-    outputRange: [22, 0],
-  });
-
-  const scale = animValue.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0.96, 1],
-  });
-
-  return (
-    <Animated.View
-      style={[
-        styles.cardWrap,
-        {
-          opacity: animValue,
-          transform: [{ translateY }, { scale }],
-        },
-      ]}
-    >
-      <TouchableOpacity
-        style={styles.card}
-        activeOpacity={0.93}
-        onPress={onPress}
-      >
-        {/* Hero Photo with Floating Badges */}
-        <View style={styles.imageContainer}>
-          <Image source={{ uri: service.image }} style={styles.cardImage} resizeMode="cover" />
-          
-          {/* Category Pill Over Image */}
-          <View style={styles.floatingCategoryPill}>
-            <Text style={styles.floatingCategoryText}>{service.category.toUpperCase()}</Text>
-          </View>
-
-          {/* Bookmark Floating Button */}
-          <TouchableOpacity
-            style={[styles.floatingBookmark, fav && styles.floatingBookmarkActive]}
-            onPress={(e) => {
-              e.stopPropagation?.();
-              onToggleFav();
-            }}
-            activeOpacity={0.85}
-          >
-            <Ionicons
-              name={fav ? 'bookmark' : 'bookmark-outline'}
-              size={18}
-              color={fav ? colors.gold : colors.charcoal}
-            />
-          </TouchableOpacity>
-        </View>
-
-        {/* Card Details */}
-        <View style={styles.cardBody}>
-          <View style={styles.providerRow}>
-            <Text style={styles.providerName}>{service.name}</Text>
-            {service.verified && (
-              <View style={styles.verifiedBadge}>
-                <Ionicons name="checkmark-circle" size={14} color={colors.gold} />
-                <Text style={styles.verifiedText}>Verified</Text>
-              </View>
-            )}
-          </View>
-
-          <View style={styles.locationRow}>
-            <Ionicons name="location-outline" size={13} color={colors.gold} />
-            <Text style={styles.locationText}>{service.location}, Ethiopia</Text>
-          </View>
-
-          <Text style={styles.blurbText}>{service.blurb}</Text>
-
-          {/* Card Action Footer with Direct Contact */}
-          <View style={styles.cardFooter}>
-            <View style={styles.partnerActionGroup}>
-              {service.whatsapp ? (
-                <TouchableOpacity
-                  style={styles.quickWhatsappBtn}
-                  onPress={(e) => {
-                    e.stopPropagation?.();
-                    handleWhatsAppDirect(service.whatsapp!, service.name);
-                  }}
-                  activeOpacity={0.82}
-                  hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-                >
-                  <Ionicons name="logo-whatsapp" size={14} color="#FFFFFF" style={{ marginRight: 4 }} />
-                  <Text style={styles.quickWhatsappText}>WhatsApp</Text>
-                </TouchableOpacity>
-              ) : null}
-
-              {service.phone ? (
-                <TouchableOpacity
-                  style={styles.quickCallBtn}
-                  onPress={(e) => {
-                    e.stopPropagation?.();
-                    handleCallDirect(service.phone!);
-                  }}
-                  activeOpacity={0.82}
-                  hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-                >
-                  <Ionicons name="call" size={13} color={colors.navy} style={{ marginRight: 4 }} />
-                  <Text style={styles.quickCallText}>Call</Text>
-                </TouchableOpacity>
-              ) : null}
-            </View>
-
-            <View style={styles.connectBtn}>
-              <Text style={styles.connectBtnText}>Details</Text>
-              <Ionicons name="arrow-forward" size={13} color={colors.navy} />
-            </View>
-          </View>
-        </View>
-      </TouchableOpacity>
-    </Animated.View>
-  );
-});
-
 export default function ServicesScreen() {
+  const insets = useSafeAreaInsets();
   const router = useRouter();
   const { t } = useLanguage();
   const { isFavorite, toggleFavorite } = useFavorites();
-  const [activeCategory, setActiveCategory] = useState('All');
+
   const [services, setServices] = useState<Service[]>(sampleServices as any);
-  const [dbCategories, setDbCategories] = useState<CategoryItem[]>([]);
-
-  const categories = React.useMemo(() => {
-    const list: { id: string; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
-      { id: 'All', label: t('services.categories.all', 'All'), icon: 'apps-outline' },
-    ];
-
-    const added = new Set<string>(['All']);
-
-    // Add categories from database
-    for (const cat of dbCategories) {
-      if (!added.has(cat.name)) {
-        added.add(cat.name);
-        const transKey = `services.categories.${cat.name.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
-        list.push({
-          id: cat.name,
-          label: t(transKey, cat.name),
-          icon: ((cat.icon as any) || resolveCategoryIcon(cat.name)),
-        });
-      }
-    }
-
-    // Add any extra distinct categories in loaded services
-    for (const s of services) {
-      if (s.category && !added.has(s.category)) {
-        added.add(s.category);
-        const transKey = `services.categories.${s.category.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
-        list.push({
-          id: s.category,
-          label: t(transKey, s.category),
-          icon: resolveCategoryIcon(s.category),
-        });
-      }
-    }
-
-    return list;
-  }, [dbCategories, services, t]);
-
   const [searchQuery, setSearchQuery] = useState('');
-  const [isSearchFocused, setIsSearchFocused] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState('all');
+  const [dbCategories, setDbCategories] = useState<CategoryItem[]>([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
-
-  // ── High-Performance Native Scroll Slide Header (60fps Native Driver) ──
-  const HEADER_HEIGHT = 122;
-  const scrollY = useRef(new Animated.Value(0)).current;
-
-  const clampedScrollY = Animated.diffClamp(
-    Animated.add(
-      scrollY.interpolate({
-        inputRange: [0, 1],
-        outputRange: [0, 1],
-        extrapolateLeft: 'clamp',
-      }),
-      new Animated.Value(0)
-    ),
-    0,
-    HEADER_HEIGHT + 20
-  );
-
-  const translateY = clampedScrollY.interpolate({
-    inputRange: [0, HEADER_HEIGHT + 20],
-    outputRange: [0, -(HEADER_HEIGHT + 20)],
-    extrapolate: 'clamp',
-  });
 
   const loadServices = useCallback(async () => {
     try {
-      const [servicesRes, categoriesRes] = await Promise.allSettled([
-        contentApi.services(activeCategory === 'All' ? undefined : activeCategory),
+      const [servRes, catRes] = await Promise.allSettled([
+        contentApi.services(),
         categoriesApi.getAll('service'),
       ]);
-
-      if (categoriesRes.status === 'fulfilled' && categoriesRes.value.length > 0) {
-        setDbCategories(categoriesRes.value);
+      if (catRes.status === 'fulfilled' && catRes.value.length > 0) {
+        setDbCategories(catRes.value);
       }
-
-      if (servicesRes.status === 'fulfilled' && servicesRes.value.length > 0) {
-        setServices(servicesRes.value);
-      } else if (activeCategory === 'All') {
-        setServices(sampleServices as any);
-      } else {
-        const filtered = (sampleServices as any[]).filter(
-          (s) => s.category.toLowerCase() === activeCategory.toLowerCase()
-        );
-        setServices(filtered);
+      if (servRes.status === 'fulfilled' && servRes.value.length > 0) {
+        setServices(servRes.value);
       }
     } catch (err) {
       console.warn('Failed to load services:', err);
-      const filtered =
-        activeCategory === 'All'
-          ? (sampleServices as any)
-          : (sampleServices as any[]).filter(
-              (s) => s.category.toLowerCase() === activeCategory.toLowerCase()
-            );
-      setServices(filtered);
     }
-  }, [activeCategory]);
+  }, []);
 
   useEffect(() => {
     loadServices();
@@ -310,182 +69,261 @@ export default function ServicesScreen() {
     setIsRefreshing(false);
   };
 
-  // Filter services by category AND real-time search query
-  const filteredServices = services.filter((s) => {
-    const q = searchQuery.trim().toLowerCase();
-    const matchesSearch =
-      !q ||
-      s.name.toLowerCase().includes(q) ||
-      s.category.toLowerCase().includes(q) ||
-      s.location.toLowerCase().includes(q) ||
-      s.blurb.toLowerCase().includes(q);
+  const filterCategories = useMemo(() => {
+    const list: { id: string; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
+      { id: 'all', label: t('services.categories.all', 'All Providers'), icon: 'sparkles' },
+    ];
 
-    if (!matchesSearch) return false;
+    const added = new Set<string>(['all']);
 
-    if (activeCategory === 'All') return true;
-    return s.category.toLowerCase().includes(activeCategory.toLowerCase());
-  });
+    for (const cat of dbCategories) {
+      const catId = cat.name.toLowerCase();
+      if (!added.has(catId)) {
+        added.add(catId);
+        list.push({
+          id: catId,
+          label: cat.name,
+          icon: ((cat.icon as any) || resolveCategoryIcon(cat.name)),
+        });
+      }
+    }
+
+    for (const s of services) {
+      if (s.category) {
+        const catId = s.category.toLowerCase();
+        if (!added.has(catId)) {
+          added.add(catId);
+          list.push({
+            id: catId,
+            label: s.category,
+            icon: resolveCategoryIcon(s.category),
+          });
+        }
+      }
+    }
+
+    return list;
+  }, [dbCategories, services, t]);
+
+  const filtered = useMemo(() => {
+    return services.filter((s) => {
+      const q = searchQuery.trim().toLowerCase();
+      const matchesSearch =
+        !q ||
+        s.name.toLowerCase().includes(q) ||
+        s.category.toLowerCase().includes(q) ||
+        s.location.toLowerCase().includes(q) ||
+        (s.description && s.description.toLowerCase().includes(q));
+
+      if (!matchesSearch) return false;
+      if (selectedCategory === 'all') return true;
+
+      const cat = selectedCategory.toLowerCase();
+      return (
+        s.category.toLowerCase().includes(cat) ||
+        cat.includes(s.category.toLowerCase())
+      );
+    });
+  }, [services, searchQuery, selectedCategory]);
 
   return (
     <View style={styles.screen}>
-      <ScreenHeader
-        title={t('services.title', 'Services')}
-        subtitle={t('services.subtitle', 'Trusted diaspora & investment solutions')}
-        badgeCount={services.length}
-      />
+      {/* ── HERO DIRECTORY HEADER ── */}
+      <View style={[styles.heroHeader, { paddingTop: Math.max(insets.top, 14) }]}>
+        <View style={styles.headerTitleRow}>
+          <View>
+            <View style={styles.headerBadge}>
+              <Ionicons name="shield-checkmark" size={12} color={colors.gold} />
+              <Text style={styles.headerBadgeText}>VERIFIED DIASPORA NETWORK</Text>
+            </View>
+            <Text style={styles.headerTitle}>Concierge Services</Text>
+          </View>
+          <View style={styles.countBadge}>
+            <Text style={styles.countBadgeText}>{filtered.length} PARTNERS</Text>
+          </View>
+        </View>
 
-      {/* Main content body with absolute floating header and full-bleed scroll */}
-      <View style={styles.mainBodyContainer}>
-        <Animated.ScrollView
-          style={{ flex: 1 }}
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-          keyboardDismissMode="on-drag"
-          onScroll={Animated.event(
-            [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-            { useNativeDriver: true }
+        {/* Search Bar */}
+        <View style={styles.searchBarContainer}>
+          <Ionicons name="search" size={17} color={colors.gold} style={{ marginLeft: 4 }} />
+          <TextInput
+            style={styles.searchInput}
+            placeholder={t('services.searchPlaceholder', 'Search legal, real estate, customs, guides…')}
+            placeholderTextColor={colors.charcoalLight}
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            returnKeyType="search"
+            clearButtonMode="while-editing"
+          />
+          {searchQuery.length > 0 && (
+            <TouchableOpacity onPress={() => setSearchQuery('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <Ionicons name="close-circle" size={18} color={colors.charcoalLight} />
+            </TouchableOpacity>
           )}
-          scrollEventThrottle={16}
-          refreshControl={
-            <RefreshControl
-              refreshing={isRefreshing}
-              onRefresh={onRefresh}
-              tintColor={colors.gold}
-              colors={[colors.gold]}
-              progressViewOffset={HEADER_HEIGHT}
-            />
-          }
-        >
-          {filteredServices.map((s, index) => {
-            const fav = isFavorite('service', s.id);
-            return (
-              <AnimatedServiceCard
-                key={s.id}
-                service={s}
-                index={index}
-                filterTrigger={`${activeCategory}-${searchQuery}`}
-                fav={fav}
-                onToggleFav={() => toggleFavorite('service', s.id)}
-                onPress={() => router.push({ pathname: '/service/[id]', params: { id: s.id } })}
-              />
-            );
-          })}
+        </View>
 
-          {filteredServices.length === 0 && (
-            <View style={styles.emptyCard}>
-              <View style={styles.emptyIconCircle}>
-                <Ionicons name="briefcase-outline" size={36} color={colors.gold} />
-              </View>
-              <Text style={styles.emptyTitle}>{t('services.noPartners', 'No partners found')}</Text>
-              <Text style={styles.emptyText}>
-                {searchQuery
-                  ? `${t('services.noPartnersDesc', 'Try adjusting your keywords or reset filters.')} ("${searchQuery}")`
-                  : t('services.noPartnersDesc', 'Try adjusting your keywords or reset filters.')}
-              </Text>
+        {/* Filter Pills */}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.filterPillsTrack}
+        >
+          {filterCategories.map((c) => {
+            const isActive = selectedCategory === c.id;
+            return (
               <TouchableOpacity
-                style={styles.resetFilterBtn}
-                onPress={() => {
-                  setSearchQuery('');
-                  setActiveCategory('All');
-                }}
+                key={c.id}
+                style={[styles.filterPill, isActive && styles.filterPillActive]}
+                onPress={() => setSelectedCategory(c.id)}
                 activeOpacity={0.8}
               >
-                <Ionicons name="refresh" size={15} color={colors.navy} style={{ marginRight: 6 }} />
-                <Text style={styles.resetFilterText}>{t('services.resetFilters', 'Reset Search & Filters')}</Text>
-              </TouchableOpacity>
-            </View>
-          )}
-
-          <View style={{ height: 40 }} />
-        </Animated.ScrollView>
-
-        {/* ── Floating Collapsible Search Bar & Category Pills (60fps Native Driver) ── */}
-        <Animated.View
-          style={[
-            styles.floatingHeaderContainer,
-            {
-              transform: [{ translateY }],
-            },
-          ]}
-        >
-          <View style={styles.searchSectionInner}>
-            <View
-              style={[
-                styles.searchBarPod,
-                isSearchFocused && styles.searchBarPodFocused,
-              ]}
-            >
-              <View style={[styles.searchIconCircle, isSearchFocused && styles.searchIconCircleFocused]}>
                 <Ionicons
-                  name="search"
-                  size={16}
-                  color={colors.navy}
+                  name={c.icon}
+                  size={13}
+                  color={isActive ? colors.navy : 'rgba(255, 255, 255, 0.75)'}
                 />
-              </View>
-
-              <TextInput
-                style={styles.searchInput}
-                placeholder={t('services.searchPlaceholder', 'Search services, legal, relocation…')}
-                placeholderTextColor={colors.charcoalSub}
-                value={searchQuery}
-                onChangeText={setSearchQuery}
-                onFocus={() => setIsSearchFocused(true)}
-                onBlur={() => setIsSearchFocused(false)}
-                returnKeyType="search"
-                clearButtonMode="never"
-                autoCorrect={false}
-                autoCapitalize="none"
-              />
-
-              {searchQuery.length > 0 ? (
-                <TouchableOpacity
-                  onPress={() => setSearchQuery('')}
-                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                  style={styles.clearBtn}
-                >
-                  <Ionicons name="close-circle" size={19} color={colors.charcoalSub} />
-                </TouchableOpacity>
-              ) : (
-                <View style={styles.countBadgePill}>
-                  <Text style={styles.countBadgeText}>
-                    {filteredServices.length} {filteredServices.length === 1 ? 'partner' : 'partners'}
-                  </Text>
-                </View>
-              )}
-            </View>
-
-            {/* Category pills horizontal row */}
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.catScroll}
-            >
-              {categories.map((cat) => {
-                const isActive = activeCategory === cat.id;
-                return (
-                  <TouchableOpacity
-                    key={cat.id}
-                    style={[styles.catPill, isActive && styles.catPillActive]}
-                    onPress={() => setActiveCategory(cat.id)}
-                    activeOpacity={0.8}
-                  >
-                    <Ionicons
-                      name={cat.icon}
-                      size={14}
-                      color={isActive ? colors.navy : colors.charcoalSub}
-                      style={{ marginRight: 5 }}
-                    />
-                    <Text style={[styles.catText, isActive && styles.catTextActive]}>
-                      {cat.label}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </ScrollView>
-          </View>
-        </Animated.View>
+                <Text style={[styles.filterPillText, isActive && styles.filterPillTextActive]}>
+                  {c.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
       </View>
+
+      {/* ── SERVICES DIRECTORY LIST ── */}
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefreshing}
+            onRefresh={onRefresh}
+            tintColor={colors.gold}
+            colors={[colors.gold]}
+          />
+        }
+      >
+        {/* Verification Guarantee Banner */}
+        <View style={styles.guaranteeBanner}>
+          <View style={styles.guaranteeIconWrap}>
+            <Ionicons name="ribbon" size={16} color={colors.goldRich} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.guaranteeTitle}>Trusted Diaspora Standard</Text>
+            <Text style={styles.guaranteeSubtitle}>
+              All concierge specialists are licensed professionals in Ethiopia with vetted track records.
+            </Text>
+          </View>
+        </View>
+
+        {filtered.length === 0 ? (
+          <View style={styles.emptyContainer}>
+            <View style={styles.emptyIconCircle}>
+              <Ionicons name="briefcase-outline" size={32} color={colors.navy} />
+            </View>
+            <Text style={styles.emptyTitle}>No Service Providers Found</Text>
+            <Text style={styles.emptySub}>
+              We couldn't find any partners matching "{searchQuery}". Try searching another specialty or resetting filters.
+            </Text>
+            <TouchableOpacity
+              style={styles.emptyResetBtn}
+              onPress={() => {
+                setSearchQuery('');
+                setSelectedCategory('all');
+              }}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.emptyResetText}>Reset All Filters</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <View style={styles.providersList}>
+            {filtered.map((s) => {
+              const fav = isFavorite('service', s.id);
+              return (
+                <TouchableOpacity
+                  key={s.id}
+                  style={styles.providerCard}
+                  activeOpacity={0.92}
+                  onPress={() => router.push({ pathname: '/service/[id]', params: { id: s.id } })}
+                >
+                  <View style={styles.providerCardTop}>
+                    <Image source={{ uri: s.image }} style={styles.providerAvatar} />
+                    
+                    <View style={styles.providerMainMeta}>
+                      <View style={styles.nameHeaderRow}>
+                        <Text style={styles.providerNameText} numberOfLines={1}>
+                          {s.name}
+                        </Text>
+                        <TouchableOpacity
+                          style={styles.providerFavBtn}
+                          onPress={(e) => {
+                            e.stopPropagation?.();
+                            toggleFavorite('service', s.id);
+                          }}
+                          activeOpacity={0.7}
+                        >
+                          <Ionicons
+                            name={fav ? 'bookmark' : 'bookmark-outline'}
+                            size={18}
+                            color={fav ? colors.gold : colors.charcoalLight}
+                          />
+                        </TouchableOpacity>
+                      </View>
+
+                      {s.verified && (
+                        <View style={styles.verifiedTagRow}>
+                          <Ionicons name="checkmark-circle" size={13} color={colors.goldRich} />
+                          <Text style={styles.verifiedTagText}>DALEEL VERIFIED SPECIALIST</Text>
+                        </View>
+                      )}
+
+                      <View style={styles.categoryAndLocRow}>
+                        <View style={styles.categoryChip}>
+                          <Text style={styles.categoryChipText}>{s.category}</Text>
+                        </View>
+                        <View style={styles.locationChip}>
+                          <Ionicons name="location-outline" size={11} color={colors.charcoalLight} />
+                          <Text style={styles.locationChipText}>{s.location}</Text>
+                        </View>
+                      </View>
+                    </View>
+                  </View>
+
+                  {s.description && (
+                    <Text style={styles.providerDescription} numberOfLines={2}>
+                      {s.description}
+                    </Text>
+                  )}
+
+                  <View style={styles.providerCardFooter}>
+                    {s.rating ? (
+                      <View style={styles.pricingWrap}>
+                        <Text style={styles.pricingLabel}>CLIENT RATING</Text>
+                        <Text style={styles.pricingValue}>★ {s.rating.toFixed(1)} {s.reviewCount ? `(${s.reviewCount})` : ''}</Text>
+                      </View>
+                    ) : (
+                      <View style={styles.pricingWrap}>
+                        <Text style={styles.pricingLabel}>CONCIERGE</Text>
+                        <Text style={styles.pricingValue}>Verified Partner</Text>
+                      </View>
+                    )}
+
+                    <View style={styles.inquireButton}>
+                      <Text style={styles.inquireButtonText}>Request Consultation</Text>
+                      <Ionicons name="arrow-forward" size={13} color="#FFFFFF" />
+                    </View>
+                  </View>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        )}
+
+        <View style={{ height: 48 }} />
+      </ScrollView>
     </View>
   );
 }
@@ -493,372 +331,321 @@ export default function ServicesScreen() {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: colors.ivory,
+    backgroundColor: colors.background,
   },
-  mainBodyContainer: {
-    flex: 1,
-    position: 'relative',
-    overflow: 'hidden',
+
+  // ── HERO DIRECTORY HEADER ──────────────────────────────
+  heroHeader: {
+    backgroundColor: colors.navy,
+    paddingHorizontal: 20,
+    paddingBottom: 16,
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
+    ...shadow.header,
   },
-  scrollContent: {
-    padding: 16,
-    paddingTop: 136,
-    paddingBottom: 40,
-  },
-  floatingHeaderContainer: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    zIndex: 20,
-  },
-  searchSectionInner: {
-    backgroundColor: '#FFFFFF',
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-    paddingTop: 12,
-    paddingBottom: 8,
-    shadowColor: '#000',
-    shadowOpacity: 0.05,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 3,
-  },
-  searchBarPod: {
+  headerTitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginHorizontal: 16,
-    paddingHorizontal: 14,
-    height: 50,
-    borderRadius: 16,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1.5,
-    borderColor: 'rgba(223, 183, 108, 0.45)',
-    gap: 10,
-    shadowColor: colors.navy,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 6,
-    elevation: 2,
+    justifyContent: 'space-between',
+    marginBottom: 14,
   },
-  searchBarPodFocused: {
-    borderColor: colors.goldRich,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 2,
-    shadowColor: colors.gold,
-    shadowOpacity: 0.22,
-    shadowRadius: 8,
-    elevation: 3,
-  },
-  searchIconCircle: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: 'rgba(223, 183, 108, 0.2)',
+  headerBadge: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-  },
-  searchIconCircleFocused: {
-    backgroundColor: colors.gold,
-  },
-  searchInput: {
-    flex: 1,
-    fontFamily: fonts.bodyMedium,
-    fontSize: 14,
-    color: colors.charcoal,
-    paddingVertical: 0,
-  },
-  clearBtn: {
-    padding: 4,
-  },
-  countBadgePill: {
+    gap: 5,
     backgroundColor: 'rgba(223, 183, 108, 0.16)',
-    paddingHorizontal: 9,
-    paddingVertical: 4,
-    borderRadius: 10,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: radius.pill,
+    alignSelf: 'flex-start',
+    marginBottom: 4,
+  },
+  headerBadgeText: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 9,
+    color: colors.gold,
+    letterSpacing: 1,
+  },
+  headerTitle: {
+    fontFamily: fonts.heading,
+    fontSize: 26,
+    color: '#FFFFFF',
+    letterSpacing: -0.3,
+  },
+  countBadge: {
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: radius.pill,
     borderWidth: 1,
-    borderColor: 'rgba(223, 183, 108, 0.35)',
+    borderColor: 'rgba(255, 255, 255, 0.15)',
   },
   countBadgeText: {
     fontFamily: fonts.bodyBold,
-    fontSize: 11,
+    fontSize: 10,
+    color: '#FFFFFF',
+    letterSpacing: 0.5,
+  },
+
+  searchBarContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: radius.md,
+    height: 48,
+    paddingHorizontal: 12,
+    gap: 8,
+    ...shadow.button,
+    marginBottom: 14,
+  },
+  searchInput: {
+    flex: 1,
+    fontFamily: fonts.body,
+    fontSize: 13,
     color: colors.navy,
   },
 
-  // ── Category Pills Sub-Bar ──────────────────────────
-  catScroll: {
-    paddingHorizontal: 16,
-    paddingTop: 10,
-    paddingBottom: 2,
+  filterPillsTrack: {
     gap: 8,
+    paddingRight: 10,
   },
-  catPill: {
+  filterPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 20,
+    gap: 6,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
+  },
+  filterPillActive: {
+    backgroundColor: colors.gold,
+    borderColor: colors.gold,
+  },
+  filterPillText: {
+    fontFamily: fonts.bodyMedium,
+    fontSize: 11.5,
+    color: 'rgba(255, 255, 255, 0.8)',
+  },
+  filterPillTextActive: {
+    fontFamily: fonts.bodyBold,
+    color: colors.navy,
+  },
+
+  // ── CONTENT ──────────────────────────────────────────────
+  scrollContent: {
+    paddingTop: 16,
+    paddingBottom: 40,
+  },
+
+  guaranteeBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    marginHorizontal: 20,
+    marginBottom: 16,
+    padding: 12,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    gap: 12,
+  },
+  guaranteeIconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(223, 183, 108, 0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  guaranteeTitle: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 12.5,
+    color: colors.navy,
+    marginBottom: 1,
+  },
+  guaranteeSubtitle: {
+    fontFamily: fonts.body,
+    fontSize: 11,
+    color: colors.charcoalSub,
+    lineHeight: 15,
+  },
+
+  providersList: {
+    paddingHorizontal: 20,
+    gap: 14,
+  },
+  providerCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: radius.lg,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
+    ...shadow.card,
+  },
+  providerCardTop: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+  },
+  providerAvatar: {
+    width: 64,
+    height: 64,
+    borderRadius: radius.md,
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.border,
   },
-  catPillActive: {
-    backgroundColor: colors.gold,
-    borderColor: colors.gold,
-    shadowColor: colors.gold,
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 2,
-  },
-  catText: {
-    fontFamily: fonts.bodyMedium,
-    fontSize: 12.5,
-    color: colors.charcoalSub,
-  },
-  catTextActive: {
-    fontFamily: fonts.bodyBold,
-    color: colors.navy,
-    fontWeight: '700',
-  },
-
-  // ── Service Cards ───────────────────────────────────
-  cardWrap: {
-    marginBottom: 20,
-  },
-  card: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    borderWidth: 1.5,
-    borderColor: colors.border,
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOpacity: 0.05,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 3,
-  },
-  imageContainer: {
-    position: 'relative',
-    width: '100%',
-    height: 160,
-    backgroundColor: colors.surfaceWarm,
-  },
-  cardImage: {
-    width: '100%',
-    height: '100%',
-  },
-  floatingCategoryPill: {
-    position: 'absolute',
-    top: 12,
-    left: 12,
-    backgroundColor: 'rgba(7, 21, 43, 0.88)',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: 'rgba(223, 183, 108, 0.4)',
-  },
-  floatingCategoryText: {
-    fontFamily: fonts.bodySemiBold,
-    fontSize: 10,
-    color: colors.gold,
-    letterSpacing: 0.8,
-  },
-  floatingBookmark: {
-    position: 'absolute',
-    top: 12,
-    right: 12,
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: 'rgba(255, 255, 255, 0.92)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: colors.border,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-  },
-  floatingBookmarkActive: {
-    backgroundColor: '#FFFFFF',
-    borderColor: colors.gold,
-  },
-
-  cardBody: {
-    padding: 18,
-  },
-  providerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 4,
-  },
-  providerName: {
-    fontFamily: fonts.heading,
-    fontSize: 19,
-    color: colors.charcoal,
+  providerMainMeta: {
     flex: 1,
-    marginRight: 8,
+    marginLeft: 14,
   },
-  verifiedBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: colors.goldSoft,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: colors.goldBorder,
-  },
-  verifiedText: {
-    fontFamily: fonts.bodySemiBold,
-    fontSize: 11,
-    color: '#8A6204',
-  },
-  locationRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    marginBottom: 8,
-  },
-  locationText: {
-    fontFamily: fonts.body,
-    fontSize: 13,
-    color: colors.charcoalSub,
-  },
-  blurbText: {
-    fontFamily: fonts.body,
-    fontSize: 13.5,
-    color: colors.charcoalSub,
-    lineHeight: 20,
-    marginBottom: 14,
-  },
-
-  cardFooter: {
+  nameHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingTop: 14,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: colors.border,
   },
-  partnerActionGroup: {
+  providerNameText: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 15,
+    color: colors.navy,
+    flex: 1,
+    marginRight: 6,
+  },
+  providerFavBtn: {
+    padding: 2,
+  },
+  verifiedTagRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 2,
+  },
+  verifiedTagText: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 9,
+    color: colors.goldRich,
+    letterSpacing: 0.5,
+  },
+  categoryAndLocRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+    marginTop: 6,
+    flexWrap: 'wrap',
   },
-  quickWhatsappBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#25D366',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 12,
-    shadowColor: '#25D366',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3,
-    elevation: 2,
+  categoryChip: {
+    backgroundColor: 'rgba(7, 21, 43, 0.06)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 4,
   },
-  quickWhatsappText: {
-    fontFamily: fonts.bodySemiBold,
-    fontSize: 11.5,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-  quickCallBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#F1F5F9',
-    borderWidth: 1,
-    borderColor: '#CBD5E1',
-    paddingHorizontal: 9,
-    paddingVertical: 5,
-    borderRadius: 12,
-  },
-  quickCallText: {
-    fontFamily: fonts.bodySemiBold,
-    fontSize: 11.5,
-    fontWeight: '700',
+  categoryChipText: {
+    fontFamily: fonts.bodyMedium,
+    fontSize: 10.5,
     color: colors.navy,
   },
-  trustIndicator: {
+  locationChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
+    gap: 2,
   },
-  trustText: {
+  locationChipText: {
     fontFamily: fonts.body,
-    fontSize: 11.5,
-    color: colors.charcoalSub,
-  },
-  connectBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    backgroundColor: colors.goldSoft,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 12,
-  },
-  connectBtnText: {
-    fontFamily: fonts.bodySemiBold,
-    fontSize: 12,
-    color: colors.navy,
+    fontSize: 10.5,
+    color: colors.charcoalLight,
   },
 
-  // ── Empty State Card ────────────────────────────────
-  emptyCard: {
+  providerDescription: {
+    fontFamily: fonts.body,
+    fontSize: 12.5,
+    color: colors.charcoalSub,
+    lineHeight: 18,
+    marginTop: 12,
+  },
+
+  providerCardFooter: {
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 14,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: colors.separator,
+  },
+  pricingWrap: {
     justifyContent: 'center',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    borderWidth: 1.5,
-    borderColor: colors.border,
-    paddingVertical: 40,
-    paddingHorizontal: 24,
-    marginTop: 20,
+  },
+  pricingLabel: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 8.5,
+    color: colors.charcoalLight,
+    letterSpacing: 0.5,
+  },
+  pricingValue: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 12,
+    color: colors.navy,
+    marginTop: 1,
+  },
+  inquireButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: colors.navy,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    borderRadius: radius.pill,
+    ...shadow.button,
+  },
+  inquireButtonText: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 12,
+    color: '#FFFFFF',
+  },
+
+  // Empty State
+  emptyContainer: {
+    alignItems: 'center',
+    paddingHorizontal: 32,
+    paddingVertical: 60,
   },
   emptyIconCircle: {
-    width: 68,
-    height: 68,
-    borderRadius: 34,
-    backgroundColor: colors.goldSoft,
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 14,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   emptyTitle: {
     fontFamily: fonts.heading,
     fontSize: 20,
-    color: colors.charcoal,
-    marginBottom: 8,
+    color: colors.navy,
+    marginBottom: 6,
     textAlign: 'center',
   },
-  emptyText: {
+  emptySub: {
     fontFamily: fonts.body,
     fontSize: 13,
-    color: '#718096',
+    color: colors.charcoalSub,
     textAlign: 'center',
-    marginBottom: 16,
     lineHeight: 19,
+    marginBottom: 20,
   },
-  resetFilterBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.gold,
-    borderRadius: 12,
-    paddingHorizontal: 16,
+  emptyResetBtn: {
+    backgroundColor: colors.navy,
+    paddingHorizontal: 20,
     paddingVertical: 10,
+    borderRadius: radius.pill,
   },
-  resetFilterText: {
+  emptyResetText: {
     fontFamily: fonts.bodyBold,
-    fontSize: 13,
-    color: colors.navy,
-    fontWeight: '700',
+    fontSize: 12.5,
+    color: '#FFFFFF',
   },
 });

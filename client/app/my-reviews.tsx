@@ -257,7 +257,7 @@ export default function MyReviewsScreen() {
               activeOpacity={0.85}
             >
               <Text style={styles.emptyExploreBtnText}>Explore Marketplace</Text>
-              <Ionicons name="arrow-forward" size={15} color={colors.navy} />
+              <Ionicons name="arrow-forward" size={15} color="#FFFFFF" />
             </TouchableOpacity>
           </View>
         ) : (
@@ -425,7 +425,7 @@ export default function MyReviewsScreen() {
               activeOpacity={0.85}
             >
               {isSavingEdit ? (
-                <ActivityIndicator size="small" color={colors.navy} />
+                <ActivityIndicator size="small" color="#FFFFFF" />
               ) : (
                 <Text style={styles.saveModalBtnText}>Update Review</Text>
               )}
@@ -541,7 +541,7 @@ const styles = StyleSheet.create({
   },
   tabPillTextActive: {
     fontFamily: fonts.bodyBold,
-    color: colors.gold,
+    color: '#FFFFFF',
   },
   loadingContainer: {
     paddingVertical: 40,
@@ -588,7 +588,7 @@ const styles = StyleSheet.create({
   emptyExploreBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.gold,
+    backgroundColor: colors.navy,
     paddingHorizontal: 18,
     paddingVertical: 10,
     borderRadius: radius.pill,
@@ -597,7 +597,7 @@ const styles = StyleSheet.create({
   emptyExploreBtnText: {
     fontFamily: fonts.bodyBold,
     fontSize: 13,
-    color: colors.navy,
+    color: '#FFFFFF',
   },
   reviewCard: {
     backgroundColor: '#FFFFFF',
@@ -807,7 +807,7 @@ const styles = StyleSheet.create({
     textAlignVertical: 'top',
   },
   saveModalBtn: {
-    backgroundColor: colors.gold,
+    backgroundColor: colors.navy,
     borderRadius: radius.lg,
     paddingVertical: 13,
     alignItems: 'center',
@@ -818,7 +818,7 @@ const styles = StyleSheet.create({
   saveModalBtnText: {
     fontFamily: fonts.bodyBold,
     fontSize: 14,
-    color: colors.navy,
+    color: '#FFFFFF',
   },
 
   // Lightbox

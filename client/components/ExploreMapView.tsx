@@ -542,7 +542,7 @@ export const ExploreMapView: React.FC<Props> = ({
                 activeOpacity={0.88}
               >
                 <Text style={styles.exploreBtnText}>Explore Heritage Site</Text>
-                <Ionicons name="arrow-forward" size={14} color="#07152B" />
+                <Ionicons name="arrow-forward" size={14} color="#FFFFFF" />
               </TouchableOpacity>
             </View>
           </View>
@@ -770,14 +770,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    backgroundColor: '#DFB76C',
-    paddingVertical: 7,
-    borderRadius: 8,
-    marginTop: 4,
+    backgroundColor: colors.navy,
+    paddingVertical: 9,
+    borderRadius: radius.md,
+    marginTop: 6,
   },
   exploreBtnText: {
-    fontSize: 12,
+    fontSize: 12.5,
     fontWeight: '800',
-    color: '#07152B',
+    color: '#FFFFFF',
+    fontFamily: fonts.bodyBold,
   },
 });

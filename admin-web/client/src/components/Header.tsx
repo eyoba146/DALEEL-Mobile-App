@@ -3,11 +3,12 @@ import { useAdminAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import type { Language } from '../utils/translations';
 import type { AppModule } from '../context/AuthContext';
-import { CalendarDays, ShieldCheck, Globe } from 'lucide-react';
+import { CalendarDays, ShieldCheck, Globe, Menu } from 'lucide-react';
 
 interface HeaderProps {
   currentTab: AppModule;
   onSelectTab: (tab: AppModule) => void;
+  onToggleSidebar?: () => void;
 }
 
 const TAB_TITLES: Record<AppModule, { title: string; subtitle: string }> = {
@@ -64,7 +65,7 @@ const LOCALE_MAP: Record<Language, string> = {
   ar: 'ar-SA',
 };
 
-export const Header: React.FC<HeaderProps> = ({ currentTab, onSelectTab }) => {
+export const Header: React.FC<HeaderProps> = ({ currentTab, onSelectTab, onToggleSidebar }) => {
   const { adminUser } = useAdminAuth();
   const { language, setLanguage, languages, t } = useLanguage();
 
@@ -81,10 +82,23 @@ export const Header: React.FC<HeaderProps> = ({ currentTab, onSelectTab }) => {
 
   return (
     <header style={styles.header}>
-      {/* Title & Subtitle */}
-      <div>
-        <h2 style={styles.title}>{title}</h2>
-        <div style={styles.subtitle}>{subtitle}</div>
+      {/* Title & Mobile Menu Trigger */}
+      <div style={styles.leftGroup}>
+        {onToggleSidebar && (
+          <button
+            type="button"
+            className="mobile-menu-trigger"
+            onClick={onToggleSidebar}
+            aria-label="Toggle navigation drawer"
+            title="Open Navigation"
+          >
+            <Menu size={19} color="#07152B" />
+          </button>
+        )}
+        <div style={styles.titleGroup}>
+          <h2 style={styles.title}>{title}</h2>
+          <div style={styles.subtitle}>{subtitle}</div>
+        </div>
       </div>
 
       {/* Right User & Date Group */}
@@ -113,7 +127,7 @@ export const Header: React.FC<HeaderProps> = ({ currentTab, onSelectTab }) => {
         </div>
 
         {/* Date Display */}
-        <div style={styles.dateChip}>
+        <div className="header-date-chip" style={styles.dateChip}>
           <CalendarDays size={14} color="#8C6A21" />
           <span style={styles.dateText}>{formattedDate}</span>
         </div>
@@ -157,27 +171,44 @@ const styles: { [key: string]: React.CSSProperties } = {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: '0 32px',
+    padding: '0 24px',
     position: 'sticky',
     top: 0,
     zIndex: 90,
     boxShadow: '0 1px 3px rgba(7, 21, 43, 0.03)',
+    gap: '12px',
+  },
+  leftGroup: {
+    display: 'flex',
+    alignItems: 'center',
+    minWidth: 0,
+  },
+  titleGroup: {
+    minWidth: 0,
+    overflow: 'hidden',
   },
   title: {
-    fontSize: '20px',
-    fontWeight: 700,
+    fontSize: '18px',
+    fontWeight: 750,
     color: '#07152B',
     margin: 0,
+    whiteSpace: 'nowrap',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
   },
   subtitle: {
-    fontSize: '13px',
+    fontSize: '12px',
     color: '#5A687A',
     marginTop: '2px',
+    whiteSpace: 'nowrap',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
   },
   rightGroup: {
     display: 'flex',
     alignItems: 'center',
-    gap: '14px',
+    gap: '12px',
+    flexShrink: 0,
   },
   langContainer: {
     display: 'flex',
@@ -206,24 +237,25 @@ const styles: { [key: string]: React.CSSProperties } = {
   langPillActive: {
     backgroundColor: '#07152B',
     color: '#DFB76C',
-    borderColor: '#DFB76C',
+    borderColor: '#07152B',
     boxShadow: '0 2px 6px rgba(7, 21, 43, 0.25)',
   },
   langPillInactive: {
     backgroundColor: 'transparent',
-    color: '#475569',
+    color: '#64748B',
   },
   dateChip: {
     display: 'flex',
     alignItems: 'center',
     gap: '6px',
-    padding: '7px 14px',
-    backgroundColor: '#F8F4EC',
-    border: '1px solid #E0C582',
+    padding: '6px 14px',
+    backgroundColor: '#FFFFFF',
+    border: '1px solid #E2E8F0',
     borderRadius: '9999px',
+    boxShadow: '0 1px 2px rgba(7, 21, 43, 0.02)',
   },
   dateText: {
-    fontSize: '12.5px',
+    fontSize: '12px',
     fontWeight: 600,
     color: '#07152B',
   },
@@ -232,14 +264,15 @@ const styles: { [key: string]: React.CSSProperties } = {
     alignItems: 'center',
     gap: '10px',
     padding: '5px 14px 5px 6px',
-    backgroundColor: '#F8FAFC',
-    border: '1px solid #E4E9F0',
+    backgroundColor: '#FFFFFF',
+    border: '1px solid #E2E8F0',
     borderRadius: '9999px',
     cursor: 'pointer',
     transition: 'all 0.18s ease',
+    boxShadow: '0 1px 2px rgba(7, 21, 43, 0.02)',
   },
   userPillActive: {
-    backgroundColor: '#F8F4EC',
+    backgroundColor: 'rgba(223, 183, 108, 0.12)',
     borderColor: '#DFB76C',
     boxShadow: '0 2px 8px rgba(223, 183, 108, 0.25)',
   },
@@ -249,12 +282,12 @@ const styles: { [key: string]: React.CSSProperties } = {
     borderRadius: '50%',
     backgroundColor: '#07152B',
     color: '#DFB76C',
-    fontWeight: 700,
+    fontWeight: 750,
     fontSize: '13px',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    border: '1px solid #DFB76C',
+    border: '1.5px solid #DFB76C',
   },
   userMeta: {
     display: 'flex',
@@ -268,8 +301,8 @@ const styles: { [key: string]: React.CSSProperties } = {
   },
   userRole: {
     fontSize: '10.5px',
-    fontWeight: 600,
-    color: '#8C6A21',
+    fontWeight: 650,
+    color: '#DFB76C',
   },
   securityIcon: {
     display: 'flex',

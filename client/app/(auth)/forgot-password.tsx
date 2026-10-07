@@ -12,12 +12,12 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
+import { Feather, Ionicons } from '@expo/vector-icons';
 import { Button } from '../../components/Button';
 import { Input } from '../../components/Input';
 import { OtpInput } from '../../components/OtpInput';
 import { ApiError, authApi } from '../../lib/api';
-import { colors, radius, spacing, type } from '../../theme/tokens';
+import { colors, fonts, radius, spacing, type } from '../../theme/tokens';
 
 type Step = 'email' | 'code' | 'password';
 
@@ -35,6 +35,45 @@ export default function ForgotPassword() {
   const [loading, setLoading] = useState(false);
   const [resending, setResending] = useState(false);
   const [cooldown, setCooldown] = useState(0); // 1 min 15 sec rate limit
+
+  // Field validation tracking
+  const [touchedEmail, setTouchedEmail] = useState(false);
+  const [touchedCode, setTouchedCode] = useState(false);
+  const [touchedNewPassword, setTouchedNewPassword] = useState(false);
+  const [touchedConfirm, setTouchedConfirm] = useState(false);
+  const [submittedStep, setSubmittedStep] = useState(false);
+
+  const emailTrimmed = email.trim();
+  const isEmailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailTrimmed);
+  const emailError = (touchedEmail || submittedStep) && step === 'email'
+    ? !emailTrimmed
+      ? 'Email address is required.'
+      : !isEmailValid
+      ? 'Please enter a valid email address (e.g. name@domain.com).'
+      : null
+    : null;
+
+  const codeError = (touchedCode || submittedStep) && step === 'code'
+    ? code.length !== 6
+      ? 'Enter all 6 digits of the reset code.'
+      : null
+    : null;
+
+  const newPasswordError = (touchedNewPassword || submittedStep) && step === 'password'
+    ? !newPassword
+      ? 'New password is required.'
+      : newPassword.length < 8
+      ? 'Password must be at least 8 characters.'
+      : null
+    : null;
+
+  const confirmError = (touchedConfirm || submittedStep) && step === 'password'
+    ? !confirmPassword
+      ? 'Please confirm your new password.'
+      : newPassword !== confirmPassword
+      ? 'Passwords do not match.'
+      : null
+    : null;
 
   // Cooldown countdown timer (75s)
   useEffect(() => {
@@ -67,16 +106,17 @@ export default function ForgotPassword() {
 
   /* ── Step 1: Send code ── */
   const handleSendCode = async () => {
+    setSubmittedStep(true);
     clearMessages();
-    const trimmed = email.trim();
-    if (!trimmed.includes('@')) {
-      setError('Enter a valid email address.');
+    if (!emailTrimmed || !isEmailValid) {
+      setTouchedEmail(true);
       return;
     }
     setLoading(true);
     try {
-      await authApi.forgotPassword({ email: trimmed });
+      await authApi.forgotPassword({ email: emailTrimmed });
       setStep('code');
+      setSubmittedStep(false);
       setSuccess('A reset code was sent to your email.');
       setCooldown(75); // Start 1m 15s cooldown
     } catch (e) {
@@ -104,15 +144,17 @@ export default function ForgotPassword() {
 
   /* ── Step 2: Verify code ── */
   const handleVerifyCode = async () => {
+    setSubmittedStep(true);
     clearMessages();
     if (code.length !== 6) {
-      setError('Enter all 6 digits of the reset code.');
+      setTouchedCode(true);
       return;
     }
     setLoading(true);
     try {
-      await authApi.verifyResetCode({ email: email.trim(), code });
+      await authApi.verifyResetCode({ email: emailTrimmed, code });
       setStep('password');
+      setSubmittedStep(false);
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'Invalid or expired reset code. Please check and try again.');
     } finally {
@@ -123,18 +165,19 @@ export default function ForgotPassword() {
 
   /* ── Step 3: Set new password ── */
   const handleResetPassword = async () => {
+    setSubmittedStep(true);
     clearMessages();
-    if (newPassword.length < 8) {
-      setError('Password must be at least 8 characters.');
+    if (!newPassword || newPassword.length < 8) {
+      setTouchedNewPassword(true);
       return;
     }
-    if (newPassword !== confirmPassword) {
-      setError('Passwords do not match.');
+    if (!confirmPassword || newPassword !== confirmPassword) {
+      setTouchedConfirm(true);
       return;
     }
     setLoading(true);
     try {
-      await authApi.resetPassword({ email: email.trim(), code, newPassword });
+      await authApi.resetPassword({ email: emailTrimmed, code, newPassword });
       setSuccess('Password updated successfully! You can now sign in.');
       // Brief delay then navigate
       setTimeout(() => router.replace('/(auth)/login'), 2000);
@@ -221,7 +264,12 @@ export default function ForgotPassword() {
               <Input
                 label="Email address"
                 value={email}
-                onChangeText={setEmail}
+                onChangeText={(val) => {
+                  setEmail(val);
+                  clearMessages();
+                }}
+                onBlur={() => setTouchedEmail(true)}
+                error={emailError || undefined}
                 autoCapitalize="none"
                 keyboardType="email-address"
                 autoComplete="email"
@@ -237,8 +285,14 @@ export default function ForgotPassword() {
               <OtpInput
                 value={code}
                 onChange={v => { setCode(v); clearMessages(); }}
-                error={!!error}
+                error={!!codeError || !!error}
               />
+              {!!codeError && (
+                <View style={styles.fieldErrorRow}>
+                  <Ionicons name="alert-circle" size={13} color={colors.error} />
+                  <Text style={styles.fieldErrorText}>{codeError}</Text>
+                </View>
+              )}
             </View>
           )}
 
@@ -249,25 +303,35 @@ export default function ForgotPassword() {
                 <Input
                   label="New password (min 8 chars)"
                   value={newPassword}
-                  onChangeText={setNewPassword}
+                  onChangeText={(val) => {
+                    setNewPassword(val);
+                    clearMessages();
+                  }}
+                  onBlur={() => setTouchedNewPassword(true)}
+                  error={newPasswordError || undefined}
                   secureTextEntry={!showPassword}
                   returnKeyType="next"
                 />
                 <Pressable style={styles.eyeBtn} onPress={() => setShowPassword(v => !v)} hitSlop={12}>
-                  <Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={20} color={colors.charcoalLight} />
+                  <Feather name={showPassword ? 'eye-off' : 'eye'} size={18} color={newPasswordError ? colors.error : colors.charcoalLight} />
                 </Pressable>
               </View>
               <View style={{ position: 'relative' }}>
                 <Input
                   label="Confirm new password"
                   value={confirmPassword}
-                  onChangeText={setConfirmPassword}
+                  onChangeText={(val) => {
+                    setConfirmPassword(val);
+                    clearMessages();
+                  }}
+                  onBlur={() => setTouchedConfirm(true)}
+                  error={confirmError || undefined}
                   secureTextEntry={!showConfirm}
                   returnKeyType="done"
                   onSubmitEditing={handleResetPassword}
                 />
                 <Pressable style={styles.eyeBtn} onPress={() => setShowConfirm(v => !v)} hitSlop={12}>
-                  <Ionicons name={showConfirm ? 'eye-off-outline' : 'eye-outline'} size={20} color={colors.charcoalLight} />
+                  <Feather name={showConfirm ? 'eye-off' : 'eye'} size={18} color={confirmError ? colors.error : colors.charcoalLight} />
                 </Pressable>
               </View>
             </View>
@@ -450,6 +514,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: spacing.sm,
     marginBottom: spacing.xl,
+  },
+  fieldErrorRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 8,
+    marginLeft: 2,
+  },
+  fieldErrorText: {
+    fontFamily: fonts.bodyMedium,
+    fontSize: 12,
+    color: colors.error,
+    lineHeight: 16,
   },
 
   errorRow: {

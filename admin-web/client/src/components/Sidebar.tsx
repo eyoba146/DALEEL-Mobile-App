@@ -19,11 +19,14 @@ import {
   Inbox,
   UserCheck,
   Star,
+  X,
 } from 'lucide-react';
 
 interface SidebarProps {
   currentTab: AppModule;
   onSelectTab: (tab: AppModule) => void;
+  isOpen?: boolean;
+  onClose?: () => void;
 }
 
 interface NavItem {
@@ -80,10 +83,18 @@ const NAV_SECTIONS: NavSection[] = [
 export const Sidebar: React.FC<SidebarProps> = ({
   currentTab,
   onSelectTab,
+  isOpen,
+  onClose,
 }) => {
   const { adminUser, logout, canAccess } = useAdminAuth();
   const { t } = useLanguage();
   const [counts, setCounts] = useState<SidebarCounts | null>(null);
+  const [hoveredNav, setHoveredNav] = useState<AppModule | null>(null);
+
+  const handleTabSelect = (tab: AppModule) => {
+    onSelectTab(tab);
+    if (onClose) onClose();
+  };
 
   useEffect(() => {
     let mounted = true;
@@ -148,25 +159,35 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const isProfileActive = currentTab === 'profile';
 
   return (
-    <aside style={styles.sidebar}>
-      {/* Brand & Crest Header */}
+    <aside className={`sidebar-container ${isOpen ? 'sidebar-open' : ''}`} style={styles.sidebar}>
+      {/* Brand & Crest Header - Deep Navy Foundation */}
       <div style={styles.brandBox}>
         <div style={styles.brandLogo}>
-          <Shield size={22} color="#DFB76C" />
+          <Shield size={20} color="#DFB76C" />
         </div>
         <div>
           <div style={styles.brandName}>{t('brand.title', 'DALEEL')}</div>
-          <div style={styles.brandSub}>{t('brand.sub', 'MANAGEMENT PORTAL')}</div>
+          <div style={styles.brandSub}>{t('brand.sub', 'EXECUTIVE CONSOLE')}</div>
         </div>
+        {onClose && (
+          <button
+            type="button"
+            className="mobile-close-btn"
+            onClick={onClose}
+            aria-label="Close sidebar"
+          >
+            <X size={17} color="#FFFFFF" />
+          </button>
+        )}
       </div>
 
-      {/* Interactive Profile & Security Card (Navigates directly to in-page workspace, NO POPUP) */}
+      {/* Operator Identity Capsule (Deep Navy Theme) */}
       <div
         style={{
           ...styles.profileCard,
           ...(isProfileActive ? styles.profileCardActive : {}),
         }}
-        onClick={() => onSelectTab('profile')}
+        onClick={() => handleTabSelect('profile')}
         role="button"
         tabIndex={0}
         title={t('sidebar.securityProfile', 'Security & Profile Settings')}
@@ -177,7 +198,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </div>
           <div style={styles.profileMeta}>
             <div style={styles.profileName} title={adminUser?.name}>
-              {adminUser?.name}
+              {adminUser?.name || 'Administrator'}
             </div>
             <div style={styles.roleBadge}>{getRoleDisplayName(adminUser?.adminRole)}</div>
           </div>
@@ -185,10 +206,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
         <div style={styles.profileActionRow}>
           <span style={styles.profileSecLink}>
-            <ShieldCheck size={13} color="#8C6A21" />
+            <ShieldCheck size={12} color="#DFB76C" />
             <span>{t('sidebar.securityProfile', 'Security & Profile')}</span>
           </span>
-          <span style={styles.profileEditBadge}>{t('sidebar.manage', 'Manage')}</span>
+          <span style={styles.profileEditBadge}>{t('sidebar.manage', 'Active')}</span>
         </div>
       </div>
 
@@ -205,23 +226,34 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 {visibleItems.map((item) => {
                   const Icon = item.icon;
                   const isActive = currentTab === item.id;
+                  const isHovered = hoveredNav === item.id;
                   const badgeCount = getBadgeCount(item.id);
                   const label = t(`nav.${item.id}`, item.label);
+
                   return (
                     <button
                       key={item.id}
                       style={{
                         ...styles.navBtn,
-                        ...(isActive ? styles.navBtnActive : styles.navBtnInactive),
+                        ...(isActive
+                          ? styles.navBtnActive
+                          : isHovered
+                          ? styles.navBtnHovered
+                          : styles.navBtnInactive),
                       }}
-                      onClick={() => onSelectTab(item.id)}
+                      onMouseEnter={() => setHoveredNav(item.id)}
+                      onMouseLeave={() => setHoveredNav(null)}
+                      onClick={() => handleTabSelect(item.id)}
                     >
-                      <Icon size={17} color={isActive ? '#DFB76C' : '#64748B'} />
+                      <Icon
+                        size={17}
+                        color={isActive ? '#DFB76C' : isHovered ? '#FFFFFF' : 'rgba(255, 255, 255, 0.65)'}
+                      />
                       <span
                         style={{
                           ...styles.navLabel,
-                          color: isActive ? '#FFFFFF' : '#1E293B',
-                          fontWeight: isActive ? 700 : 600,
+                          color: isActive ? '#FFFFFF' : isHovered ? '#FFFFFF' : 'rgba(255, 255, 255, 0.78)',
+                          fontWeight: isActive ? 700 : 550,
                         }}
                       >
                         {label}
@@ -244,21 +276,21 @@ export const Sidebar: React.FC<SidebarProps> = ({
           );
         })}
 
-        {/* Professional Institutional System Status Widget (NO DEVELOPER JARGON) */}
+        {/* Platform Status Widget - Institutional Deep Navy */}
         <div style={styles.telemetryCard}>
           <div style={styles.telemetryHeader}>
             <div style={styles.telemetryTitleGroup}>
               <Activity size={13} color="#10B981" />
-              <span style={styles.telemetryTitle}>{t('status.platformStatus', 'Platform Status')}</span>
+              <span style={styles.telemetryTitle}>{t('status.platformStatus', 'Platform Health')}</span>
             </div>
             <div style={styles.telemetryPill}>
               <span style={styles.pulseDot} />
-              <span>{t('status.operational', 'Operational')}</span>
+              <span>{t('status.operational', 'Live')}</span>
             </div>
           </div>
           <div style={styles.telemetryMeta}>
-            <span>{t('status.allOnline', 'All Services Online')}</span>
-            <span>{t('status.encrypted', 'Encrypted Session Active')}</span>
+            <span>{t('status.allOnline', 'Core REST APIs Nominal')}</span>
+            <span>{t('status.encrypted', 'Encrypted TLS Session')}</span>
           </div>
         </div>
       </nav>
@@ -270,14 +302,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
             ...styles.profileBtn,
             ...(isProfileActive ? styles.profileBtnActive : {}),
           }}
-          onClick={() => onSelectTab('profile')}
+          onClick={() => handleTabSelect('profile')}
         >
-          <User size={15} color={isProfileActive ? '#DFB76C' : '#07152B'} />
-          <span>{t('sidebar.securityProfile', 'Security & Profile')}</span>
+          <User size={15} color={isProfileActive ? '#DFB76C' : 'rgba(255, 255, 255, 0.8)'} />
+          <span>{t('sidebar.securityProfile', 'Security Credentials')}</span>
         </button>
         <button style={styles.logoutBtn} onClick={logout}>
-          <LogOut size={15} color="#C53030" />
-          <span>{t('sidebar.signOut', 'Sign Out')}</span>
+          <LogOut size={15} color="#EF4444" />
+          <span>{t('sidebar.signOut', 'End Session')}</span>
         </button>
       </div>
     </aside>
@@ -288,64 +320,63 @@ const styles: { [key: string]: React.CSSProperties } = {
   sidebar: {
     width: 'var(--sidebar-width)',
     height: '100vh',
-    backgroundColor: '#FFFFFF',
-    borderRight: '1px solid #E4E9F0',
+    backgroundColor: '#07152B', // MANDATORY DEEP NAVY FOUNDATION
+    borderRight: '1px solid #0F2242',
     display: 'flex',
     flexDirection: 'column',
     position: 'fixed',
     left: 0,
     top: 0,
     zIndex: 100,
-    boxShadow: '2px 0 10px rgba(7, 21, 43, 0.04)',
+    boxShadow: '4px 0 24px rgba(0, 0, 0, 0.22)',
   },
   brandBox: {
     padding: '20px 20px',
     display: 'flex',
     alignItems: 'center',
     gap: '12px',
-    borderBottom: '1px solid #F1F4F9',
+    borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
   },
   brandLogo: {
-    width: '40px',
-    height: '40px',
+    width: '38px',
+    height: '38px',
     borderRadius: '10px',
-    backgroundColor: '#07152B',
-    border: '1px solid #DFB76C',
+    backgroundColor: '#050D1A',
+    border: '1.5px solid #DFB76C',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    boxShadow: '0 2px 8px rgba(7, 21, 43, 0.18)',
+    boxShadow: '0 0 12px rgba(223, 183, 108, 0.25)',
     flexShrink: 0,
   },
   brandName: {
-    fontFamily: "'DM Serif Display', Georgia, serif",
-    fontSize: '21px',
-    fontWeight: 400,
-    color: '#07152B',
-    letterSpacing: '0.04em',
+    fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif",
+    fontSize: '18px',
+    fontWeight: 800,
+    color: '#FFFFFF',
+    letterSpacing: '0.06em',
     lineHeight: 1.1,
   },
   brandSub: {
     fontSize: '9.5px',
     fontWeight: 800,
-    color: '#8C6A21',
-    letterSpacing: '0.08em',
-    marginTop: '2px',
+    color: '#DFB76C',
+    letterSpacing: '0.12em',
+    marginTop: '3px',
   },
   profileCard: {
     margin: '14px 14px 6px 14px',
     padding: '12px 14px',
-    backgroundColor: '#FBF9F4',
-    border: '1px solid #EADBB6',
+    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+    border: '1px solid rgba(255, 255, 255, 0.08)',
     borderRadius: '12px',
     cursor: 'pointer',
     transition: 'all 0.18s ease',
-    boxShadow: '0 1px 3px rgba(7, 21, 43, 0.03)',
   },
   profileCardActive: {
-    backgroundColor: '#F4ECE0',
-    borderColor: '#DFB76C',
-    boxShadow: '0 2px 8px rgba(223, 183, 108, 0.25)',
+    backgroundColor: 'rgba(223, 183, 108, 0.12)',
+    borderColor: 'rgba(223, 183, 108, 0.5)',
+    boxShadow: '0 0 14px rgba(223, 183, 108, 0.15)',
   },
   profileCardHeader: {
     display: 'flex',
@@ -353,19 +384,19 @@ const styles: { [key: string]: React.CSSProperties } = {
     gap: '10px',
   },
   avatarCircle: {
-    width: '38px',
-    height: '38px',
+    width: '36px',
+    height: '36px',
     borderRadius: '50%',
-    backgroundColor: '#07152B',
-    color: '#DFB76C',
+    backgroundColor: '#DFB76C',
+    color: '#07152B',
     fontWeight: 800,
     fontSize: '15px',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    border: '1px solid #DFB76C',
+    border: '1.5px solid #FFFFFF',
     flexShrink: 0,
-    boxShadow: '0 2px 6px rgba(7, 21, 43, 0.15)',
+    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
   },
   profileMeta: {
     overflow: 'hidden',
@@ -373,16 +404,16 @@ const styles: { [key: string]: React.CSSProperties } = {
   },
   profileName: {
     fontSize: '13px',
-    fontWeight: 750,
-    color: '#07152B',
+    fontWeight: 700,
+    color: '#FFFFFF',
     whiteSpace: 'nowrap',
     overflow: 'hidden',
     textOverflow: 'ellipsis',
   },
   roleBadge: {
     fontSize: '11px',
-    fontWeight: 700,
-    color: '#8C6A21',
+    fontWeight: 650,
+    color: '#DFB76C',
     marginTop: '2px',
     whiteSpace: 'nowrap',
     overflow: 'hidden',
@@ -391,7 +422,7 @@ const styles: { [key: string]: React.CSSProperties } = {
   profileActionRow: {
     marginTop: '8px',
     paddingTop: '8px',
-    borderTop: '1px solid #EFE4CD',
+    borderTop: '1px solid rgba(255, 255, 255, 0.08)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -401,15 +432,15 @@ const styles: { [key: string]: React.CSSProperties } = {
     alignItems: 'center',
     gap: '5px',
     fontSize: '11px',
-    fontWeight: 650,
-    color: '#5A4310',
+    fontWeight: 600,
+    color: 'rgba(255, 255, 255, 0.7)',
   },
   profileEditBadge: {
     fontSize: '10px',
     fontWeight: 750,
-    color: '#8C6A21',
-    backgroundColor: '#FFFFFF',
-    border: '1px solid #E0C582',
+    color: '#DFB76C',
+    backgroundColor: 'rgba(223, 183, 108, 0.15)',
+    border: '1px solid rgba(223, 183, 108, 0.35)',
     padding: '1px 7px',
     borderRadius: '9999px',
   },
@@ -429,8 +460,8 @@ const styles: { [key: string]: React.CSSProperties } = {
   sectionHeader: {
     fontSize: '10px',
     fontWeight: 800,
-    letterSpacing: '0.08em',
-    color: '#718096',
+    letterSpacing: '0.09em',
+    color: 'rgba(255, 255, 255, 0.42)',
     padding: '4px 10px',
     textTransform: 'uppercase',
   },
@@ -444,21 +475,25 @@ const styles: { [key: string]: React.CSSProperties } = {
     display: 'flex',
     alignItems: 'center',
     gap: '11px',
-    padding: '10px 12px',
-    borderRadius: '10px',
+    padding: '9.5px 12px',
+    borderRadius: '9px',
     cursor: 'pointer',
-    transition: 'all 0.15s ease',
-    border: '1px solid transparent',
+    transition: 'all 0.16s ease',
     textAlign: 'left',
+    border: '1px solid transparent',
   },
   navBtnActive: {
-    backgroundColor: '#07152B',
-    color: '#FFFFFF',
-    boxShadow: '0 4px 12px rgba(7, 21, 43, 0.18)',
+    backgroundColor: 'rgba(223, 183, 108, 0.14)',
+    borderColor: 'rgba(223, 183, 108, 0.35)',
+    borderLeft: '3.5px solid #DFB76C',
+    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.25)',
+  },
+  navBtnHovered: {
+    backgroundColor: 'rgba(255, 255, 255, 0.07)',
+    borderColor: 'rgba(255, 255, 255, 0.05)',
   },
   navBtnInactive: {
     backgroundColor: 'transparent',
-    color: '#334155',
   },
   navLabel: {
     fontSize: '13px',
@@ -473,7 +508,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     height: '20px',
     padding: '0 6px',
     borderRadius: '999px',
-    fontSize: '11px',
+    fontSize: '10.5px',
     fontWeight: 800,
     letterSpacing: '-0.02em',
     transition: 'all 0.15s ease',
@@ -483,14 +518,14 @@ const styles: { [key: string]: React.CSSProperties } = {
     color: '#07152B',
   },
   floatingBadgeInactive: {
-    backgroundColor: '#FEF9EE',
-    color: '#8C6A21',
-    border: '1px solid rgba(223, 183, 108, 0.4)',
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    color: '#DFB76C',
+    border: '1px solid rgba(223, 183, 108, 0.25)',
   },
   telemetryCard: {
     marginTop: 'auto',
-    backgroundColor: '#F8FAFC',
-    border: '1px solid #E2E8F0',
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    border: '1px solid rgba(255, 255, 255, 0.08)',
     borderRadius: '10px',
     padding: '11px 12px',
     display: 'flex',
@@ -510,17 +545,17 @@ const styles: { [key: string]: React.CSSProperties } = {
   telemetryTitle: {
     fontSize: '11px',
     fontWeight: 700,
-    color: '#07152B',
+    color: '#FFFFFF',
   },
   telemetryPill: {
     display: 'flex',
     alignItems: 'center',
     gap: '5px',
-    fontSize: '10.5px',
+    fontSize: '10px',
     fontWeight: 750,
-    color: '#059669',
-    backgroundColor: '#ECFDF5',
-    border: '1px solid #A7F3D0',
+    color: '#34D399',
+    backgroundColor: 'rgba(16, 185, 129, 0.15)',
+    border: '1px solid rgba(16, 185, 129, 0.3)',
     padding: '1px 7px',
     borderRadius: '9999px',
   },
@@ -529,22 +564,22 @@ const styles: { [key: string]: React.CSSProperties } = {
     height: '6px',
     borderRadius: '50%',
     backgroundColor: '#10B981',
-    boxShadow: '0 0 0 2px rgba(16, 185, 129, 0.2)',
+    boxShadow: '0 0 0 2px rgba(16, 185, 129, 0.35)',
   },
   telemetryMeta: {
     display: 'flex',
     flexDirection: 'column',
     gap: '2px',
     fontSize: '10.5px',
-    color: '#64748B',
+    color: 'rgba(255, 255, 255, 0.48)',
   },
   footer: {
     padding: '12px 14px',
-    borderTop: '1px solid #E4E9F0',
+    borderTop: '1px solid rgba(255, 255, 255, 0.08)',
     display: 'flex',
     flexDirection: 'column',
     gap: '8px',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#07152B',
   },
   profileBtn: {
     width: '100%',
@@ -554,17 +589,17 @@ const styles: { [key: string]: React.CSSProperties } = {
     gap: '8px',
     padding: '9px 12px',
     borderRadius: '8px',
-    backgroundColor: '#F8FAFC',
-    border: '1px solid #CBD5E1',
-    color: '#07152B',
-    fontSize: '12.5px',
-    fontWeight: 700,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    border: '1px solid rgba(255, 255, 255, 0.1)',
+    color: '#FFFFFF',
+    fontSize: '12px',
+    fontWeight: 650,
     cursor: 'pointer',
     transition: 'all 0.15s ease',
   },
   profileBtnActive: {
-    backgroundColor: '#07152B',
-    borderColor: '#07152B',
+    backgroundColor: 'rgba(223, 183, 108, 0.18)',
+    borderColor: '#DFB76C',
     color: '#DFB76C',
   },
   logoutBtn: {
@@ -575,11 +610,11 @@ const styles: { [key: string]: React.CSSProperties } = {
     gap: '8px',
     padding: '9px 12px',
     borderRadius: '8px',
-    backgroundColor: '#FFF5F5',
-    border: '1px solid #FED7D7',
-    color: '#C53030',
-    fontSize: '12.5px',
-    fontWeight: 700,
+    backgroundColor: 'rgba(239, 68, 68, 0.12)',
+    border: '1px solid rgba(239, 68, 68, 0.25)',
+    color: '#F87171',
+    fontSize: '12px',
+    fontWeight: 650,
     cursor: 'pointer',
     transition: 'all 0.15s ease',
   },

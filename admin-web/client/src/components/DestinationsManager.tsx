@@ -18,6 +18,7 @@ import {
   MapPin,
   Mountain,
   Compass,
+  AlertCircle,
 } from 'lucide-react';
 import { useDynamicCategories } from '../utils/categories';
 import { CategoryFilterBar } from './CategoryFilterBar';
@@ -90,6 +91,14 @@ export const DestinationsManager: React.FC = () => {
     longitude: 39.0416 as number | null,
   });
 
+  // Validation States
+  const [touchedName, setTouchedName] = useState(false);
+  const [touchedBlurb, setTouchedBlurb] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
+
+  const nameError = (touchedName || submitted) && formData.name.trim().length < 2 ? 'Destination name is required (min 2 characters)' : '';
+  const blurbError = (touchedBlurb || submitted) && formData.blurb.trim().length < 10 ? 'Summary blurb must be at least 10 characters' : '';
+
   const loadDestinations = async () => {
     setLoading(true);
     try {
@@ -121,6 +130,9 @@ export const DestinationsManager: React.FC = () => {
       latitude: 12.0322,
       longitude: 39.0416,
     });
+    setTouchedName(false);
+    setTouchedBlurb(false);
+    setSubmitted(false);
     setErrorMessage('');
     setIsEditorActive(true);
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -141,6 +153,9 @@ export const DestinationsManager: React.FC = () => {
       latitude: item.latitude ?? 9.0105,
       longitude: item.longitude ?? 38.7615,
     });
+    setTouchedName(false);
+    setTouchedBlurb(false);
+    setSubmitted(false);
     setErrorMessage('');
     setIsEditorActive(true);
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -169,14 +184,12 @@ export const DestinationsManager: React.FC = () => {
 
   const handleSave = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    if (!formData.name.trim()) {
-      const msg = 'Destination name is required.';
-      setErrorMessage(msg);
-      toastError(msg);
-      return;
-    }
-    if (!formData.blurb.trim()) {
-      const msg = 'A short summary blurb is required.';
+    setSubmitted(true);
+    setTouchedName(true);
+    setTouchedBlurb(true);
+
+    if (formData.name.trim().length < 2 || formData.blurb.trim().length < 10) {
+      const msg = 'Please resolve the highlighted fields before saving the destination.';
       setErrorMessage(msg);
       toastError(msg);
       return;
@@ -247,7 +260,7 @@ export const DestinationsManager: React.FC = () => {
               disabled={isSaving}
               onClick={handleSave}
             >
-              <Check size={16} color="#07152B" />
+              <Check size={16} color="#FFFFFF" />
               <span>{isSaving ? 'Saving Changes...' : editingItem ? 'Save Destination' : 'Publish Destination'}</span>
             </button>
           </div>
@@ -256,7 +269,7 @@ export const DestinationsManager: React.FC = () => {
         {errorMessage && <div style={styles.errorBox}>{errorMessage}</div>}
 
         {/* 2-Column Dedicated Editor Workspace */}
-        <div style={styles.editorGrid}>
+        <div className="editor-grid-responsive" style={styles.editorGrid}>
           {/* Left Column: Core Destination Information */}
           <div style={styles.formCard}>
             <h3 style={styles.cardSectionTitle}>Destination Information</h3>
@@ -267,15 +280,24 @@ export const DestinationsManager: React.FC = () => {
                 <label style={styles.label}>Destination Name *</label>
                 <input
                   type="text"
-                  required
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  onBlur={() => setTouchedName(true)}
                   placeholder="e.g. Lalibela Rock-Hewn Churches"
-                  style={styles.fullInput}
+                  style={{
+                    ...styles.fullInput,
+                    ...(nameError ? styles.inputFieldError : {}),
+                  }}
                 />
+                {nameError && (
+                  <div style={styles.inlineErrorRow}>
+                    <AlertCircle size={13} color="#DC2626" style={{ flexShrink: 0 }} />
+                    <span>{nameError}</span>
+                  </div>
+                )}
               </div>
 
-              <div style={styles.inputRow}>
+              <div className="input-row-responsive" style={styles.inputRow}>
                 <div style={{ flex: 1 }}>
                   <label style={styles.label}>Region / Category *</label>
                   <DynamicCategorySelect
@@ -310,7 +332,7 @@ export const DestinationsManager: React.FC = () => {
                 />
               </div>
 
-              <div style={styles.inputRow}>
+              <div className="input-row-responsive" style={styles.inputRow}>
                 <div style={{ flex: 1 }}>
                   <label style={styles.label}>Elevation (e.g. 2,500m)</label>
                   <input
@@ -350,12 +372,21 @@ export const DestinationsManager: React.FC = () => {
                 <label style={styles.label}>Summary Blurb *</label>
                 <input
                   type="text"
-                  required
                   value={formData.blurb}
                   onChange={(e) => setFormData({ ...formData, blurb: e.target.value })}
+                  onBlur={() => setTouchedBlurb(true)}
                   placeholder="Eleventh-century monolithic rock-cut churches..."
-                  style={styles.fullInput}
+                  style={{
+                    ...styles.fullInput,
+                    ...(blurbError ? styles.inputFieldError : {}),
+                  }}
                 />
+                {blurbError && (
+                  <div style={styles.inlineErrorRow}>
+                    <AlertCircle size={13} color="#DC2626" style={{ flexShrink: 0 }} />
+                    <span>{blurbError}</span>
+                  </div>
+                )}
               </div>
 
               <div>
@@ -413,7 +444,7 @@ export const DestinationsManager: React.FC = () => {
             <span>Refresh</span>
           </button>
           <button className="btn btn-primary" onClick={handleOpenCreate}>
-            <Plus size={16} color="#07152B" />
+            <Plus size={16} color="#FFFFFF" />
             <span>Add Destination</span>
           </button>
         </div>
@@ -636,12 +667,14 @@ export const DestinationsManager: React.FC = () => {
 
 const styles: { [key: string]: React.CSSProperties } = {
   container: {
-    padding: '32px',
+    padding: '24px 28px',
     maxWidth: '1400px',
     margin: '0 auto',
     display: 'flex',
     flexDirection: 'column',
-    gap: '24px',
+    gap: '20px',
+    width: '100%',
+    boxSizing: 'border-box',
   },
   topRow: {
     display: 'flex',
@@ -676,7 +709,9 @@ const styles: { [key: string]: React.CSSProperties } = {
     position: 'relative',
     display: 'flex',
     alignItems: 'center',
-    width: '360px',
+    flex: '1 1 260px',
+    minWidth: '220px',
+    maxWidth: '420px',
   },
   searchInput: {
     width: '100%',
@@ -988,6 +1023,19 @@ const styles: { [key: string]: React.CSSProperties } = {
     borderRadius: '8px',
     fontSize: '13.5px',
     color: '#07152B',
+  },
+  inputFieldError: {
+    border: '1.5px solid #EF4444',
+    backgroundColor: '#FFF5F5',
+  },
+  inlineErrorRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '6px',
+    marginTop: '6px',
+    color: '#DC2626',
+    fontSize: '12px',
+    fontWeight: 500,
   },
   textarea: {
     width: '100%',

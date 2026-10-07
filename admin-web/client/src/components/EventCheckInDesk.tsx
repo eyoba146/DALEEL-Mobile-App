@@ -1663,7 +1663,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     alignItems: 'center',
     gap: '6px',
     backgroundColor: '#07152B',
-    color: '#DFB76C',
+    color: '#FFFFFF',
     padding: '7px 13px',
     borderRadius: '10px',
     fontSize: '12px',
@@ -2139,11 +2139,14 @@ const styles: { [key: string]: React.CSSProperties } = {
   tableContainer: {
     maxHeight: '480px',
     overflowY: 'auto',
+    overflowX: 'auto',
+    WebkitOverflowScrolling: 'touch',
     border: '1px solid #E4E9F0',
     borderRadius: '12px',
   },
   rosterTable: {
     width: '100%',
+    minWidth: '540px',
     borderCollapse: 'collapse',
     textAlign: 'left',
     fontSize: '12.5px',

@@ -67,6 +67,48 @@ export default function InvestmentDetailScreen() {
   const [inquirySuccess, setInquirySuccess] = useState(false);
   const [inquiryError, setInquiryError] = useState<string | null>(null);
 
+  // Field Validation Tracking
+  const [touchedName, setTouchedName] = useState(false);
+  const [touchedEmail, setTouchedEmail] = useState(false);
+  const [touchedPhone, setTouchedPhone] = useState(false);
+  const [touchedMessage, setTouchedMessage] = useState(false);
+  const [submittedInquiry, setSubmittedInquiry] = useState(false);
+
+  const fullNameTrimmed = fullName.trim();
+  const nameError = (touchedName || submittedInquiry)
+    ? !fullNameTrimmed
+      ? 'Full investor legal name is required.'
+      : fullNameTrimmed.length < 2
+      ? 'Name must be at least 2 characters.'
+      : null
+    : null;
+
+  const emailTrimmed = contactEmail.trim();
+  const isEmailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailTrimmed);
+  const emailError = (touchedEmail || submittedInquiry)
+    ? !emailTrimmed
+      ? 'Official contact email is required.'
+      : !isEmailValid
+      ? 'Please enter a valid email address (e.g. name@domain.com).'
+      : null
+    : null;
+
+  const phoneTrimmed = contactPhone.trim();
+  const phoneError = (touchedPhone || submittedInquiry) && phoneTrimmed
+    ? !/^[+]?[0-9\s\-().]{7,20}$/.test(phoneTrimmed)
+      ? 'Please enter a valid phone number (at least 7 digits).'
+      : null
+    : null;
+
+  const messageTrimmed = message.trim();
+  const messageError = (touchedMessage || submittedInquiry)
+    ? !messageTrimmed
+      ? 'Please specify your questions or requirements.'
+      : messageTrimmed.length < 10
+      ? 'Please provide at least 10 characters explaining your investment intent.'
+      : null
+    : null;
+
   useEffect(() => {
     let isMounted = true;
     async function fetchDetail() {
@@ -161,8 +203,23 @@ export default function InvestmentDetailScreen() {
   };
 
   const handleSubmitInquiry = async () => {
-    if (!fullName.trim() || !contactEmail.trim() || !message.trim()) {
-      setInquiryError('Please enter your full name, email address, and inquiry message.');
+    setSubmittedInquiry(true);
+    setInquiryError(null);
+
+    if (!fullNameTrimmed || fullNameTrimmed.length < 2) {
+      setTouchedName(true);
+      return;
+    }
+    if (!emailTrimmed || !isEmailValid) {
+      setTouchedEmail(true);
+      return;
+    }
+    if (!messageTrimmed || messageTrimmed.length < 10) {
+      setTouchedMessage(true);
+      return;
+    }
+    if (phoneTrimmed && !/^[+]?[0-9\s\-().]{7,20}$/.test(phoneTrimmed)) {
+      setTouchedPhone(true);
       return;
     }
 
@@ -220,7 +277,7 @@ export default function InvestmentDetailScreen() {
         <Text style={styles.errorTitle}>Opportunity Not Found</Text>
         <Text style={styles.errorSub}>This investment project may no longer be actively seeking capital.</Text>
         <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={16} color={colors.navy} />
+          <Ionicons name="arrow-back" size={16} color="#FFFFFF" />
           <Text style={styles.backBtnText}>Return to Investment Hub</Text>
         </TouchableOpacity>
       </View>
@@ -502,7 +559,7 @@ export default function InvestmentDetailScreen() {
           <Ionicons
             name={existingInquiry ? 'create-outline' : 'document-text-outline'}
             size={16}
-            color={colors.navy}
+            color="#FFFFFF"
             style={{ marginRight: 6 }}
           />
           <Text style={styles.requestProspectusBtnText}>
@@ -576,39 +633,69 @@ export default function InvestmentDetailScreen() {
                 <View style={styles.inputGroup}>
                   <Text style={styles.inputLabel}>Full Name *</Text>
                   <TextInput
-                    style={styles.inputField}
+                    style={[styles.inputField, !!nameError && styles.inputFieldError]}
                     placeholder="e.g. Samuel Yohannes"
                     placeholderTextColor="#A0AEC0"
                     value={fullName}
-                    onChangeText={setFullName}
+                    onChangeText={(val) => {
+                      setFullName(val);
+                      if (inquiryError) setInquiryError(null);
+                    }}
+                    onBlur={() => setTouchedName(true)}
                   />
+                  {!!nameError && (
+                    <View style={styles.fieldErrorRow}>
+                      <Ionicons name="alert-circle" size={13} color={colors.error} />
+                      <Text style={styles.fieldErrorText}>{nameError}</Text>
+                    </View>
+                  )}
                 </View>
 
                 {/* Email Address */}
                 <View style={styles.inputGroup}>
                   <Text style={styles.inputLabel}>Email Address *</Text>
                   <TextInput
-                    style={styles.inputField}
+                    style={[styles.inputField, !!emailError && styles.inputFieldError]}
                     placeholder="name@domain.com"
                     placeholderTextColor="#A0AEC0"
                     keyboardType="email-address"
                     autoCapitalize="none"
                     value={contactEmail}
-                    onChangeText={setContactEmail}
+                    onChangeText={(val) => {
+                      setContactEmail(val);
+                      if (inquiryError) setInquiryError(null);
+                    }}
+                    onBlur={() => setTouchedEmail(true)}
                   />
+                  {!!emailError && (
+                    <View style={styles.fieldErrorRow}>
+                      <Ionicons name="alert-circle" size={13} color={colors.error} />
+                      <Text style={styles.fieldErrorText}>{emailError}</Text>
+                    </View>
+                  )}
                 </View>
 
                 {/* Phone / WhatsApp */}
                 <View style={styles.inputGroup}>
                   <Text style={styles.inputLabel}>Phone or WhatsApp</Text>
                   <TextInput
-                    style={styles.inputField}
+                    style={[styles.inputField, !!phoneError && styles.inputFieldError]}
                     placeholder="+1 (202) 555-0199 or +251 9..."
                     placeholderTextColor="#A0AEC0"
                     keyboardType="phone-pad"
                     value={contactPhone}
-                    onChangeText={setContactPhone}
+                    onChangeText={(val) => {
+                      setContactPhone(val);
+                      if (inquiryError) setInquiryError(null);
+                    }}
+                    onBlur={() => setTouchedPhone(true)}
                   />
+                  {!!phoneError && (
+                    <View style={styles.fieldErrorRow}>
+                      <Ionicons name="alert-circle" size={13} color={colors.error} />
+                      <Text style={styles.fieldErrorText}>{phoneError}</Text>
+                    </View>
+                  )}
                 </View>
 
                 {/* Planned Capital Allocation Budget */}
@@ -653,14 +740,24 @@ export default function InvestmentDetailScreen() {
                 <View style={styles.inputGroup}>
                   <Text style={styles.inputLabel}>Questions or Custom Requirements *</Text>
                   <TextInput
-                    style={[styles.inputField, styles.textArea]}
+                    style={[styles.inputField, styles.textArea, !!messageError && styles.inputFieldError]}
                     placeholder="Please specify if you need diaspora mortgage guidance, corporate equity structuring, or escrow documentation details..."
                     placeholderTextColor="#A0AEC0"
                     multiline
                     numberOfLines={4}
                     value={message}
-                    onChangeText={setMessage}
+                    onChangeText={(val) => {
+                      setMessage(val);
+                      if (inquiryError) setInquiryError(null);
+                    }}
+                    onBlur={() => setTouchedMessage(true)}
                   />
+                  {!!messageError && (
+                    <View style={styles.fieldErrorRow}>
+                      <Ionicons name="alert-circle" size={13} color={colors.error} />
+                      <Text style={styles.fieldErrorText}>{messageError}</Text>
+                    </View>
+                  )}
                 </View>
 
                 <TouchableOpacity
@@ -670,7 +767,7 @@ export default function InvestmentDetailScreen() {
                   activeOpacity={0.88}
                 >
                   {submittingInquiry ? (
-                    <ActivityIndicator color={colors.navy} size="small" />
+                    <ActivityIndicator color="#FFFFFF" size="small" />
                   ) : (
                     <>
                       <Text style={styles.submitInquiryBtnText}>
@@ -679,7 +776,7 @@ export default function InvestmentDetailScreen() {
                       <Ionicons
                         name={existingInquiry ? 'checkmark-circle' : 'lock-closed'}
                         size={15}
-                        color={colors.navy}
+                        color="#FFFFFF"
                       />
                     </>
                   )}
@@ -741,7 +838,7 @@ const styles = StyleSheet.create({
   backBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.goldSoft,
+    backgroundColor: colors.navy,
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: 14,
@@ -751,7 +848,7 @@ const styles = StyleSheet.create({
   backBtnText: {
     fontFamily: fonts.bodyBold,
     fontSize: 13,
-    color: colors.navy,
+    color: '#FFFFFF',
   },
 
   // ── Hero ────────────────────────────────────────────
@@ -1087,7 +1184,7 @@ const styles = StyleSheet.create({
   requestProspectusBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.gold,
+    backgroundColor: colors.navy,
     borderRadius: 14,
     paddingHorizontal: 18,
     paddingVertical: 13,
@@ -1096,7 +1193,7 @@ const styles = StyleSheet.create({
   requestProspectusBtnText: {
     fontFamily: fonts.bodyBold,
     fontSize: 13.5,
-    color: colors.navy,
+    color: '#FFFFFF',
   },
 
   // ── Modal Styles ────────────────────────────────────
@@ -1164,6 +1261,23 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(0,0,0,0.06)',
   },
+  inputFieldError: {
+    borderColor: colors.error,
+    backgroundColor: '#FFF5F5',
+  },
+  fieldErrorRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 5,
+    marginLeft: 2,
+  },
+  fieldErrorText: {
+    fontFamily: fonts.bodyMedium,
+    fontSize: 12,
+    color: colors.error,
+    lineHeight: 16,
+  },
   textArea: {
     height: 90,
     textAlignVertical: 'top',
@@ -1179,8 +1293,8 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   chipItemActive: {
-    backgroundColor: colors.gold,
-    borderColor: colors.gold,
+    backgroundColor: colors.navy,
+    borderColor: colors.navy,
   },
   chipText: {
     fontFamily: fonts.bodyMedium,
@@ -1189,13 +1303,13 @@ const styles = StyleSheet.create({
   },
   chipTextActive: {
     fontFamily: fonts.bodyBold,
-    color: colors.navy,
+    color: '#FFFFFF',
   },
   submitInquiryBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.gold,
+    backgroundColor: colors.navy,
     borderRadius: 14,
     paddingVertical: 14,
     gap: 8,
@@ -1204,7 +1318,7 @@ const styles = StyleSheet.create({
   submitInquiryBtnText: {
     fontFamily: fonts.bodyBold,
     fontSize: 14,
-    color: colors.navy,
+    color: '#FFFFFF',
   },
   privacyNoteRow: {
     flexDirection: 'row',
@@ -1244,7 +1358,7 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   successDoneBtn: {
-    backgroundColor: colors.gold,
+    backgroundColor: colors.navy,
     paddingHorizontal: 36,
     paddingVertical: 12,
     borderRadius: 14,
@@ -1252,7 +1366,7 @@ const styles = StyleSheet.create({
   successDoneBtnText: {
     fontFamily: fonts.bodyBold,
     fontSize: 14,
-    color: colors.navy,
+    color: '#FFFFFF',
   },
   errorNoticeBox: {
     flexDirection: 'row',

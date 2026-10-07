@@ -19,6 +19,7 @@ import {
   PackageCheck,
   XCircle,
   Loader2,
+  AlertCircle,
 } from 'lucide-react';
 import { useDynamicCategories } from '../utils/categories';
 import { CategoryFilterBar } from './CategoryFilterBar';
@@ -119,6 +120,18 @@ export const MarketplaceManager: React.FC = () => {
     inStock: true,
   });
 
+  // Validation States
+  const [touchedTitle, setTouchedTitle] = useState(false);
+  const [touchedPrice, setTouchedPrice] = useState(false);
+  const [touchedSellerName, setTouchedSellerName] = useState(false);
+  const [touchedSellerPhone, setTouchedSellerPhone] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
+
+  const titleError = (touchedTitle || submitted) && formData.title.trim().length < 2 ? 'Product title is required (min 2 characters)' : '';
+  const priceError = (touchedPrice || submitted) && (!formData.price || formData.price <= 0) ? 'Price must be greater than 0' : '';
+  const sellerNameError = (touchedSellerName || submitted) && formData.sellerName.trim().length < 2 ? 'Seller guild name is required' : '';
+  const sellerPhoneError = (touchedSellerPhone || submitted) && formData.sellerPhone.trim() && !/^[+]?[0-9\s\-().]{7,20}$/.test(formData.sellerPhone.trim()) ? 'Please enter a valid phone number' : '';
+
   const loadData = async (silent = false) => {
     if (!silent) setLoading(true);
     try {
@@ -158,6 +171,11 @@ export const MarketplaceManager: React.FC = () => {
       origin: 'Addis Ababa',
       inStock: true,
     });
+    setTouchedTitle(false);
+    setTouchedPrice(false);
+    setTouchedSellerName(false);
+    setTouchedSellerPhone(false);
+    setSubmitted(false);
     setErrorMessage('');
     setIsEditorActive(true);
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -182,6 +200,11 @@ export const MarketplaceManager: React.FC = () => {
       origin: item.origin || '',
       inStock: item.inStock,
     });
+    setTouchedTitle(false);
+    setTouchedPrice(false);
+    setTouchedSellerName(false);
+    setTouchedSellerPhone(false);
+    setSubmitted(false);
     setErrorMessage('');
     setIsEditorActive(true);
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -210,8 +233,20 @@ export const MarketplaceManager: React.FC = () => {
 
   const handleSave = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    if (!formData.title.trim()) {
-      const msg = 'Product title is required.';
+    setSubmitted(true);
+    setTouchedTitle(true);
+    setTouchedPrice(true);
+    setTouchedSellerName(true);
+    if (formData.sellerPhone.trim()) setTouchedSellerPhone(true);
+
+    if (
+      formData.title.trim().length < 2 ||
+      !formData.price ||
+      formData.price <= 0 ||
+      formData.sellerName.trim().length < 2 ||
+      (formData.sellerPhone.trim() && !/^[+]?[0-9\s\-().]{7,20}$/.test(formData.sellerPhone.trim()))
+    ) {
+      const msg = 'Please resolve the highlighted fields before saving the product.';
       setErrorMessage(msg);
       toastError(msg);
       return;
@@ -300,7 +335,7 @@ export const MarketplaceManager: React.FC = () => {
               disabled={isSaving}
               onClick={handleSave}
             >
-              <Check size={16} color="#07152B" />
+              <Check size={16} color="#FFFFFF" />
               <span>{isSaving ? 'Saving...' : editingItem ? 'Save Product' : 'Publish Product'}</span>
             </button>
           </div>
@@ -309,7 +344,7 @@ export const MarketplaceManager: React.FC = () => {
         {errorMessage && <div style={styles.errorBox}>{errorMessage}</div>}
 
         {/* 2-Column Dedicated Editor Workspace */}
-        <div style={styles.editorGrid}>
+        <div style={styles.editorGrid} className="editor-grid-responsive">
           {/* Left Column: Product Details */}
           <div style={styles.formCard}>
             <h3 style={styles.cardSectionTitle}>Product Details & Pricing</h3>
@@ -320,15 +355,24 @@ export const MarketplaceManager: React.FC = () => {
                 <label style={styles.label}>Product Title *</label>
                 <input
                   type="text"
-                  required
                   value={formData.title}
                   onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                  onBlur={() => setTouchedTitle(true)}
                   placeholder="e.g. Royal Gonderian Silk Kemis"
-                  style={styles.fullInput}
+                  style={{
+                    ...styles.fullInput,
+                    ...(titleError ? styles.inputFieldError : {}),
+                  }}
                 />
+                {titleError && (
+                  <div style={styles.inlineErrorRow}>
+                    <AlertCircle size={13} color="#DC2626" style={{ flexShrink: 0 }} />
+                    <span>{titleError}</span>
+                  </div>
+                )}
               </div>
 
-              <div style={styles.inputRow}>
+              <div style={styles.inputRow} className="input-row-responsive">
                 <div style={{ flex: 1 }}>
                   <label style={styles.label}>Category *</label>
                   <DynamicCategorySelect
@@ -344,16 +388,25 @@ export const MarketplaceManager: React.FC = () => {
                   <label style={styles.label}>Price (ETB) *</label>
                   <input
                     type="number"
-                    required
                     min={1}
                     value={formData.price}
                     onChange={(e) => setFormData({ ...formData, price: Number(e.target.value) })}
-                    style={styles.fullInput}
+                    onBlur={() => setTouchedPrice(true)}
+                    style={{
+                      ...styles.fullInput,
+                      ...(priceError ? styles.inputFieldError : {}),
+                    }}
                   />
+                  {priceError && (
+                    <div style={styles.inlineErrorRow}>
+                      <AlertCircle size={13} color="#DC2626" style={{ flexShrink: 0 }} />
+                      <span>{priceError}</span>
+                    </div>
+                  )}
                 </div>
               </div>
 
-              <div style={styles.inputRow}>
+              <div style={styles.inputRow} className="input-row-responsive">
                 <div style={{ flex: 1 }}>
                   <label style={styles.label}>Materials</label>
                   <input
@@ -431,12 +484,21 @@ export const MarketplaceManager: React.FC = () => {
                 <label style={styles.label}>Seller / Artisan Guild Name *</label>
                 <input
                   type="text"
-                  required
                   value={formData.sellerName}
                   onChange={(e) => setFormData({ ...formData, sellerName: e.target.value })}
+                  onBlur={() => setTouchedSellerName(true)}
                   placeholder="e.g. Sheba Heritage Weavers Guild"
-                  style={styles.fullInput}
+                  style={{
+                    ...styles.fullInput,
+                    ...(sellerNameError ? styles.inputFieldError : {}),
+                  }}
                 />
+                {sellerNameError && (
+                  <div style={styles.inlineErrorRow}>
+                    <AlertCircle size={13} color="#DC2626" style={{ flexShrink: 0 }} />
+                    <span>{sellerNameError}</span>
+                  </div>
+                )}
               </div>
 
               <div>
@@ -450,16 +512,26 @@ export const MarketplaceManager: React.FC = () => {
                 />
               </div>
 
-              <div style={styles.inputRow}>
+              <div style={styles.inputRow} className="input-row-responsive">
                 <div style={{ flex: 1 }}>
                   <label style={styles.label}>Contact Phone</label>
                   <input
                     type="text"
                     value={formData.sellerPhone}
                     onChange={(e) => setFormData({ ...formData, sellerPhone: e.target.value })}
+                    onBlur={() => setTouchedSellerPhone(true)}
                     placeholder="+251 91 123 4567"
-                    style={styles.fullInput}
+                    style={{
+                      ...styles.fullInput,
+                      ...(sellerPhoneError ? styles.inputFieldError : {}),
+                    }}
                   />
+                  {sellerPhoneError && (
+                    <div style={styles.inlineErrorRow}>
+                      <AlertCircle size={13} color="#DC2626" style={{ flexShrink: 0 }} />
+                      <span>{sellerPhoneError}</span>
+                    </div>
+                  )}
                 </div>
                 <div style={{ flex: 1 }}>
                   <label style={styles.label}>WhatsApp (Optional)</label>
@@ -497,7 +569,7 @@ export const MarketplaceManager: React.FC = () => {
             <span>Refresh</span>
           </button>
           <button className="btn btn-primary" onClick={handleOpenCreate}>
-            <Plus size={16} color="#07152B" />
+            <Plus size={16} color="#FFFFFF" />
             <span>Add Product</span>
           </button>
         </div>
@@ -885,8 +957,10 @@ export const MarketplaceManager: React.FC = () => {
 
 const styles: { [key: string]: React.CSSProperties } = {
   container: {
-    padding: '32px',
+    padding: 'clamp(16px, 3vw, 32px)',
     maxWidth: '1400px',
+    width: '100%',
+    boxSizing: 'border-box',
     margin: '0 auto',
     display: 'flex',
     flexDirection: 'column',
@@ -920,6 +994,8 @@ const styles: { [key: string]: React.CSSProperties } = {
     gap: '10px',
     borderBottom: '1px solid #E4E9F0',
     paddingBottom: '4px',
+    overflowX: 'auto',
+    flexWrap: 'wrap',
   },
   tabBtn: {
     display: 'inline-flex',
@@ -960,7 +1036,9 @@ const styles: { [key: string]: React.CSSProperties } = {
     position: 'relative',
     display: 'flex',
     alignItems: 'center',
-    width: '360px',
+    width: '100%',
+    maxWidth: '360px',
+    minWidth: '240px',
   },
   searchInput: {
     width: '100%',
@@ -1246,6 +1324,19 @@ const styles: { [key: string]: React.CSSProperties } = {
     borderRadius: '8px',
     fontSize: '13.5px',
     color: '#07152B',
+  },
+  inputFieldError: {
+    border: '1.5px solid #EF4444',
+    backgroundColor: '#FFF5F5',
+  },
+  inlineErrorRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '6px',
+    marginTop: '6px',
+    color: '#DC2626',
+    fontSize: '12px',
+    fontWeight: 500,
   },
   textarea: {
     width: '100%',

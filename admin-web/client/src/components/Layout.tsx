@@ -44,6 +44,7 @@ const getInitialTab = (): AppModule => {
 
 export const Layout: React.FC = () => {
   const [currentTab, setCurrentTab] = useState<AppModule>(getInitialTab);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   React.useEffect(() => {
     const handleHashChange = () => {
@@ -59,6 +60,7 @@ export const Layout: React.FC = () => {
   const handleSelectTab = (tab: AppModule) => {
     setCurrentTab(tab);
     window.location.hash = tab;
+    setSidebarOpen(false);
     try {
       localStorage.setItem('daleel_admin_tab', tab);
     } catch {
@@ -97,15 +99,29 @@ export const Layout: React.FC = () => {
 
   return (
     <div style={styles.layoutRoot}>
+      {/* Mobile Drawer Backdrop */}
+      {sidebarOpen && (
+        <div
+          className="sidebar-backdrop"
+          onClick={() => setSidebarOpen(false)}
+          aria-hidden="true"
+        />
+      )}
+
+      {/* Deep Navy Navigation Sidebar */}
       <Sidebar
         currentTab={currentTab}
         onSelectTab={handleSelectTab}
+        isOpen={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
       />
 
-      <div style={styles.mainWrapper}>
+      {/* Responsive Main Viewport Surface */}
+      <div className="main-wrapper-responsive" style={styles.mainWrapper}>
         <Header
           currentTab={currentTab}
           onSelectTab={handleSelectTab}
+          onToggleSidebar={() => setSidebarOpen((prev) => !prev)}
         />
         <main style={styles.contentArea}>
           {renderModule()}
@@ -120,6 +136,8 @@ const styles: { [key: string]: React.CSSProperties } = {
     display: 'flex',
     minHeight: '100vh',
     backgroundColor: '#F7F8FA',
+    width: '100%',
+    overflowX: 'hidden',
   },
   mainWrapper: {
     flex: 1,
@@ -128,9 +146,12 @@ const styles: { [key: string]: React.CSSProperties } = {
     flexDirection: 'column',
     minHeight: '100vh',
     backgroundColor: '#F7F8FA',
+    minWidth: 0,
+    width: 'calc(100% - var(--sidebar-width))',
   },
   contentArea: {
     flex: 1,
     backgroundColor: '#F7F8FA',
+    minWidth: 0,
   },
 };

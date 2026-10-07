@@ -501,8 +501,10 @@ export const ReviewsManager: React.FC = () => {
 
 const styles: { [key: string]: React.CSSProperties } = {
   container: {
-    padding: '32px',
+    padding: 'clamp(16px, 3vw, 32px)',
     maxWidth: '1380px',
+    width: '100%',
+    boxSizing: 'border-box',
     margin: '0 auto',
   },
   headerRow: {
@@ -510,6 +512,8 @@ const styles: { [key: string]: React.CSSProperties } = {
     justifyContent: 'space-between',
     alignItems: 'flex-start',
     marginBottom: '24px',
+    flexWrap: 'wrap',
+    gap: '16px',
   },
   pageTitle: {
     fontSize: '26px',
@@ -629,7 +633,7 @@ const styles: { [key: string]: React.CSSProperties } = {
   },
   filterTabActive: {
     backgroundColor: '#07152B',
-    color: '#DFB76C',
+    color: '#FFFFFF',
   },
   filterSubRow: {
     display: 'flex',
@@ -654,9 +658,9 @@ const styles: { [key: string]: React.CSSProperties } = {
     cursor: 'pointer',
   },
   statusPillBtnActive: {
-    backgroundColor: 'rgba(223, 183, 108, 0.2)',
-    borderColor: '#DFB76C',
-    color: '#07152B',
+    backgroundColor: '#07152B',
+    borderColor: '#07152B',
+    color: '#FFFFFF',
   },
   searchForm: {
     display: 'flex',
@@ -685,7 +689,7 @@ const styles: { [key: string]: React.CSSProperties } = {
   },
   searchSubmitBtn: {
     backgroundColor: '#07152B',
-    color: '#DFB76C',
+    color: '#FFFFFF',
     border: 'none',
     padding: '8px 14px',
     fontSize: '12px',

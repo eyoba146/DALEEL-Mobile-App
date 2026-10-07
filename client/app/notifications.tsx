@@ -57,7 +57,7 @@ function getCategoryConfig(type: string) {
         icon: 'calendar' as const,
         color: colors.goldRich,
         bg: 'rgba(197, 155, 67, 0.14)',
-        tag: 'EVENT PASS',
+        tag: 'CULTURAL EVENT',
       };
     case 'investment':
       return {
@@ -164,7 +164,7 @@ function AnimatedNotificationCard({
             <View style={styles.actionLinkRow}>
               <Text style={styles.actionLinkText}>
                 {item.type === 'event'
-                  ? 'View Admission Pass'
+                  ? 'View Event Details'
                   : item.type === 'order'
                   ? 'Track Order'
                   : item.type === 'investment'
@@ -321,7 +321,7 @@ export default function NotificationsScreen() {
     <View style={styles.screen}>
       <ScreenHeader
         title={t('notifications.title', 'Notifications')}
-        subtitle={t('notifications.subtitle', 'Live gate passes, inquiries & notices')}
+        subtitle={t('notifications.subtitle', 'Cultural events, concierge inquiries & notices')}
         showBack
         badgeCount={unreadCount}
         rightElement={
@@ -565,14 +565,14 @@ export default function NotificationsScreen() {
 
             <View style={styles.divider} />
 
-            {/* Pref 1: Events & Gate Passes */}
+            {/* Pref 1: Cultural Events & Gatherings */}
             <View style={styles.prefRow}>
               <View style={styles.prefIconWrap}>
                 <Ionicons name="calendar-outline" size={20} color={colors.goldRich} />
               </View>
               <View style={styles.prefTextCol}>
-                <Text style={styles.prefTitle}>Events & Admission Passes</Text>
-                <Text style={styles.prefDesc}>Gate check-in verifications & RSVP reminders</Text>
+                <Text style={styles.prefTitle}>Cultural Events & Gatherings</Text>
+                <Text style={styles.prefDesc}>RSVP confirmations & event reminders</Text>
               </View>
               <Switch
                 value={preferences.events}
@@ -911,15 +911,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 9,
     borderRadius: radius.pill,
-    backgroundColor: colors.ivory,
-    borderWidth: 1,
-    borderColor: colors.gold,
+    backgroundColor: colors.navy,
   },
   resetFilterText: {
     fontSize: 12.5,
     fontFamily: fonts.body,
     fontWeight: '700',
-    color: colors.navy,
+    color: '#FFFFFF',
   },
 
   // Modal Details

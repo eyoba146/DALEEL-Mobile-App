@@ -47,6 +47,7 @@ export default function ActivityScreen() {
       }
     }
   }, [params?.tab]);
+
   const [items, setItems] = useState<UnifiedActivityItem[]>([]);
   const [counts, setCounts] = useState<UserActivityCounts>({
     total: 0,
@@ -78,7 +79,7 @@ export default function ActivityScreen() {
         );
       }
     } catch (err) {
-      console.error('Error loading user activity:', err);
+      console.warn('Error loading user concierge activity:', err);
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);
@@ -122,14 +123,10 @@ export default function ActivityScreen() {
     let text = '#475569';
     let label = status.replace(/_/g, ' ').toUpperCase();
 
-    if (s === 'confirmed' || s === 'completed') {
+    if (s === 'confirmed' || s === 'completed' || s === 'checked_in') {
       bg = '#DCFCE7';
       text = '#166534';
-      label = type === 'event' ? 'CONFIRMED PASS' : 'CONFIRMED';
-    } else if (s === 'checked_in') {
-      bg = '#DCFCE7';
-      text = '#166534';
-      label = 'CHECKED IN';
+      label = type === 'event' ? 'CONFIRMED ATTENDANCE' : 'CONFIRMED';
     } else if (s === 'dispatched') {
       bg = '#E0F2FE';
       text = '#0369A1';
@@ -138,7 +135,7 @@ export default function ActivityScreen() {
       bg = '#FEF3C7';
       text = '#92400E';
       label = s === 'in_review' ? 'IN REVIEW' : 'PENDING';
-    } else if (s === 'cancelled' || s === 'rejected') {
+    } else if (s === 'cancelled' || s === 'declined') {
       bg = '#FEE2E2';
       text = '#991B1B';
       label = 'CANCELLED';
@@ -151,7 +148,7 @@ export default function ActivityScreen() {
             styles.statusDot,
             {
               backgroundColor:
-                s === 'confirmed' || s === 'completed'
+                s === 'confirmed' || s === 'completed' || s === 'checked_in'
                   ? '#16A34A'
                   : s === 'pending' || s === 'in_review'
                   ? '#D97706'
@@ -166,163 +163,81 @@ export default function ActivityScreen() {
     );
   };
 
-  const renderEventPassCard = (item: UnifiedActivityItem) => {
-    const isConfirmed = item.status.toLowerCase() === 'confirmed';
-    const isCheckedIn = item.status.toLowerCase() === 'checked_in';
-    const hasActivePass = isConfirmed || isCheckedIn;
-
-    return (
-      <View key={item.id} style={styles.ticketCardWrapper}>
-        {/* Ticket Header Bar */}
-        <View style={styles.ticketTopBar}>
-          <View style={styles.ticketBranding}>
-            <Ionicons name="sparkles" size={14} color={colors.gold} />
-            <Text style={styles.ticketBrandingText}>DALEEL ADMISSION PASS</Text>
-          </View>
-          {renderStatusBadge(item.status, 'event')}
+  const renderEventRsvpCard = (item: UnifiedActivityItem) => (
+    <View key={item.id} style={styles.standardCard}>
+      <View style={styles.cardHeaderRow}>
+        <View style={styles.cardTypeTag}>
+          <Ionicons name="calendar" size={13} color={colors.goldRich} />
+          <Text style={[styles.cardTypeTagText, { color: colors.goldRich }]}>
+            CULTURAL EVENT RSVP
+          </Text>
         </View>
+        {renderStatusBadge(item.status, 'event')}
+      </View>
 
-        {/* Ticket Body */}
-        <View style={styles.ticketBody}>
-          <View style={styles.ticketRow}>
-            <View style={{ flex: 1, minWidth: 0, paddingRight: spacing.sm }}>
-              <Text style={styles.ticketEventTitle} numberOfLines={2}>
-                {item.title}
-              </Text>
-              <View style={styles.ticketMetaRow}>
-                <Ionicons name="location-outline" size={14} color={colors.goldText} style={{ marginTop: 2, flexShrink: 0 }} />
-                <Text style={styles.ticketMetaText} numberOfLines={2}>
-                  {item.meta.venue ? `${item.meta.venue}, ` : ''}
-                  {item.meta.city || 'Addis Ababa'}
-                </Text>
-              </View>
-              {item.meta.time && (
-                <View style={styles.ticketMetaRow}>
-                  <Ionicons name="time-outline" size={14} color={colors.goldText} style={{ flexShrink: 0 }} />
-                  <Text style={styles.ticketMetaText} numberOfLines={1}>{item.meta.time}</Text>
-                </View>
-              )}
-            </View>
-
-            {item.image && (
-              <Image
-                source={{ uri: resolveMediaUrl(item.image) || undefined }}
-                style={styles.ticketThumbnail}
-                resizeMode="cover"
-              />
-            )}
+      <View style={styles.cardBodyRow}>
+        <View style={{ flex: 1, paddingRight: spacing.sm }}>
+          <Text style={styles.cardTitle} numberOfLines={2}>
+            {item.title}
+          </Text>
+          <View style={styles.pillRow}>
+            <Ionicons name="location-outline" size={13} color={colors.charcoalLight} />
+            <Text style={styles.pillText} numberOfLines={1}>
+              {item.meta.venue ? `${item.meta.venue}, ` : ''}{item.meta.city || 'Addis Ababa'}
+            </Text>
           </View>
-
-          {/* Attendee Details Grid */}
-          <View style={styles.ticketDetailsGrid}>
-            <View style={styles.ticketDetailCol}>
-              <Text style={styles.ticketDetailLabel}>ADMISSION</Text>
-              <Text style={styles.ticketDetailValue}>
-                {item.meta.ticketsCount || 1} {Number(item.meta.ticketsCount) > 1 ? 'Passes' : 'Pass'}
-              </Text>
-            </View>
-            <View style={styles.ticketDetailCol}>
-              <Text style={styles.ticketDetailLabel}>PASS REFERENCE</Text>
-              <Text style={styles.ticketCodeMono}>{item.meta.passCode || 'DAL-EVT-PASS'}</Text>
-            </View>
-            <View style={styles.ticketDetailCol}>
-              <Text style={styles.ticketDetailLabel}>STATUS</Text>
-              <Text style={[styles.ticketDetailValue, { color: isCheckedIn || isConfirmed ? '#16803C' : colors.navy }]}>
-                {isCheckedIn ? 'Checked In' : isConfirmed ? 'Confirmed' : 'In Review'}
-              </Text>
-            </View>
-          </View>
-        </View>
-
-        {/* Perforated Divider with Notches */}
-        <View style={styles.ticketDividerContainer}>
-          <View style={styles.notchLeft} />
-          <View style={styles.dashedDivider} />
-          <View style={styles.notchRight} />
-        </View>
-
-        {/* Ticket Stub / QR Verification Section */}
-        <View style={styles.ticketStub}>
-          {hasActivePass && item.meta.passCode ? (
-            /* Prominent, Large Scannable Digital QR Pass Card */
-            <View style={styles.qrConfirmedCard}>
-              <View style={styles.qrConfirmedHeader}>
-                <Ionicons
-                  name={isCheckedIn ? 'shield-checkmark' : 'qr-code'}
-                  size={16}
-                  color={colors.gold}
-                />
-                <Text style={styles.qrConfirmedTitle}>
-                  {isCheckedIn ? 'GATE PASS CHECKED IN' : 'OFFICIAL DIGITAL GATE PASS'}
-                </Text>
-              </View>
-
-              <View style={styles.qrImageLargeContainer}>
-                <Image
-                  source={{
-                    uri: `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(
-                      item.meta.passCode
-                    )}&color=07152B`,
-                  }}
-                  style={styles.qrLargeImage}
-                  resizeMode="contain"
-                />
-              </View>
-
-              <View style={styles.qrCodeBadge}>
-                <Text style={styles.qrCodeBadgeText}>{item.meta.passCode}</Text>
-              </View>
-
-              <Text style={styles.qrPromptText}>
-                {isCheckedIn
-                  ? 'Attendance verified at gate. Welcome to the event!'
-                  : 'Present this QR code to the entrance coordinator scanner.'}
-              </Text>
-            </View>
-          ) : (
-            /* Pending Verification Card */
-            <View style={styles.qrVisualBlock}>
-              <View style={styles.qrGridFrame}>
-                <Ionicons name="time-outline" size={32} color={colors.goldText} />
-              </View>
-              <View style={styles.qrTextCol}>
-                <Text style={styles.qrTitle}>RESERVATION IN REVIEW</Text>
-                <Text style={styles.qrSubtitle}>
-                  Coordinator is verifying venue capacity. Your official scannable QR pass activates upon confirmation.
-                </Text>
-              </View>
+          {item.meta.time && (
+            <View style={styles.pillRow}>
+              <Ionicons name="time-outline" size={13} color={colors.charcoalLight} />
+              <Text style={styles.pillText}>{item.meta.time}</Text>
             </View>
           )}
-
-          <TouchableOpacity
-            style={styles.ticketActionBtn}
-            onPress={() => handleNavigateToTarget(item)}
-            activeOpacity={0.8}
-          >
-            <Text style={styles.ticketActionBtnText}>
-              {hasActivePass ? 'View Event Details & Schedule' : 'Review Pending Reservation'}
+          <View style={[styles.pillRow, { marginTop: 4 }]}>
+            <Ionicons name="people-outline" size={13} color={colors.navy} />
+            <Text style={[styles.pillText, { color: colors.navy, fontWeight: '600' }]}>
+              {item.meta.ticketsCount || 1} {Number(item.meta.ticketsCount) > 1 ? 'Guests Attending' : 'Guest Attending'}
             </Text>
-            <Ionicons name="arrow-forward" size={15} color={colors.navy} />
-          </TouchableOpacity>
+          </View>
         </View>
+        {item.image && (
+          <Image
+            source={{ uri: resolveMediaUrl(item.image) || undefined }}
+            style={styles.cardThumbnail}
+            resizeMode="cover"
+          />
+        )}
       </View>
-    );
-  };
+
+      <View style={styles.cardFooter}>
+        <Text style={styles.cardDateText}>
+          Inquired on {new Date(item.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+        </Text>
+        <TouchableOpacity
+          style={styles.cardActionBtn}
+          onPress={() => handleNavigateToTarget(item)}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.cardActionBtnText}>View Event</Text>
+          <Ionicons name="arrow-forward" size={13} color={colors.navy} />
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
 
   const renderServiceCard = (item: UnifiedActivityItem) => (
     <View key={item.id} style={styles.standardCard}>
       <View style={styles.cardHeaderRow}>
         <View style={styles.cardTypeTag}>
-          <Ionicons name="briefcase" size={12} color="#0D9488" />
+          <Ionicons name="briefcase" size={13} color="#0D9488" />
           <Text style={[styles.cardTypeTagText, { color: '#0D9488' }]}>
-            {item.meta.category || 'VERIFIED SERVICE'}
+            {item.meta.category ? item.meta.category.toUpperCase() : 'VERIFIED SERVICE CONSULTATION'}
           </Text>
         </View>
         {renderStatusBadge(item.status, 'service')}
       </View>
 
       <View style={styles.cardBodyRow}>
-        <View style={{ flex: 1 }}>
+        <View style={{ flex: 1, paddingRight: spacing.sm }}>
           <Text style={styles.cardTitle}>{item.title}</Text>
           {item.meta.timeframe && (
             <View style={styles.pillRow}>
@@ -340,6 +255,7 @@ export default function ActivityScreen() {
           <Image
             source={{ uri: resolveMediaUrl(item.image) || undefined }}
             style={styles.cardThumbnail}
+            resizeMode="cover"
           />
         )}
       </View>
@@ -353,8 +269,8 @@ export default function ActivityScreen() {
           onPress={() => handleNavigateToTarget(item)}
           activeOpacity={0.8}
         >
-          <Text style={styles.cardActionBtnText}>Manage Inquiry</Text>
-          <Ionicons name="chevron-forward" size={15} color={colors.navy} />
+          <Text style={styles.cardActionBtnText}>View Specialist</Text>
+          <Ionicons name="arrow-forward" size={13} color={colors.navy} />
         </TouchableOpacity>
       </View>
     </View>
@@ -364,28 +280,26 @@ export default function ActivityScreen() {
     <View key={item.id} style={styles.standardCard}>
       <View style={styles.cardHeaderRow}>
         <View style={styles.cardTypeTag}>
-          <Ionicons name="bag-handle" size={12} color={colors.success} />
-          <Text style={[styles.cardTypeTagText, { color: colors.success }]}>ARTISAN MARKETPLACE</Text>
+          <Ionicons name="shirt-outline" size={13} color={colors.navy} />
+          <Text style={[styles.cardTypeTagText, { color: colors.navy }]}>
+            ARTISAN CRAFT INQUIRY
+          </Text>
         </View>
         {renderStatusBadge(item.status, 'order')}
       </View>
 
       <View style={styles.cardBodyRow}>
-        <View style={{ flex: 1 }}>
+        <View style={{ flex: 1, paddingRight: spacing.sm }}>
           <Text style={styles.cardTitle}>{item.title}</Text>
-          <View style={styles.priceRow}>
-            <Text style={styles.priceHighlight}>
-              {item.meta.currency || 'ETB'} {Number(item.meta.totalPrice || 0).toLocaleString()}
-            </Text>
-            <Text style={styles.quantitySub}>
-              ({item.meta.quantity || 1} piece{Number(item.meta.quantity) > 1 ? 's' : ''})
-            </Text>
+          <View style={styles.pillRow}>
+            <Ionicons name="layers-outline" size={13} color={colors.charcoalLight} />
+            <Text style={styles.pillText}>Quantity Requested: {item.meta.quantity || 1} pcs</Text>
           </View>
-          {item.meta.deliveryAddress && (
+          {typeof item.meta.totalPrice === 'number' && (
             <View style={styles.pillRow}>
-              <Ionicons name="navigate-outline" size={13} color={colors.charcoalLight} />
-              <Text style={styles.pillText} numberOfLines={1}>
-                {item.meta.deliveryAddress}
+              <Ionicons name="pricetag-outline" size={13} color={colors.goldText} />
+              <Text style={[styles.pillText, { color: colors.navy, fontWeight: '600' }]}>
+                Estimate: {item.meta.totalPrice} {item.meta.currency || 'USD'}
               </Text>
             </View>
           )}
@@ -394,13 +308,14 @@ export default function ActivityScreen() {
           <Image
             source={{ uri: resolveMediaUrl(item.image) || undefined }}
             style={styles.cardThumbnail}
+            resizeMode="cover"
           />
         )}
       </View>
 
       <View style={styles.cardFooter}>
         <Text style={styles.cardDateText}>
-          Ordered {new Date(item.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+          Requested {new Date(item.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
         </Text>
         <TouchableOpacity
           style={styles.cardActionBtn}
@@ -408,7 +323,7 @@ export default function ActivityScreen() {
           activeOpacity={0.8}
         >
           <Text style={styles.cardActionBtnText}>View Item</Text>
-          <Ionicons name="chevron-forward" size={15} color={colors.navy} />
+          <Ionicons name="arrow-forward" size={13} color={colors.navy} />
         </TouchableOpacity>
       </View>
     </View>
@@ -418,16 +333,16 @@ export default function ActivityScreen() {
     <View key={item.id} style={styles.standardCard}>
       <View style={styles.cardHeaderRow}>
         <View style={styles.cardTypeTag}>
-          <Ionicons name="trending-up" size={12} color="#2563EB" />
+          <Ionicons name="trending-up" size={13} color="#2563EB" />
           <Text style={[styles.cardTypeTagText, { color: '#2563EB' }]}>
-            {item.meta.sector || 'DIASPORA INVESTMENT'}
+            {item.meta.sector ? item.meta.sector.toUpperCase() : 'DIASPORA INVESTMENT VENTURE'}
           </Text>
         </View>
         {renderStatusBadge(item.status, 'investment')}
       </View>
 
       <View style={styles.cardBodyRow}>
-        <View style={{ flex: 1 }}>
+        <View style={{ flex: 1, paddingRight: spacing.sm }}>
           <Text style={styles.cardTitle}>{item.title}</Text>
           {item.meta.investmentBudget && (
             <View style={styles.pillRow}>
@@ -445,13 +360,14 @@ export default function ActivityScreen() {
           <Image
             source={{ uri: resolveMediaUrl(item.image) || undefined }}
             style={styles.cardThumbnail}
+            resizeMode="cover"
           />
         )}
       </View>
 
       <View style={styles.cardFooter}>
         <Text style={styles.cardDateText}>
-          Inquired {new Date(item.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+          Inquired on {new Date(item.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
         </Text>
         <TouchableOpacity
           style={styles.cardActionBtn}
@@ -459,67 +375,53 @@ export default function ActivityScreen() {
           activeOpacity={0.8}
         >
           <Text style={styles.cardActionBtnText}>Review Brief</Text>
-          <Ionicons name="chevron-forward" size={15} color={colors.navy} />
+          <Ionicons name="arrow-forward" size={13} color={colors.navy} />
         </TouchableOpacity>
       </View>
     </View>
   );
 
   const renderEmptyState = () => {
-    let emptyTitle = 'No Active Requests Found';
-    let emptyDesc = 'You currently have no active passes, service inquiries, or orders.';
-    let ctaText = 'Explore Cultural Gatherings';
-    let ctaRoute = '/events';
+    let emptyTitle = 'No Active Inquiries Found';
+    let emptyDesc = 'You currently have no active event RSVPs, consultations, or requests.';
+    let ctaText = 'Explore Heritage & Opportunities';
+    let targetRoute = '/(tabs)/explore';
 
     if (activeTab === 'event') {
-      emptyTitle = 'No Event Passes Yet';
-      emptyDesc = 'Discover upcoming diaspora summits, cultural galas, and networking events.';
-      ctaText = 'Browse Upcoming Events';
-      ctaRoute = '/events';
+      emptyTitle = 'No Event RSVPs Registered';
+      emptyDesc = 'Discover upcoming Ethiopian cultural gatherings, diaspora summits, and community festivals.';
+      ctaText = 'Discover Cultural Events';
+      targetRoute = '/events';
     } else if (activeTab === 'service') {
-      emptyTitle = 'No Service Inquiries';
-      emptyDesc = 'Connect with verified diaspora legal, logistics, medical, and banking professionals.';
-      ctaText = 'Find Verified Services';
-      ctaRoute = '/(tabs)/services';
+      emptyTitle = 'No Consultations Requested';
+      emptyDesc = 'Connect with verified Ethiopian attorneys, physicians, certified tour guides, and tax consultants.';
+      ctaText = 'Browse Verified Services';
+      targetRoute = '/(tabs)/services';
     } else if (activeTab === 'order') {
       emptyTitle = 'No Artisan Orders';
-      emptyDesc = 'Browse authentic Habesha traditional wear, Guji specialty coffee, and handcrafted leather goods.';
-      ctaText = 'Visit Artisan Marketplace';
-      ctaRoute = '/marketplace';
+      emptyDesc = 'Support master artisans by requesting custom Habesha Kemis, single-origin coffee, and leathercraft.';
+      ctaText = 'Explore Artisan Marketplace';
+      targetRoute = '/marketplace';
     } else if (activeTab === 'investment') {
-      emptyTitle = 'No Investment Inquiries';
-      emptyDesc = 'Explore pre-vetted commercial agriculture, real estate, and tech venture prospectuses.';
+      emptyTitle = 'No Prospectuses Requested';
+      emptyDesc = 'Explore vetted commercial agriculture, renewable tech, and residential developments in Ethiopia.';
       ctaText = 'Explore Investment Hub';
-      ctaRoute = '/investments';
+      targetRoute = '/investments';
     }
 
     return (
-      <View style={styles.emptyStateWrapper}>
+      <View style={styles.emptyContainer}>
         <View style={styles.emptyIconCircle}>
-          <Ionicons
-            name={
-              activeTab === 'event'
-                ? 'ticket-outline'
-                : activeTab === 'service'
-                ? 'briefcase-outline'
-                : activeTab === 'order'
-                ? 'bag-handle-outline'
-                : activeTab === 'investment'
-                ? 'trending-up-outline'
-                : 'file-tray-outline'
-            }
-            size={38}
-            color={colors.goldText}
-          />
+          <Ionicons name="file-tray-outline" size={44} color={colors.gold} />
         </View>
         <Text style={styles.emptyTitle}>{emptyTitle}</Text>
         <Text style={styles.emptyDesc}>{emptyDesc}</Text>
         <TouchableOpacity
           style={styles.emptyCtaBtn}
-          onPress={() => router.push(ctaRoute as any)}
+          onPress={() => router.push(targetRoute as any)}
           activeOpacity={0.85}
         >
-          <Ionicons name="compass-outline" size={16} color={colors.navy} style={{ marginRight: 6 }} />
+          <Ionicons name="compass-outline" size={16} color="#FFFFFF" style={{ marginRight: 6 }} />
           <Text style={styles.emptyCtaText}>{ctaText}</Text>
         </TouchableOpacity>
       </View>
@@ -529,8 +431,8 @@ export default function ActivityScreen() {
   return (
     <View style={styles.container}>
       <ScreenHeader
-        title="My Passes & Activity"
-        subtitle="Manage tickets, inquiries & orders"
+        title="Concierge Activity & Inquiries"
+        subtitle="Track RSVPs, specialist consultations & craft orders"
         showBack={true}
       />
 
@@ -553,7 +455,7 @@ export default function ActivityScreen() {
         <View style={styles.summaryDivider} />
         <View style={styles.summaryItem}>
           <Text style={[styles.summaryNum, { color: colors.goldText }]}>{counts.events}</Text>
-          <Text style={styles.summaryLabel}>Passes</Text>
+          <Text style={styles.summaryLabel}>RSVPs</Text>
         </View>
       </View>
 
@@ -580,13 +482,13 @@ export default function ActivityScreen() {
             activeOpacity={0.8}
           >
             <Ionicons
-              name="ticket-outline"
+              name="calendar-outline"
               size={14}
-              color={activeTab === 'event' ? colors.navy : colors.charcoalLight}
+              color={activeTab === 'event' ? '#FFFFFF' : colors.charcoalLight}
               style={{ marginRight: 5 }}
             />
             <Text style={[styles.filterTabText, activeTab === 'event' && styles.filterTabTextActive]}>
-              Event Passes ({counts.events})
+              Events ({counts.events})
             </Text>
           </TouchableOpacity>
 
@@ -598,7 +500,7 @@ export default function ActivityScreen() {
             <Ionicons
               name="briefcase-outline"
               size={14}
-              color={activeTab === 'service' ? colors.navy : colors.charcoalLight}
+              color={activeTab === 'service' ? '#FFFFFF' : colors.charcoalLight}
               style={{ marginRight: 5 }}
             />
             <Text style={[styles.filterTabText, activeTab === 'service' && styles.filterTabTextActive]}>
@@ -612,9 +514,9 @@ export default function ActivityScreen() {
             activeOpacity={0.8}
           >
             <Ionicons
-              name="bag-handle-outline"
+              name="shirt-outline"
               size={14}
-              color={activeTab === 'order' ? colors.navy : colors.charcoalLight}
+              color={activeTab === 'order' ? '#FFFFFF' : colors.charcoalLight}
               style={{ marginRight: 5 }}
             />
             <Text style={[styles.filterTabText, activeTab === 'order' && styles.filterTabTextActive]}>
@@ -630,7 +532,7 @@ export default function ActivityScreen() {
             <Ionicons
               name="trending-up-outline"
               size={14}
-              color={activeTab === 'investment' ? colors.navy : colors.charcoalLight}
+              color={activeTab === 'investment' ? '#FFFFFF' : colors.charcoalLight}
               style={{ marginRight: 5 }}
             />
             <Text
@@ -649,7 +551,7 @@ export default function ActivityScreen() {
       {isLoading ? (
         <View style={styles.loadingWrapper}>
           <ActivityIndicator size="large" color={colors.gold} />
-          <Text style={styles.loadingText}>Loading your passes and requests...</Text>
+          <Text style={styles.loadingText}>Loading your concierge requests...</Text>
         </View>
       ) : (
         <ScrollView
@@ -671,7 +573,7 @@ export default function ActivityScreen() {
             filteredItems.map((item) => {
               switch (item.type) {
                 case 'event':
-                  return renderEventPassCard(item);
+                  return renderEventRsvpCard(item);
                 case 'service':
                   return renderServiceCard(item);
                 case 'order':
@@ -756,8 +658,8 @@ const styles = StyleSheet.create({
     borderColor: '#E2E8F0',
   },
   filterTabActive: {
-    backgroundColor: colors.gold,
-    borderColor: colors.gold,
+    backgroundColor: colors.navy,
+    borderColor: colors.navy,
   },
   filterTabText: {
     fontFamily: fonts.bodyMedium,
@@ -766,329 +668,62 @@ const styles = StyleSheet.create({
   },
   filterTabTextActive: {
     fontFamily: fonts.bodyBold,
-    color: colors.navy,
+    color: '#FFFFFF',
   },
   scrollContent: {
     paddingHorizontal: spacing.md,
     paddingBottom: spacing.xxl + 20,
     gap: 14,
   },
-
-  // --- Luxury Boarding Pass Ticket Styles ---
-  ticketCardWrapper: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: radius.xl,
-    borderWidth: 1.5,
-    borderColor: '#DFB76C',
-    overflow: 'hidden',
-    ...shadow.card,
-  },
-  ticketTopBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: colors.navy,
-    paddingHorizontal: spacing.md,
-    paddingVertical: 10,
-  },
-  ticketBranding: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  ticketBrandingText: {
-    fontFamily: fonts.bodyBold,
-    fontSize: 11,
-    letterSpacing: 1,
-    color: colors.gold,
-  },
-  ticketBody: {
-    padding: spacing.md,
-    backgroundColor: '#FFFFFF',
-  },
-  ticketRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-  },
-  ticketEventTitle: {
-    fontFamily: fonts.bodyBold,
-    fontSize: 17,
-    color: colors.navy,
-    lineHeight: 22,
-    marginBottom: 6,
-  },
-  ticketMetaRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 6,
-    marginTop: 4,
-  },
-  ticketMetaText: {
-    fontFamily: fonts.bodyMedium,
-    fontSize: 12.5,
-    color: colors.charcoalLight,
-    flex: 1,
-    lineHeight: 17,
-  },
-  ticketThumbnail: {
-    width: 72,
-    height: 72,
-    borderRadius: radius.md,
-    backgroundColor: '#F1F5F9',
-    marginLeft: 8,
-    flexShrink: 0,
-  },
-  ticketDetailsGrid: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: spacing.md,
-    paddingTop: spacing.sm,
-    borderTopWidth: 1,
-    borderTopColor: '#F1F5F9',
-  },
-  ticketDetailCol: {
-    alignItems: 'flex-start',
-  },
-  ticketDetailLabel: {
-    fontFamily: fonts.bodyMedium,
-    fontSize: 9,
-    letterSpacing: 0.8,
-    color: colors.charcoalLight,
-    marginBottom: 2,
-  },
-  ticketDetailValue: {
-    fontFamily: fonts.bodySemiBold,
-    fontSize: 13,
-    color: colors.navy,
-  },
-  ticketCodeMono: {
-    fontFamily: fonts.bodyBold,
-    fontSize: 13,
-    color: colors.goldText,
-    letterSpacing: 0.5,
-  },
-  ticketDividerContainer: {
-    position: 'relative',
-    height: 20,
-    backgroundColor: '#FAF7F2',
-    justifyContent: 'center',
-    overflow: 'hidden',
-  },
-  notchLeft: {
-    position: 'absolute',
-    left: -10,
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: '#F8FAFC',
-    borderRightWidth: 1.5,
-    borderRightColor: '#DFB76C',
-  },
-  notchRight: {
-    position: 'absolute',
-    right: -10,
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: '#F8FAFC',
-    borderLeftWidth: 1.5,
-    borderLeftColor: '#DFB76C',
-  },
-  dashedDivider: {
-    marginHorizontal: 18,
-    borderBottomWidth: 1.5,
-    borderBottomColor: '#CBD5E1',
-    borderStyle: 'dashed',
-  },
-  ticketStub: {
-    padding: spacing.md,
-    backgroundColor: '#FAF7F2',
-    borderBottomLeftRadius: radius.xl,
-    borderBottomRightRadius: radius.xl,
-  },
-  qrConfirmedCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: radius.lg,
-    padding: spacing.md,
-    alignItems: 'center',
-    borderWidth: 1.5,
-    borderColor: '#E2E8F0',
-    shadowColor: '#07152B',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  qrConfirmedHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginBottom: spacing.xs + 4,
-  },
-  qrConfirmedTitle: {
-    fontFamily: fonts.bodyBold,
-    fontSize: 11,
-    color: colors.navy,
-    letterSpacing: 0.8,
-  },
-  qrImageLargeContainer: {
-    backgroundColor: '#FFFFFF',
-    padding: 10,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: '#CBD5E1',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  qrLargeImage: {
-    width: 170,
-    height: 170,
-  },
-  qrCodeBadge: {
-    backgroundColor: '#F8FAFC',
-    borderWidth: 1,
-    borderColor: '#CBD5E1',
-    borderRadius: radius.sm,
-    paddingHorizontal: 14,
-    paddingVertical: 5,
-    marginTop: spacing.xs + 4,
-  },
-  qrCodeBadgeText: {
-    fontFamily: fonts.bodyBold,
-    fontSize: 13,
-    color: colors.navy,
-    letterSpacing: 1.2,
-  },
-  qrPromptText: {
-    fontFamily: fonts.body,
-    fontSize: 11.5,
-    color: colors.charcoalLight,
-    marginTop: spacing.xs + 2,
-    textAlign: 'center',
-    lineHeight: 16,
-    maxWidth: 260,
-  },
-  qrVisualBlock: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    backgroundColor: '#FFFFFF',
-    padding: 10,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-  },
-  qrGridFrame: {
-    width: 58,
-    height: 58,
-    borderRadius: radius.sm,
-    backgroundColor: '#F8FAFC',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: '#CBD5E1',
-  },
-  qrTextCol: {
-    flex: 1,
-  },
-  qrTitle: {
-    fontFamily: fonts.bodyBold,
-    fontSize: 11,
-    color: colors.navy,
-    letterSpacing: 0.5,
-  },
-  qrSubtitle: {
-    fontFamily: fonts.body,
-    fontSize: 11,
-    color: colors.charcoalLight,
-    marginTop: 2,
-    lineHeight: 15,
-  },
-  ticketActionBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    backgroundColor: colors.gold,
-    paddingVertical: 10,
-    borderRadius: radius.md,
-    marginTop: spacing.sm + 2,
-  },
-  ticketActionBtnText: {
-    fontFamily: fonts.bodyBold,
-    fontSize: 13,
-    color: colors.navy,
-  },
-
-  // --- Standard Activity Cards ---
   standardCard: {
     backgroundColor: '#FFFFFF',
     borderRadius: radius.lg,
-    padding: spacing.md,
     borderWidth: 1,
     borderColor: '#E2E8F0',
+    padding: spacing.md,
     ...shadow.card,
   },
   cardHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: spacing.xs + 2,
+    marginBottom: spacing.xs + 4,
   },
   cardTypeTag: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 5,
   },
   cardTypeTagText: {
     fontFamily: fonts.bodyBold,
-    fontSize: 10,
+    fontSize: 11,
     letterSpacing: 0.8,
-  },
-  statusBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 999,
-  },
-  statusDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-  },
-  statusBadgeText: {
-    fontFamily: fonts.bodyBold,
-    fontSize: 10,
-    letterSpacing: 0.5,
   },
   cardBodyRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     justifyContent: 'space-between',
-    marginVertical: spacing.xs,
   },
   cardTitle: {
     fontFamily: fonts.bodyBold,
-    fontSize: 16,
+    fontSize: 15,
     color: colors.navy,
+    lineHeight: 20,
     marginBottom: 4,
   },
   cardThumbnail: {
-    width: 60,
-    height: 60,
+    width: 64,
+    height: 64,
     borderRadius: radius.md,
     backgroundColor: '#F1F5F9',
-    marginLeft: spacing.sm,
+    marginLeft: 8,
+    flexShrink: 0,
   },
   pillRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    marginTop: 2,
+    marginTop: 3,
   },
   pillText: {
     fontFamily: fonts.bodyMedium,
@@ -1096,40 +731,26 @@ const styles = StyleSheet.create({
     color: colors.charcoalLight,
   },
   cardMessageSnippet: {
-    fontFamily: fonts.body,
+    fontFamily: fonts.bodyMedium,
     fontSize: 12,
     color: colors.charcoal,
     fontStyle: 'italic',
-    marginTop: 4,
-  },
-  priceRow: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    gap: 6,
-    marginTop: 2,
-    marginBottom: 4,
-  },
-  priceHighlight: {
-    fontFamily: fonts.bodyBold,
-    fontSize: 15,
-    color: colors.navy,
-  },
-  quantitySub: {
-    fontFamily: fonts.bodyMedium,
-    fontSize: 12,
-    color: colors.charcoalLight,
+    marginTop: 5,
+    backgroundColor: '#F8FAFC',
+    padding: 6,
+    borderRadius: radius.sm,
   },
   cardFooter: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginTop: spacing.sm + 2,
-    paddingTop: spacing.xs + 2,
+    marginTop: spacing.sm + 4,
+    paddingTop: spacing.xs + 4,
     borderTopWidth: 1,
     borderTopColor: '#F1F5F9',
   },
   cardDateText: {
-    fontFamily: fonts.body,
+    fontFamily: fonts.bodyMedium,
     fontSize: 11,
     color: colors.charcoalLight,
   },
@@ -1139,64 +760,73 @@ const styles = StyleSheet.create({
     gap: 4,
     paddingVertical: 4,
     paddingHorizontal: 8,
-    borderRadius: radius.sm,
-    backgroundColor: '#F8FAFC',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
   },
   cardActionBtnText: {
     fontFamily: fonts.bodySemiBold,
     fontSize: 12,
     color: colors.navy,
   },
-
-  // --- Empty States ---
-  emptyStateWrapper: {
+  statusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 3,
+    paddingHorizontal: 8,
+    borderRadius: 999,
+    gap: 4,
+  },
+  statusDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  statusBadgeText: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 10,
+    letterSpacing: 0.4,
+  },
+  emptyContainer: {
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: spacing.xxl,
-    paddingHorizontal: spacing.xl,
-    backgroundColor: '#FFFFFF',
-    borderRadius: radius.xl,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    marginTop: spacing.md,
+    paddingHorizontal: spacing.lg,
   },
   emptyIconCircle: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    backgroundColor: colors.goldSoft,
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: 'rgba(223, 183, 108, 0.12)',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: spacing.md,
   },
   emptyTitle: {
-    fontFamily: fonts.bodyBold,
-    fontSize: 17,
+    fontFamily: fonts.heading,
+    fontSize: 18,
     color: colors.navy,
-    marginBottom: 6,
     textAlign: 'center',
+    marginBottom: 6,
   },
   emptyDesc: {
-    fontFamily: fonts.body,
+    fontFamily: fonts.bodyMedium,
     fontSize: 13,
     color: colors.charcoalLight,
     textAlign: 'center',
-    lineHeight: 18,
+    lineHeight: 19,
     marginBottom: spacing.lg,
+    maxWidth: 290,
   },
   emptyCtaBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.gold,
-    paddingVertical: 10,
-    paddingHorizontal: 18,
+    backgroundColor: colors.navy,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
     borderRadius: radius.md,
+    ...shadow.card,
   },
   emptyCtaText: {
-    fontFamily: fonts.bodyBold,
+    fontFamily: fonts.bodySemiBold,
     fontSize: 13,
-    color: colors.navy,
+    color: '#FFFFFF',
   },
 });

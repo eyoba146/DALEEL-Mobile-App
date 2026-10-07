@@ -70,6 +70,56 @@ export default function ServiceDetailScreen() {
   const [inquirySuccess, setInquirySuccess] = useState(false);
   const [inquiryError, setInquiryError] = useState<string | null>(null);
 
+  // Field validation tracking
+  const [touchedName, setTouchedName] = useState(false);
+  const [touchedEmail, setTouchedEmail] = useState(false);
+  const [touchedPhone, setTouchedPhone] = useState(false);
+  const [touchedWhatsapp, setTouchedWhatsapp] = useState(false);
+  const [touchedMessage, setTouchedMessage] = useState(false);
+  const [submittedInquiry, setSubmittedInquiry] = useState(false);
+
+  const fullNameTrimmed = fullName.trim();
+  const nameError = (touchedName || submittedInquiry)
+    ? !fullNameTrimmed
+      ? 'Full legal name is required.'
+      : fullNameTrimmed.length < 2
+      ? 'Name must be at least 2 characters.'
+      : null
+    : null;
+
+  const emailTrimmed = contactEmail.trim();
+  const isEmailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailTrimmed);
+  const emailError = (touchedEmail || submittedInquiry)
+    ? !emailTrimmed
+      ? 'Email address is required.'
+      : !isEmailValid
+      ? 'Please enter a valid email address (e.g. name@domain.com).'
+      : null
+    : null;
+
+  const messageTrimmed = message.trim();
+  const messageError = (touchedMessage || submittedInquiry)
+    ? !messageTrimmed
+      ? 'Inquiry details are required.'
+      : messageTrimmed.length < 10
+      ? 'Please provide at least 10 characters explaining your need.'
+      : null
+    : null;
+
+  const phoneTrimmed = contactPhone.trim();
+  const phoneError = (touchedPhone || submittedInquiry) && phoneTrimmed
+    ? !/^[+]?[0-9\s\-().]{7,20}$/.test(phoneTrimmed)
+      ? 'Please enter a valid phone number (at least 7 digits).'
+      : null
+    : null;
+
+  const whatsappTrimmed = contactWhatsapp.trim();
+  const whatsappError = (touchedWhatsapp || submittedInquiry) && whatsappTrimmed
+    ? !/^[+]?[0-9\s\-().]{7,20}$/.test(whatsappTrimmed)
+      ? 'Please enter a valid WhatsApp number (at least 7 digits).'
+      : null
+    : null;
+
   useEffect(() => {
     let isMounted = true;
     async function fetchDetail() {
@@ -189,8 +239,27 @@ export default function ServiceDetailScreen() {
   };
 
   const handleSubmitInquiry = async () => {
-    if (!fullName.trim() || !contactEmail.trim() || !message.trim()) {
-      setInquiryError('Please provide your full name, email address, and inquiry message.');
+    setSubmittedInquiry(true);
+    setInquiryError(null);
+
+    if (!fullNameTrimmed || fullNameTrimmed.length < 2) {
+      setTouchedName(true);
+      return;
+    }
+    if (!emailTrimmed || !isEmailValid) {
+      setTouchedEmail(true);
+      return;
+    }
+    if (!messageTrimmed || messageTrimmed.length < 10) {
+      setTouchedMessage(true);
+      return;
+    }
+    if (phoneTrimmed && !/^[+]?[0-9\s\-().]{7,20}$/.test(phoneTrimmed)) {
+      setTouchedPhone(true);
+      return;
+    }
+    if (whatsappTrimmed && !/^[+]?[0-9\s\-().]{7,20}$/.test(whatsappTrimmed)) {
+      setTouchedWhatsapp(true);
       return;
     }
 
@@ -250,7 +319,7 @@ export default function ServiceDetailScreen() {
         <Text style={styles.notFoundTitle}>Partner Not Found</Text>
         <Text style={styles.notFoundSub}>The requested service provider could not be located.</Text>
         <TouchableOpacity style={styles.backHomeBtn} onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={16} color={colors.navy} />
+          <Ionicons name="arrow-back" size={16} color="#FFFFFF" />
           <Text style={styles.backHomeBtnText}>Go Back</Text>
         </TouchableOpacity>
       </SafeAreaView>
@@ -554,7 +623,7 @@ export default function ServiceDetailScreen() {
           <Ionicons
             name={existingInquiry ? 'create-outline' : 'calendar-outline'}
             size={16}
-            color={colors.navy}
+            color="#FFFFFF"
             style={{ marginRight: 5 }}
           />
           <Text style={styles.inquiryBottomText}>
@@ -696,63 +765,113 @@ export default function ServiceDetailScreen() {
                 {/* Full Name */}
                 <Text style={styles.inputLabel}>Full Legal Name *</Text>
                 <TextInput
-                  style={styles.inputField}
+                  style={[styles.inputField, !!nameError && styles.inputFieldError]}
                   placeholder="e.g. Eyob Adamu"
                   placeholderTextColor={colors.charcoalLight}
                   value={fullName}
-                  onChangeText={setFullName}
+                  onChangeText={(val) => {
+                    setFullName(val);
+                    if (inquiryError) setInquiryError(null);
+                  }}
+                  onBlur={() => setTouchedName(true)}
                 />
+                {!!nameError && (
+                  <View style={styles.fieldErrorRow}>
+                    <Ionicons name="alert-circle" size={13} color={colors.error} />
+                    <Text style={styles.fieldErrorText}>{nameError}</Text>
+                  </View>
+                )}
 
                 {/* Email */}
                 <Text style={styles.inputLabel}>Email Address *</Text>
                 <TextInput
-                  style={styles.inputField}
+                  style={[styles.inputField, !!emailError && styles.inputFieldError]}
                   placeholder="name@domain.com"
                   placeholderTextColor={colors.charcoalLight}
                   keyboardType="email-address"
                   autoCapitalize="none"
                   value={contactEmail}
-                  onChangeText={setContactEmail}
+                  onChangeText={(val) => {
+                    setContactEmail(val);
+                    if (inquiryError) setInquiryError(null);
+                  }}
+                  onBlur={() => setTouchedEmail(true)}
                 />
+                {!!emailError && (
+                  <View style={styles.fieldErrorRow}>
+                    <Ionicons name="alert-circle" size={13} color={colors.error} />
+                    <Text style={styles.fieldErrorText}>{emailError}</Text>
+                  </View>
+                )}
 
                 {/* Phone / WhatsApp */}
                 <View style={styles.twoColRow}>
                   <View style={{ flex: 1 }}>
                     <Text style={styles.inputLabel}>Phone Number</Text>
                     <TextInput
-                      style={styles.inputField}
+                      style={[styles.inputField, !!phoneError && styles.inputFieldError]}
                       placeholder="+251 9..."
                       placeholderTextColor={colors.charcoalLight}
                       keyboardType="phone-pad"
                       value={contactPhone}
-                      onChangeText={setContactPhone}
+                      onChangeText={(val) => {
+                        setContactPhone(val);
+                        if (inquiryError) setInquiryError(null);
+                      }}
+                      onBlur={() => setTouchedPhone(true)}
                     />
+                    {!!phoneError && (
+                      <View style={styles.fieldErrorRow}>
+                        <Ionicons name="alert-circle" size={13} color={colors.error} />
+                        <Text style={styles.fieldErrorText}>{phoneError}</Text>
+                      </View>
+                    )}
                   </View>
 
                   <View style={{ flex: 1, marginLeft: 10 }}>
                     <Text style={styles.inputLabel}>WhatsApp</Text>
                     <TextInput
-                      style={styles.inputField}
+                      style={[styles.inputField, !!whatsappError && styles.inputFieldError]}
                       placeholder="+251 9..."
                       placeholderTextColor={colors.charcoalLight}
                       keyboardType="phone-pad"
                       value={contactWhatsapp}
-                      onChangeText={setContactWhatsapp}
+                      onChangeText={(val) => {
+                        setContactWhatsapp(val);
+                        if (inquiryError) setInquiryError(null);
+                      }}
+                      onBlur={() => setTouchedWhatsapp(true)}
                     />
+                    {!!whatsappError && (
+                      <View style={styles.fieldErrorRow}>
+                        <Ionicons name="alert-circle" size={13} color={colors.error} />
+                        <Text style={styles.fieldErrorText}>{whatsappError}</Text>
+                      </View>
+                    )}
                   </View>
                 </View>
 
                 {/* Requirements Message */}
                 <Text style={styles.inputLabel}>Inquiry Details / Scope of Need *</Text>
                 <TextInput
-                  style={[styles.inputField, styles.textAreaField]}
+                  style={[styles.inputField, styles.textAreaField, !!messageError && styles.inputFieldError]}
                   placeholder="Explain your situation, specific documents, dates, or assistance needed in Ethiopia…"
                   placeholderTextColor={colors.charcoalLight}
                   multiline
                   numberOfLines={4}
                   value={message}
-                  onChangeText={setMessage}
+                  onChangeText={(val) => {
+                    setMessage(val);
+                    if (inquiryError) setInquiryError(null);
+                  }}
+                  onBlur={() => setTouchedMessage(true)}
                 />
+                {!!messageError && (
+                  <View style={styles.fieldErrorRow}>
+                    <Ionicons name="alert-circle" size={13} color={colors.error} />
+                    <Text style={styles.fieldErrorText}>{messageError}</Text>
+                  </View>
+                )}
 
                 {/* Submit Action */}
                 <TouchableOpacity
@@ -762,7 +881,7 @@ export default function ServiceDetailScreen() {
                   activeOpacity={0.85}
                 >
                   {submittingInquiry ? (
-                    <ActivityIndicator size="small" color={colors.navy} />
+                    <ActivityIndicator size="small" color="#FFFFFF" />
                   ) : (
                     <>
                       <Text style={styles.submitInquiryText}>
@@ -771,7 +890,7 @@ export default function ServiceDetailScreen() {
                       <Ionicons
                         name={existingInquiry ? 'checkmark-circle' : 'calendar'}
                         size={16}
-                        color={colors.navy}
+                        color="#FFFFFF"
                         style={{ marginLeft: 8 }}
                       />
                     </>
@@ -827,7 +946,7 @@ const styles = StyleSheet.create({
   backHomeBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.gold,
+    backgroundColor: colors.navy,
     paddingVertical: 12,
     paddingHorizontal: 20,
     borderRadius: radius.full,
@@ -836,7 +955,7 @@ const styles = StyleSheet.create({
     marginLeft: 6,
     fontFamily: fonts.sansSemiBold,
     fontSize: 14,
-    color: colors.navy,
+    color: '#FFFFFF',
   },
 
   // Floating Nav Safe
@@ -1192,10 +1311,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.gold,
+    backgroundColor: colors.navy,
     paddingVertical: 12,
     borderRadius: radius.xl,
-    shadowColor: colors.gold,
+    shadowColor: colors.navy,
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.25,
     shadowRadius: 6,
@@ -1204,7 +1323,7 @@ const styles = StyleSheet.create({
   inquiryBottomText: {
     fontFamily: fonts.sansBold,
     fontSize: 13,
-    color: colors.navy,
+    color: '#FFFFFF',
   },
 
   // Consultation Channel & Slot Grids
@@ -1336,6 +1455,24 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(0,0,0,0.08)',
   },
+  inputFieldError: {
+    borderColor: colors.error,
+    backgroundColor: '#FFF5F5',
+  },
+  fieldErrorRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 4,
+    marginBottom: 4,
+    marginLeft: 2,
+  },
+  fieldErrorText: {
+    fontFamily: fonts.sansRegular,
+    fontSize: 12,
+    color: colors.error,
+    lineHeight: 16,
+  },
   textAreaField: {
     height: 90,
     textAlignVertical: 'top',
@@ -1377,12 +1514,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.gold,
+    backgroundColor: colors.navy,
     paddingVertical: 14,
     borderRadius: radius.xl,
     marginTop: 20,
     marginBottom: 10,
-    shadowColor: colors.gold,
+    shadowColor: colors.navy,
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.25,
     shadowRadius: 6,
@@ -1391,7 +1528,7 @@ const styles = StyleSheet.create({
   submitInquiryText: {
     fontFamily: fonts.sansBold,
     fontSize: 15,
-    color: colors.navy,
+    color: '#FFFFFF',
   },
 
   // Success State Pod

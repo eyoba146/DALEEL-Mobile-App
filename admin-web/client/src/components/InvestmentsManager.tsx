@@ -23,6 +23,7 @@ import {
   FileCheck,
   Archive,
   Loader2,
+  AlertCircle,
 } from 'lucide-react';
 
 interface InvestmentItem {
@@ -107,6 +108,22 @@ export const InvestmentsManager: React.FC = () => {
     contactPhone: '+251 11 551 7000',
   });
 
+  // Validation States
+  const [touchedTitle, setTouchedTitle] = useState(false);
+  const [touchedMinInvestment, setTouchedMinInvestment] = useState(false);
+  const [touchedLocation, setTouchedLocation] = useState(false);
+  const [touchedBlurb, setTouchedBlurb] = useState(false);
+  const [touchedContactEmail, setTouchedContactEmail] = useState(false);
+  const [touchedContactPhone, setTouchedContactPhone] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
+
+  const titleError = (touchedTitle || submitted) && formData.title.trim().length < 2 ? 'Opportunity title is required (min 2 characters)' : '';
+  const minInvestmentError = (touchedMinInvestment || submitted) && (!formData.minInvestment || formData.minInvestment <= 0) ? 'Minimum investment must be greater than 0' : '';
+  const locationError = (touchedLocation || submitted) && formData.location.trim().length < 2 ? 'Location or region is required' : '';
+  const blurbError = (touchedBlurb || submitted) && formData.blurb.trim().length < 10 ? 'Executive summary must be at least 10 characters' : '';
+  const contactEmailError = (touchedContactEmail || submitted) && formData.contactEmail.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.contactEmail.trim()) ? 'Please enter a valid email address' : '';
+  const contactPhoneError = (touchedContactPhone || submitted) && formData.contactPhone.trim() && !/^[+]?[0-9\s\-().]{7,20}$/.test(formData.contactPhone.trim()) ? 'Please enter a valid phone number' : '';
+
   const loadData = async (silent = false) => {
     if (!silent) setLoading(true);
     try {
@@ -142,6 +159,13 @@ export const InvestmentsManager: React.FC = () => {
       contactEmail: 'invest@daleel.et',
       contactPhone: '+251 11 551 7000',
     });
+    setTouchedTitle(false);
+    setTouchedMinInvestment(false);
+    setTouchedLocation(false);
+    setTouchedBlurb(false);
+    setTouchedContactEmail(false);
+    setTouchedContactPhone(false);
+    setSubmitted(false);
     setErrorMessage('');
     setIsEditorActive(true);
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -162,6 +186,13 @@ export const InvestmentsManager: React.FC = () => {
       contactEmail: item.contactEmail || '',
       contactPhone: item.contactPhone || '',
     });
+    setTouchedTitle(false);
+    setTouchedMinInvestment(false);
+    setTouchedLocation(false);
+    setTouchedBlurb(false);
+    setTouchedContactEmail(false);
+    setTouchedContactPhone(false);
+    setSubmitted(false);
     setErrorMessage('');
     setIsEditorActive(true);
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -190,8 +221,24 @@ export const InvestmentsManager: React.FC = () => {
 
   const handleSave = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    if (!formData.title.trim()) {
-      const msg = 'Opportunity title is required.';
+    setSubmitted(true);
+    setTouchedTitle(true);
+    setTouchedMinInvestment(true);
+    setTouchedLocation(true);
+    setTouchedBlurb(true);
+    if (formData.contactEmail.trim()) setTouchedContactEmail(true);
+    if (formData.contactPhone.trim()) setTouchedContactPhone(true);
+
+    if (
+      formData.title.trim().length < 2 ||
+      !formData.minInvestment ||
+      formData.minInvestment <= 0 ||
+      formData.location.trim().length < 2 ||
+      formData.blurb.trim().length < 10 ||
+      (formData.contactEmail.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.contactEmail.trim())) ||
+      (formData.contactPhone.trim() && !/^[+]?[0-9\s\-().]{7,20}$/.test(formData.contactPhone.trim()))
+    ) {
+      const msg = 'Please resolve the highlighted fields before saving the opportunity.';
       setErrorMessage(msg);
       toastError(msg);
       return;
@@ -279,7 +326,7 @@ export const InvestmentsManager: React.FC = () => {
               disabled={isSaving}
               onClick={handleSave}
             >
-              <Check size={16} color="#07152B" />
+              <Check size={16} color="#FFFFFF" />
               <span>{isSaving ? 'Saving...' : editingItem ? 'Save Deal' : 'Publish Opportunity'}</span>
             </button>
           </div>
@@ -288,7 +335,7 @@ export const InvestmentsManager: React.FC = () => {
         {errorMessage && <div style={styles.errorBox}>{errorMessage}</div>}
 
         {/* 2-Column Dedicated Editor Workspace */}
-        <div style={styles.editorGrid}>
+        <div style={styles.editorGrid} className="editor-grid-responsive">
           {/* Left Column: Investment Terms */}
           <div style={styles.formCard}>
             <h3 style={styles.cardSectionTitle}>Investment Terms & Financials</h3>
@@ -299,15 +346,24 @@ export const InvestmentsManager: React.FC = () => {
                 <label style={styles.label}>Opportunity Title *</label>
                 <input
                   type="text"
-                  required
                   value={formData.title}
                   onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                  onBlur={() => setTouchedTitle(true)}
                   placeholder="e.g. Sidama Specialty Coffee Cold-Chain Logistics"
-                  style={styles.fullInput}
+                  style={{
+                    ...styles.fullInput,
+                    ...(titleError ? styles.inputFieldError : {}),
+                  }}
                 />
+                {titleError && (
+                  <div style={styles.inlineErrorRow}>
+                    <AlertCircle size={13} color="#DC2626" style={{ flexShrink: 0 }} />
+                    <span>{titleError}</span>
+                  </div>
+                )}
               </div>
 
-              <div style={styles.inputRow}>
+              <div style={styles.inputRow} className="input-row-responsive">
                 <div style={{ flex: 1 }}>
                   <DynamicCategorySelect
                     label="Sector"
@@ -322,16 +378,25 @@ export const InvestmentsManager: React.FC = () => {
                   <label style={styles.label}>Minimum Investment (USD) *</label>
                   <input
                     type="number"
-                    required
-                    min={1000}
+                    min={1}
                     value={formData.minInvestment}
                     onChange={(e) => setFormData({ ...formData, minInvestment: Number(e.target.value) })}
-                    style={styles.fullInput}
+                    onBlur={() => setTouchedMinInvestment(true)}
+                    style={{
+                      ...styles.fullInput,
+                      ...(minInvestmentError ? styles.inputFieldError : {}),
+                    }}
                   />
+                  {minInvestmentError && (
+                    <div style={styles.inlineErrorRow}>
+                      <AlertCircle size={13} color="#DC2626" style={{ flexShrink: 0 }} />
+                      <span>{minInvestmentError}</span>
+                    </div>
+                  )}
                 </div>
               </div>
 
-              <div style={styles.inputRow}>
+              <div style={styles.inputRow} className="input-row-responsive">
                 <div style={{ flex: 1 }}>
                   <label style={styles.label}>Projected Return (ROI)</label>
                   <input
@@ -358,24 +423,42 @@ export const InvestmentsManager: React.FC = () => {
                 <label style={styles.label}>Location / Region *</label>
                 <input
                   type="text"
-                  required
                   value={formData.location}
                   onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                  onBlur={() => setTouchedLocation(true)}
                   placeholder="e.g. Hawassa Industrial Park, Sidama"
-                  style={styles.fullInput}
+                  style={{
+                    ...styles.fullInput,
+                    ...(locationError ? styles.inputFieldError : {}),
+                  }}
                 />
+                {locationError && (
+                  <div style={styles.inlineErrorRow}>
+                    <AlertCircle size={13} color="#DC2626" style={{ flexShrink: 0 }} />
+                    <span>{locationError}</span>
+                  </div>
+                )}
               </div>
 
               <div>
                 <label style={styles.label}>Executive Summary (Blurb) *</label>
                 <input
                   type="text"
-                  required
                   value={formData.blurb}
                   onChange={(e) => setFormData({ ...formData, blurb: e.target.value })}
+                  onBlur={() => setTouchedBlurb(true)}
                   placeholder="High-growth agro-processing export venture..."
-                  style={styles.fullInput}
+                  style={{
+                    ...styles.fullInput,
+                    ...(blurbError ? styles.inputFieldError : {}),
+                  }}
                 />
+                {blurbError && (
+                  <div style={styles.inlineErrorRow}>
+                    <AlertCircle size={13} color="#DC2626" style={{ flexShrink: 0 }} />
+                    <span>{blurbError}</span>
+                  </div>
+                )}
               </div>
 
               <div>
@@ -411,9 +494,19 @@ export const InvestmentsManager: React.FC = () => {
                   type="email"
                   value={formData.contactEmail}
                   onChange={(e) => setFormData({ ...formData, contactEmail: e.target.value })}
+                  onBlur={() => setTouchedContactEmail(true)}
                   placeholder="invest@daleel.et"
-                  style={styles.fullInput}
+                  style={{
+                    ...styles.fullInput,
+                    ...(contactEmailError ? styles.inputFieldError : {}),
+                  }}
                 />
+                {contactEmailError && (
+                  <div style={styles.inlineErrorRow}>
+                    <AlertCircle size={13} color="#DC2626" style={{ flexShrink: 0 }} />
+                    <span>{contactEmailError}</span>
+                  </div>
+                )}
               </div>
 
               <div>
@@ -422,9 +515,19 @@ export const InvestmentsManager: React.FC = () => {
                   type="text"
                   value={formData.contactPhone}
                   onChange={(e) => setFormData({ ...formData, contactPhone: e.target.value })}
+                  onBlur={() => setTouchedContactPhone(true)}
                   placeholder="+251 11 551 7000"
-                  style={styles.fullInput}
+                  style={{
+                    ...styles.fullInput,
+                    ...(contactPhoneError ? styles.inputFieldError : {}),
+                  }}
                 />
+                {contactPhoneError && (
+                  <div style={styles.inlineErrorRow}>
+                    <AlertCircle size={13} color="#DC2626" style={{ flexShrink: 0 }} />
+                    <span>{contactPhoneError}</span>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -451,7 +554,7 @@ export const InvestmentsManager: React.FC = () => {
             <span>Refresh</span>
           </button>
           <button className="btn btn-primary" onClick={handleOpenCreate}>
-            <Plus size={16} color="#07152B" />
+            <Plus size={16} color="#FFFFFF" />
             <span>Post Opportunity</span>
           </button>
         </div>
@@ -802,8 +905,10 @@ export const InvestmentsManager: React.FC = () => {
 
 const styles: { [key: string]: React.CSSProperties } = {
   container: {
-    padding: '32px',
+    padding: 'clamp(16px, 3vw, 32px)',
     maxWidth: '1400px',
+    width: '100%',
+    boxSizing: 'border-box',
     margin: '0 auto',
     display: 'flex',
     flexDirection: 'column',
@@ -837,6 +942,8 @@ const styles: { [key: string]: React.CSSProperties } = {
     gap: '10px',
     borderBottom: '1px solid #E4E9F0',
     paddingBottom: '4px',
+    overflowX: 'auto',
+    flexWrap: 'wrap',
   },
   tabBtn: {
     display: 'inline-flex',
@@ -877,7 +984,9 @@ const styles: { [key: string]: React.CSSProperties } = {
     position: 'relative',
     display: 'flex',
     alignItems: 'center',
-    width: '360px',
+    width: '100%',
+    maxWidth: '360px',
+    minWidth: '240px',
   },
   searchInput: {
     width: '100%',
@@ -1150,6 +1259,19 @@ const styles: { [key: string]: React.CSSProperties } = {
     borderRadius: '8px',
     fontSize: '13.5px',
     color: '#07152B',
+  },
+  inputFieldError: {
+    border: '1.5px solid #EF4444',
+    backgroundColor: '#FFF5F5',
+  },
+  inlineErrorRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '6px',
+    marginTop: '6px',
+    color: '#DC2626',
+    fontSize: '12px',
+    fontWeight: 500,
   },
   textarea: {
     width: '100%',

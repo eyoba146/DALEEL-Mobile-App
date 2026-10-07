@@ -88,16 +88,17 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   field: {
-    height: 58,
+    height: 56,
     backgroundColor: '#FFFFFF',
-    borderRadius: 14,
+    borderRadius: radius.md,
     paddingHorizontal: 16,
     justifyContent: 'flex-end',
-    borderWidth: 1.5,
+    borderWidth: 1,
     borderColor: colors.border,
   },
   fieldFocused: {
-    borderColor: colors.gold,
+    borderColor: colors.navy,
+    borderWidth: 1.5,
     backgroundColor: '#FFFFFF',
   },
   fieldError: {

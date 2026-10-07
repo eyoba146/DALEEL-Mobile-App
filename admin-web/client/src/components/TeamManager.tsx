@@ -105,6 +105,18 @@ export const TeamManager: React.FC = () => {
     phone: '',
   });
 
+  // Validation States
+  const [touchedName, setTouchedName] = useState(false);
+  const [touchedEmail, setTouchedEmail] = useState(false);
+  const [touchedPassword, setTouchedPassword] = useState(false);
+  const [touchedPhone, setTouchedPhone] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
+
+  const nameError = (touchedName || submitted) && formData.name.trim().length < 2 ? 'Full name is required (min 2 characters)' : '';
+  const emailError = (touchedEmail || submitted) && (!formData.email.trim() ? 'Official administrative email is required' : !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email.trim()) ? 'Please enter a valid email address' : '');
+  const passwordError = (touchedPassword || submitted) && (!formData.password ? 'Initial access passkey is required' : formData.password.length < 8 ? 'Passkey must be at least 8 characters' : '');
+  const phoneError = (touchedPhone || submitted) && formData.phone.trim() && !/^[+]?[0-9\s\-().]{7,20}$/.test(formData.phone.trim()) ? 'Please enter a valid phone number' : '';
+
   const loadTeam = async () => {
     setLoading(true);
     try {
@@ -129,6 +141,11 @@ export const TeamManager: React.FC = () => {
       adminRole: 'SERVICE_MANAGER',
       phone: '',
     });
+    setTouchedName(false);
+    setTouchedEmail(false);
+    setTouchedPassword(false);
+    setTouchedPhone(false);
+    setSubmitted(false);
     setErrorMessage('');
     setShowPassword(false);
     setIsEditorActive(true);
@@ -171,8 +188,20 @@ export const TeamManager: React.FC = () => {
 
   const handleSave = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    if (!formData.name.trim() || !formData.email.trim() || !formData.password.trim()) {
-      const msg = 'Full name, email, and initial password are required.';
+    setSubmitted(true);
+    setTouchedName(true);
+    setTouchedEmail(true);
+    setTouchedPassword(true);
+    if (formData.phone.trim()) setTouchedPhone(true);
+
+    if (
+      formData.name.trim().length < 2 ||
+      !formData.email.trim() ||
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email.trim()) ||
+      formData.password.length < 8 ||
+      (formData.phone.trim() && !/^[+]?[0-9\s\-().]{7,20}$/.test(formData.phone.trim()))
+    ) {
+      const msg = 'Please correct the highlighted fields before authorizing this coordinator.';
       setErrorMessage(msg);
       toastError(msg);
       return;
@@ -237,7 +266,7 @@ export const TeamManager: React.FC = () => {
               disabled={isSaving}
               onClick={handleSave}
             >
-              <Check size={16} color="#07152B" />
+              <Check size={16} color="#FFFFFF" />
               <span>{isSaving ? 'Authorizing...' : 'Authorize Coordinator'}</span>
             </button>
           </div>
@@ -251,7 +280,7 @@ export const TeamManager: React.FC = () => {
         )}
 
         {/* 2-Column Dedicated Luxury Workspace */}
-        <div style={styles.editorGrid}>
+        <div style={styles.editorGrid} className="editor-grid-responsive">
           {/* Left Column: Account Credentials */}
           <div style={styles.formCard}>
             <div style={styles.cardHeaderPod}>
@@ -268,31 +297,51 @@ export const TeamManager: React.FC = () => {
               <div>
                 <label style={styles.label}>Full Name *</label>
                 <div style={styles.inputWithIconWrap}>
-                  <UserCheck size={16} color="#8A9AA8" style={styles.inputLeftIcon} />
+                  <UserCheck size={16} color={nameError ? '#EF4444' : '#8A9AA8'} style={styles.inputLeftIcon} />
                   <input
                     type="text"
-                    required
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    onBlur={() => setTouchedName(true)}
                     placeholder="e.g. Rahel Tadesse"
-                    style={{ ...styles.fullInput, paddingLeft: '38px' }}
+                    style={{
+                      ...styles.fullInput,
+                      paddingLeft: '38px',
+                      ...(nameError ? styles.inputFieldError : {}),
+                    }}
                   />
                 </div>
+                {nameError && (
+                  <div style={styles.inlineErrorRow}>
+                    <AlertCircle size={13} color="#DC2626" style={{ flexShrink: 0 }} />
+                    <span>{nameError}</span>
+                  </div>
+                )}
               </div>
 
               <div>
                 <label style={styles.label}>Official Administrative Email *</label>
                 <div style={styles.inputWithIconWrap}>
-                  <Mail size={16} color="#8A9AA8" style={styles.inputLeftIcon} />
+                  <Mail size={16} color={emailError ? '#EF4444' : '#8A9AA8'} style={styles.inputLeftIcon} />
                   <input
                     type="email"
-                    required
                     value={formData.email}
                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    onBlur={() => setTouchedEmail(true)}
                     placeholder="e.g. rahel@daleel.et"
-                    style={{ ...styles.fullInput, paddingLeft: '38px' }}
+                    style={{
+                      ...styles.fullInput,
+                      paddingLeft: '38px',
+                      ...(emailError ? styles.inputFieldError : {}),
+                    }}
                   />
                 </div>
+                {emailError && (
+                  <div style={styles.inlineErrorRow}>
+                    <AlertCircle size={13} color="#DC2626" style={{ flexShrink: 0 }} />
+                    <span>{emailError}</span>
+                  </div>
+                )}
               </div>
 
               <div>
@@ -308,14 +357,19 @@ export const TeamManager: React.FC = () => {
                   </button>
                 </div>
                 <div style={styles.inputWithIconWrap}>
-                  <KeyRound size={16} color="#8A9AA8" style={styles.inputLeftIcon} />
+                  <KeyRound size={16} color={passwordError ? '#EF4444' : '#8A9AA8'} style={styles.inputLeftIcon} />
                   <input
                     type={showPassword ? 'text' : 'password'}
-                    required
                     value={formData.password}
                     onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                    onBlur={() => setTouchedPassword(true)}
                     placeholder="Minimum 8 characters"
-                    style={{ ...styles.fullInput, paddingLeft: '38px', paddingRight: '40px' }}
+                    style={{
+                      ...styles.fullInput,
+                      paddingLeft: '38px',
+                      paddingRight: '40px',
+                      ...(passwordError ? styles.inputFieldError : {}),
+                    }}
                   />
                   <button
                     type="button"
@@ -326,20 +380,37 @@ export const TeamManager: React.FC = () => {
                     {showPassword ? <EyeOff size={16} color="#5A687A" /> : <Eye size={16} color="#5A687A" />}
                   </button>
                 </div>
+                {passwordError && (
+                  <div style={styles.inlineErrorRow}>
+                    <AlertCircle size={13} color="#DC2626" style={{ flexShrink: 0 }} />
+                    <span>{passwordError}</span>
+                  </div>
+                )}
               </div>
 
               <div>
                 <label style={styles.label}>Direct Contact Phone (Optional)</label>
                 <div style={styles.inputWithIconWrap}>
-                  <Phone size={16} color="#8A9AA8" style={styles.inputLeftIcon} />
+                  <Phone size={16} color={phoneError ? '#EF4444' : '#8A9AA8'} style={styles.inputLeftIcon} />
                   <input
                     type="text"
                     value={formData.phone}
                     onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                    onBlur={() => setTouchedPhone(true)}
                     placeholder="+251 91 100 0000"
-                    style={{ ...styles.fullInput, paddingLeft: '38px' }}
+                    style={{
+                      ...styles.fullInput,
+                      paddingLeft: '38px',
+                      ...(phoneError ? styles.inputFieldError : {}),
+                    }}
                   />
                 </div>
+                {phoneError && (
+                  <div style={styles.inlineErrorRow}>
+                    <AlertCircle size={13} color="#DC2626" style={{ flexShrink: 0 }} />
+                    <span>{phoneError}</span>
+                  </div>
+                )}
               </div>
 
               {/* Security Advisory Callout */}
@@ -452,7 +523,7 @@ export const TeamManager: React.FC = () => {
             <span>Refresh</span>
           </button>
           <button className="btn btn-primary" onClick={handleOpenCreate}>
-            <Plus size={16} color="#07152B" />
+            <Plus size={16} color="#FFFFFF" />
             <span>Onboard Coordinator</span>
           </button>
         </div>
@@ -613,8 +684,10 @@ export const TeamManager: React.FC = () => {
 
 const styles: { [key: string]: React.CSSProperties } = {
   container: {
-    padding: '32px',
+    padding: 'clamp(16px, 3vw, 32px)',
     maxWidth: '1400px',
+    width: '100%',
+    boxSizing: 'border-box',
     margin: '0 auto',
     display: 'flex',
     flexDirection: 'column',
@@ -644,7 +717,7 @@ const styles: { [key: string]: React.CSSProperties } = {
   },
   roleGuideGrid: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(3, 1fr)',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
     gap: '12px',
   },
   roleCard: {
@@ -676,7 +749,9 @@ const styles: { [key: string]: React.CSSProperties } = {
     position: 'relative',
     display: 'flex',
     alignItems: 'center',
-    width: '360px',
+    width: '100%',
+    maxWidth: '360px',
+    minWidth: '240px',
   },
   searchInput: {
     width: '100%',
@@ -818,6 +893,19 @@ const styles: { [key: string]: React.CSSProperties } = {
     borderRadius: '8px',
     fontSize: '13.5px',
     color: '#07152B',
+  },
+  inputFieldError: {
+    border: '1.5px solid #EF4444',
+    backgroundColor: '#FFF5F5',
+  },
+  inlineErrorRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '6px',
+    marginTop: '6px',
+    color: '#DC2626',
+    fontSize: '12px',
+    fontWeight: 500,
   },
   roleSelectCard: {
     padding: '14px',

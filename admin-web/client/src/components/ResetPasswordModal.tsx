@@ -11,6 +11,7 @@ import {
   Check,
   ShieldAlert,
   Sparkles,
+  AlertCircle,
 } from 'lucide-react';
 
 interface ResetPasswordModalProps {
@@ -32,6 +33,13 @@ export const ResetPasswordModal: React.FC<ResetPasswordModalProps> = ({
   const [showPassword, setShowPassword] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [touchedPassword, setTouchedPassword] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
+
+  const passwordError =
+    (touchedPassword || submitted) && newPassword.length < 6
+      ? 'Password must be at least 6 characters long'
+      : '';
 
   if (!isOpen || !user) return null;
 
@@ -44,6 +52,7 @@ export const ResetPasswordModal: React.FC<ResetPasswordModalProps> = ({
     result += '!26';
     setNewPassword(result);
     setIsCopied(false);
+    setTouchedPassword(false);
   };
 
   const handleCopy = async () => {
@@ -60,8 +69,10 @@ export const ResetPasswordModal: React.FC<ResetPasswordModalProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setSubmitted(true);
+    setTouchedPassword(true);
+
     if (!newPassword || newPassword.length < 6) {
-      toastError('Password must be at least 6 characters long', 'Validation Error');
       return;
     }
 
@@ -70,6 +81,8 @@ export const ResetPasswordModal: React.FC<ResetPasswordModalProps> = ({
       await adminApi.resetCoordinatorPassword(user.id, newPassword);
       success(`Password reset for ${user.name} (${user.email})`, 'Credentials Assigned');
       setNewPassword('');
+      setSubmitted(false);
+      setTouchedPassword(false);
       if (onSuccess) onSuccess();
       onClose();
     } catch (err: any) {
@@ -132,14 +145,17 @@ export const ResetPasswordModal: React.FC<ResetPasswordModalProps> = ({
             <div style={styles.inputWrap}>
               <input
                 type={showPassword ? 'text' : 'password'}
-                required
                 value={newPassword}
+                onBlur={() => setTouchedPassword(true)}
                 onChange={(e) => {
                   setNewPassword(e.target.value);
                   setIsCopied(false);
                 }}
                 placeholder="Enter or generate temporary password"
-                style={styles.input}
+                style={{
+                  ...styles.input,
+                  ...(passwordError ? styles.inputError : {}),
+                }}
               />
               <div style={styles.actionButtonsInside}>
                 {newPassword && (
@@ -162,6 +178,12 @@ export const ResetPasswordModal: React.FC<ResetPasswordModalProps> = ({
                 </button>
               </div>
             </div>
+            {passwordError && (
+              <div style={styles.inlineErrorRow}>
+                <AlertCircle size={13} color="#DC2626" style={{ flexShrink: 0 }} />
+                <span>{passwordError}</span>
+              </div>
+            )}
           </div>
 
           {/* Security Warning Banner */}
@@ -182,7 +204,7 @@ export const ResetPasswordModal: React.FC<ResetPasswordModalProps> = ({
               className="btn btn-primary"
               disabled={isSubmitting || !newPassword}
             >
-              <KeyRound size={14} color="#07152B" />
+              <KeyRound size={14} color="#FFFFFF" />
               <span>{isSubmitting ? 'Assigning...' : 'Assign New Password'}</span>
             </button>
           </div>
@@ -335,6 +357,19 @@ const styles: { [key: string]: React.CSSProperties } = {
     outline: 'none',
     backgroundColor: '#FFFFFF',
     fontFamily: 'monospace',
+  },
+  inputError: {
+    border: '1.5px solid #EF4444',
+    backgroundColor: '#FFF5F5',
+  },
+  inlineErrorRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '6px',
+    marginTop: '6px',
+    color: '#DC2626',
+    fontSize: '12px',
+    fontWeight: 500,
   },
   actionButtonsInside: {
     position: 'absolute',

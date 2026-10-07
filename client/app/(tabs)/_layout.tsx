@@ -1,16 +1,13 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Redirect, Tabs } from 'expo-router';
-import React, { useEffect, useRef } from 'react';
+import React from 'react';
 import {
-  Animated,
   StyleSheet,
   Text,
   TouchableOpacity,
-  useWindowDimensions,
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Svg, { Path } from 'react-native-svg';
 import { useAuth } from '../../lib/auth-context';
 import { useLanguage } from '../../lib/language-context';
 import { colors, fonts } from '../../theme/tokens';
@@ -49,12 +46,9 @@ const TAB_CONFIG: {
   },
 };
 
-function ConcaveBottomTabBar({ state, descriptors, navigation }: any) {
+function DaleelTabBar({ state, descriptors, navigation }: any) {
   const insets = useSafeAreaInsets();
   const { t } = useLanguage();
-  const { width: windowWidth } = useWindowDimensions();
-  const numTabs = state.routes.length || 5;
-  const tabWidth = windowWidth / numTabs;
 
   const getTabLabel = (routeName: string, fallback: string) => {
     switch (routeName) {
@@ -67,105 +61,11 @@ function ConcaveBottomTabBar({ state, descriptors, navigation }: any) {
     }
   };
 
-  const animatedIndex = useRef(new Animated.Value(state.index)).current;
-  const wheelRotation = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    Animated.parallel([
-      Animated.spring(animatedIndex, {
-        toValue: state.index,
-        useNativeDriver: true,
-        tension: 65,
-        friction: 9,
-      }),
-      Animated.sequence([
-        Animated.timing(wheelRotation, {
-          toValue: 1,
-          duration: 250,
-          useNativeDriver: true,
-        }),
-        Animated.timing(wheelRotation, {
-          toValue: 0,
-          duration: 0,
-          useNativeDriver: true,
-        }),
-      ]),
-    ]).start();
-  }, [state.index]);
-
-  // 3000px wide SVG to cover edges regardless of translation
-  // Silky smooth, rounded circular cradle (width = 68, depth = 24, perfectly continuous)
-  // Notch is from x=1466 to x=1534. Center is at x=1500.
-  const svgPath = `M 0 0 L 1466 0 C 1476 0, 1478 8, 1484 16 C 1490 24, 1510 24, 1516 16 C 1522 8, 1524 0, 1534 0 L 3000 0 L 3000 200 L 0 200 Z`;
-
-  const translateX = animatedIndex.interpolate({
-    inputRange: state.routes.map((_: any, i: number) => i),
-    outputRange: state.routes.map((_: any, i: number) => (i * tabWidth) + (tabWidth / 2) - 1500),
-  });
-
-  const carriageTranslateX = animatedIndex.interpolate({
-    inputRange: state.routes.map((_: any, i: number) => i),
-    outputRange: state.routes.map((_: any, i: number) => (i * tabWidth) + (tabWidth / 2) - 34),
-  });
-
-  const rotateZ = wheelRotation.interpolate({
-    inputRange: [0, 1],
-    outputRange: ['0deg', '360deg'],
-  });
-
-  const activeRoute = state.routes[state.index];
-  const activeConfig = TAB_CONFIG[activeRoute?.name] || {
-    label: 'Tab',
-    icon: 'ellipse',
-    outlineIcon: 'ellipse-outline',
-  };
-
   return (
-    <View style={[styles.barContainer, { height: 66 + Math.max(insets.bottom, 10) }]}>
-      
-      {/* Seamless Animated SVG Background (clipped at screen edges) */}
-      <View style={[StyleSheet.absoluteFill, { overflow: 'hidden' }]}>
-        <Animated.View
-          style={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            width: 3000,
-            height: 200,
-            transform: [{ translateX }],
-          }}
-        >
-          <Svg width={3000} height={200}>
-            <Path d={svgPath} fill={colors.headerNavy} />
-          </Svg>
-        </Animated.View>
-      </View>
+    <View style={[styles.barContainer, { paddingBottom: Math.max(insets.bottom, 8) }]}>
+      {/* Subtle top border */}
+      <View style={styles.topBorder} />
 
-      {/* Sliding Concave Notch Carriage (Wheel Animation) */}
-      <Animated.View
-        pointerEvents="none"
-        style={[
-          styles.slidingNotchCarriage,
-          {
-            width: 68,
-            transform: [{ translateX: carriageTranslateX }],
-          },
-        ]}
-      >
-        {/* Elevated Floating Warm Gold Wheel Button */}
-        <Animated.View
-          style={[
-            styles.elevatedButton,
-            {
-              transform: [{ rotate: rotateZ }],
-            },
-          ]}
-        >
-          <Ionicons name={activeConfig.icon} size={22} color={colors.navy} />
-        </Animated.View>
-      </Animated.View>
-
-      {/* Row of Tab Touchable Items */}
       <View style={styles.tabsRow}>
         {state.routes.map((route: any, index: number) => {
           const isFocused = state.index === index;
@@ -192,14 +92,24 @@ function ConcaveBottomTabBar({ state, descriptors, navigation }: any) {
               key={route.key}
               style={styles.tabItem}
               onPress={onPress}
-              activeOpacity={0.8}
+              activeOpacity={0.7}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: isFocused }}
+              accessibilityLabel={getTabLabel(route.name, config.label)}
             >
               <View style={styles.tabContent}>
-                {/* Inactive tab icon shown; active icon sits on the sliding elevated button */}
-                <View style={[styles.tabIconBox, isFocused && { opacity: 0 }]}>
-                  <Ionicons name={config.outlineIcon} size={21} color="#8A9AA8" />
-                </View>
-                <Text style={[styles.tabLabel, isFocused && styles.tabLabelActive]}>
+                {/* Active indicator dot */}
+                {isFocused && <View style={styles.activeIndicator} />}
+
+                <Ionicons
+                  name={isFocused ? config.icon : config.outlineIcon}
+                  size={22}
+                  color={isFocused ? '#FFFFFF' : 'rgba(255,255,255,0.45)'}
+                />
+                <Text
+                  style={[styles.tabLabel, isFocused && styles.tabLabelActive]}
+                  numberOfLines={1}
+                >
                   {getTabLabel(route.name, config.label)}
                 </Text>
               </View>
@@ -216,11 +126,10 @@ export default function TabsLayout() {
 
   if (!isReady) return null;
   if (!user) return <Redirect href="/(auth)/login" />;
-  if (!user.isVerified) return <Redirect href="/(auth)/verify-email" />;
 
   return (
     <Tabs
-      tabBar={(props) => <ConcaveBottomTabBar {...props} />}
+      tabBar={(props) => <DaleelTabBar {...props} />}
       screenOptions={{
         headerShown: false,
       }}
@@ -236,71 +145,47 @@ export default function TabsLayout() {
 
 const styles = StyleSheet.create({
   barContainer: {
-    position: 'relative',
-    overflow: 'visible',
-    backgroundColor: 'transparent',
-    borderTopWidth: 0, // No border! Handled cleanly by SVG
+    backgroundColor: colors.navy,
+  },
+  topBorder: {
+    height: 1,
+    backgroundColor: 'rgba(223, 183, 108, 0.15)',
   },
   tabsRow: {
     flexDirection: 'row',
-    height: 66,
-    zIndex: 5,
+    height: 56,
   },
   tabItem: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+    minHeight: 44,
   },
   tabContent: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingTop: 8,
+    position: 'relative',
+    paddingTop: 6,
   },
-  tabIconBox: {
-    height: 24,
-    alignItems: 'center',
-    justifyContent: 'center',
+  activeIndicator: {
+    position: 'absolute',
+    top: 0,
+    width: 20,
+    height: 3,
+    borderRadius: 1.5,
+    backgroundColor: colors.gold,
   },
   tabLabel: {
     fontFamily: fonts.bodyMedium,
-    fontSize: 10.5,
-    color: '#8A9AA8',
-    marginTop: 4,
+    fontSize: 10,
+    color: 'rgba(255,255,255,0.45)',
+    marginTop: 3,
+    letterSpacing: 0.1,
   },
   tabLabelActive: {
-    fontFamily: fonts.bodyBold,
-    fontSize: 10.5,
-    fontWeight: '700',
-    color: colors.gold,
-  },
-
-  // ── Sliding Concave Notch Carriage (Wheel Animation) ──
-  slidingNotchCarriage: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    height: 66,
-    alignItems: 'center',
-    justifyContent: 'flex-start',
-    zIndex: 10,
-  },
-
-  // ── Elevated Active Wheel Button (Gold Glow, zero black shadow) ──
-  elevatedButton: {
-    position: 'absolute',
-    top: -15,
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: colors.gold,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: colors.gold, // Warm Gold Glow instead of harsh black shadow
-    shadowOpacity: 0.5,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 3 },
-    elevation: 4,
-    borderWidth: 2,
-    borderColor: 'rgba(255, 255, 255, 0.6)',
+    fontFamily: fonts.bodySemiBold,
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#FFFFFF',
   },
 });

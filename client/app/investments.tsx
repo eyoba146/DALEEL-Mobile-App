@@ -17,7 +17,7 @@ import { investments as sampleInvestments } from '../assets/data/sample';
 import ScreenHeader from '../components/ScreenHeader';
 import { contentApi, InvestmentOpportunity, categoriesApi, CategoryItem } from '../lib/api';
 import { useFavorites } from '../lib/favorites-context';
-import { colors, fonts, radius, spacing } from '../theme/tokens';
+import { colors, fonts, radius, shadow, spacing } from '../theme/tokens';
 
 function resolveInvestmentIcon(name: string): keyof typeof Ionicons.glyphMap {
   const n = name.toLowerCase();
@@ -377,7 +377,7 @@ export default function InvestmentsScreen() {
                 }}
                 activeOpacity={0.8}
               >
-                <Ionicons name="refresh" size={15} color={colors.navy} style={{ marginRight: 6 }} />
+                <Ionicons name="refresh" size={15} color="#FFFFFF" style={{ marginRight: 6 }} />
                 <Text style={styles.resetFilterText}>Reset Search & Filters</Text>
               </TouchableOpacity>
             </View>
@@ -455,7 +455,7 @@ export default function InvestmentsScreen() {
                     <Ionicons
                       name={cat.icon}
                       size={14}
-                      color={isActive ? colors.navy : colors.charcoalSub}
+                      color={isActive ? '#FFFFFF' : colors.charcoalSub}
                       style={{ marginRight: 5 }}
                     />
                     <Text style={[styles.catText, isActive && styles.catTextActive]}>
@@ -511,55 +511,47 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginHorizontal: 16,
     paddingHorizontal: 14,
-    height: 50,
-    borderRadius: 16,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1.5,
-    borderColor: 'rgba(223, 183, 108, 0.45)',
+    height: 48,
+    borderRadius: radius.md,
+    backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: colors.border,
     gap: 10,
-    shadowColor: colors.navy,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 6,
-    elevation: 2,
+    ...shadow.card,
   },
   searchBarPodFocused: {
-    borderColor: colors.goldRich,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 2,
-    shadowColor: colors.gold,
-    shadowOpacity: 0.22,
-    shadowRadius: 8,
-    elevation: 3,
+    borderColor: colors.navy,
+    backgroundColor: colors.card,
+    borderWidth: 1.5,
   },
   searchIconCircle: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: 'rgba(223, 183, 108, 0.2)',
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
   },
   searchIconCircleFocused: {
-    backgroundColor: colors.gold,
+    backgroundColor: colors.navySoft,
   },
   searchInput: {
     flex: 1,
     fontFamily: fonts.bodyMedium,
     fontSize: 14,
-    color: colors.charcoal,
+    color: colors.textPrimary,
     paddingVertical: 0,
   },
   clearBtn: {
     padding: 4,
   },
   countBadgePill: {
-    backgroundColor: 'rgba(223, 183, 108, 0.16)',
+    backgroundColor: colors.navySoft,
     paddingHorizontal: 9,
     paddingVertical: 4,
-    borderRadius: 10,
+    borderRadius: radius.xs,
     borderWidth: 1,
-    borderColor: 'rgba(223, 183, 108, 0.35)',
+    borderColor: colors.border,
   },
   countBadgeText: {
     fontFamily: fonts.bodyBold,
@@ -578,29 +570,29 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: colors.surface,
+    paddingVertical: 7,
+    borderRadius: radius.pill,
+    backgroundColor: colors.card,
     borderWidth: 1,
     borderColor: colors.border,
   },
   catPillActive: {
-    backgroundColor: colors.gold,
-    borderColor: colors.gold,
-    shadowColor: colors.gold,
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
+    backgroundColor: colors.navy,
+    borderColor: colors.navy,
+    shadowColor: colors.navy,
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
     shadowOffset: { width: 0, height: 2 },
     elevation: 2,
   },
   catText: {
     fontFamily: fonts.bodyMedium,
-    fontSize: 12.5,
-    color: colors.charcoalSub,
+    fontSize: 12,
+    color: colors.textSecondary,
   },
   catTextActive: {
     fontFamily: fonts.bodyBold,
-    color: colors.navy,
+    color: '#FFFFFF',
     fontWeight: '700',
   },
 
@@ -608,55 +600,47 @@ const styles = StyleSheet.create({
   incentivesBanner: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 18,
+    backgroundColor: colors.navySoft,
+    borderRadius: radius.md,
     padding: 14,
     borderWidth: 1,
-    borderColor: 'rgba(223, 183, 108, 0.35)',
+    borderColor: colors.border,
     marginBottom: 20,
     gap: 12,
-    shadowColor: colors.gold,
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 2,
+    ...shadow.card,
   },
   bannerIconContainer: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: 'rgba(223, 183, 108, 0.16)',
+    width: 36,
+    height: 36,
+    borderRadius: radius.sm,
+    backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
   },
   bannerHeadline: {
     fontFamily: fonts.bodyBold,
-    fontSize: 13.5,
+    fontSize: 13,
     color: colors.navy,
-    marginBottom: 3,
+    marginBottom: 2,
   },
   bannerSub: {
     fontFamily: fonts.body,
-    fontSize: 11.5,
-    color: colors.charcoalSub,
+    fontSize: 12,
+    color: colors.textSecondary,
     lineHeight: 16,
   },
 
   // ── Opportunity Cards ───────────────────────────────
   cardWrap: {
-    marginBottom: 20,
+    marginBottom: 16,
   },
   card: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    borderWidth: 1.5,
+    backgroundColor: colors.card,
+    borderRadius: radius.lg,
+    borderWidth: 1,
     borderColor: colors.border,
     overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOpacity: 0.05,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 3,
+    ...shadow.card,
   },
   imageContainer: {
     position: 'relative',
@@ -673,9 +657,9 @@ const styles = StyleSheet.create({
     top: 12,
     left: 12,
     backgroundColor: 'rgba(7, 21, 43, 0.88)',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 8,
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    borderRadius: radius.xs,
     borderWidth: 1,
     borderColor: 'rgba(223, 183, 108, 0.4)',
   },
@@ -689,26 +673,22 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 12,
     right: 12,
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     backgroundColor: 'rgba(255, 255, 255, 0.92)',
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
     borderColor: colors.border,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
   },
   floatingBookmarkActive: {
     backgroundColor: '#FFFFFF',
-    borderColor: colors.gold,
+    borderColor: colors.goldBorder,
   },
 
   cardBody: {
-    padding: 18,
+    padding: 16,
   },
   headerRow: {
     flexDirection: 'row',
@@ -720,7 +700,7 @@ const styles = StyleSheet.create({
   opportunityTitle: {
     fontFamily: fonts.heading,
     fontSize: 18,
-    color: colors.charcoal,
+    color: colors.textPrimary,
     flex: 1,
   },
   verifiedBadge: {
@@ -728,16 +708,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 4,
     backgroundColor: colors.goldSoft,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 8,
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: radius.xs,
     borderWidth: 1,
     borderColor: colors.goldBorder,
   },
   verifiedText: {
     fontFamily: fonts.bodySemiBold,
-    fontSize: 10.5,
-    color: '#8A6204',
+    fontSize: 10,
+    color: colors.goldText,
   },
   locationRow: {
     flexDirection: 'row',
@@ -747,13 +727,13 @@ const styles = StyleSheet.create({
   },
   locationText: {
     fontFamily: fonts.body,
-    fontSize: 12.5,
-    color: colors.charcoalSub,
+    fontSize: 12,
+    color: colors.textSecondary,
   },
   blurbText: {
     fontFamily: fonts.body,
     fontSize: 13,
-    color: colors.charcoalSub,
+    color: colors.textSecondary,
     lineHeight: 19,
     marginBottom: 14,
   },
@@ -762,7 +742,7 @@ const styles = StyleSheet.create({
   metricsGrid: {
     flexDirection: 'row',
     backgroundColor: colors.surface,
-    borderRadius: 14,
+    borderRadius: radius.sm,
     padding: 10,
     gap: 12,
     marginBottom: 14,
@@ -772,14 +752,14 @@ const styles = StyleSheet.create({
   },
   metricLabel: {
     fontFamily: fonts.bodySemiBold,
-    fontSize: 9.5,
-    color: colors.charcoalSub,
+    fontSize: 9,
+    color: colors.textTertiary,
     letterSpacing: 0.6,
     marginBottom: 3,
   },
   metricValue: {
     fontFamily: fonts.bodyBold,
-    fontSize: 13.5,
+    fontSize: 13,
     color: colors.navy,
   },
 
@@ -799,17 +779,17 @@ const styles = StyleSheet.create({
   },
   incentiveText: {
     fontFamily: fonts.bodyMedium,
-    fontSize: 11.5,
-    color: colors.charcoalSub,
+    fontSize: 11,
+    color: colors.textSecondary,
   },
   exploreBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    backgroundColor: colors.goldSoft,
+    backgroundColor: colors.navySoft,
     paddingHorizontal: 12,
     paddingVertical: 6,
-    borderRadius: 12,
+    borderRadius: radius.xs,
   },
   exploreBtnText: {
     fontFamily: fonts.bodySemiBold,
@@ -821,34 +801,35 @@ const styles = StyleSheet.create({
   emptyCard: {
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    borderWidth: 1.5,
+    backgroundColor: colors.card,
+    borderRadius: radius.lg,
+    borderWidth: 1,
     borderColor: colors.border,
     paddingVertical: 40,
     paddingHorizontal: 24,
     marginTop: 20,
+    ...shadow.card,
   },
   emptyIconCircle: {
-    width: 68,
-    height: 68,
-    borderRadius: 34,
-    backgroundColor: colors.goldSoft,
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 14,
   },
   emptyTitle: {
     fontFamily: fonts.heading,
-    fontSize: 20,
-    color: colors.charcoal,
+    fontSize: 19,
+    color: colors.textPrimary,
     marginBottom: 8,
     textAlign: 'center',
   },
   emptyText: {
     fontFamily: fonts.body,
     fontSize: 13,
-    color: '#718096',
+    color: colors.textSecondary,
     textAlign: 'center',
     marginBottom: 16,
     lineHeight: 19,
@@ -856,15 +837,15 @@ const styles = StyleSheet.create({
   resetFilterBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.gold,
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
+    backgroundColor: colors.navy,
+    borderRadius: radius.md,
+    paddingHorizontal: 18,
+    paddingVertical: 11,
   },
   resetFilterText: {
     fontFamily: fonts.bodyBold,
     fontSize: 13,
-    color: colors.navy,
+    color: '#FFFFFF',
     fontWeight: '700',
   },
 });

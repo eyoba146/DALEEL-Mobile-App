@@ -13,7 +13,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { resolveMediaUrl } from '../lib/api';
 import { useAuth } from '../lib/auth-context';
 import { useNotifications } from '../lib/notifications-context';
-import { colors, fonts } from '../theme/tokens';
+import { colors, fonts, shadow } from '../theme/tokens';
 
 interface ScreenHeaderProps {
   title?: string;
@@ -52,34 +52,23 @@ export default function ScreenHeader({
 
   return (
     <View style={[styles.headerContainer, { paddingTop: Math.max(insets.top, 12) }, style]}>
-      {/* Decorative Warm Gold Waves (Exact match to Home) */}
-      <View pointerEvents="none" style={styles.goldWaveContainer}>
-        <View style={styles.goldWaveOuter} />
-        <View style={styles.goldWaveInner} />
-      </View>
-
       <View style={styles.headerContentRow}>
-        {/* Left Side: Back Button + DALEEL Logo + Left-Aligned Screen Title */}
+        {/* Left Side: Back Button + Brand/Title */}
         <View style={styles.headerLeftGroup}>
           {showBack && (
             <TouchableOpacity
-              style={styles.goldBackCircle}
+              style={styles.backButton}
               onPress={handleBack}
-              activeOpacity={0.8}
+              activeOpacity={0.7}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              accessibilityLabel="Go back"
             >
-              <Ionicons name="chevron-back" size={19} color={colors.navy} />
+              <Ionicons name="chevron-back" size={20} color="#FFFFFF" />
             </TouchableOpacity>
           )}
 
-          {/* If Subpage Title is present: Brand Badge + DALEEL Eyebrow + Luxury DM Serif Heading */}
           {title ? (
             <View style={styles.headerTitleGroup}>
-              {!showBack && (
-                <View style={styles.brandIconCircle}>
-                  <Ionicons name="compass" size={17} color={colors.navy} />
-                </View>
-              )}
               <View style={styles.titleColumn}>
                 <Text style={styles.brandOverline}>DALEEL</Text>
                 <View style={styles.titleWithBadge}>
@@ -95,10 +84,10 @@ export default function ScreenHeader({
               </View>
             </View>
           ) : (
-            /* Home / Root Header: Brand Badge + Large DALEEL Logo */
+            /* Home / Root Header: Brand Badge + DALEEL Logo */
             <View style={styles.headerBrand}>
               <View style={styles.brandIconCircle}>
-                <Ionicons name="compass" size={17} color={colors.navy} />
+                <Ionicons name="compass" size={16} color={colors.navy} />
               </View>
               <Text style={styles.headerLogo}>DALEEL</Text>
             </View>
@@ -114,7 +103,7 @@ export default function ScreenHeader({
               <TouchableOpacity
                 style={styles.notifBtn}
                 onPress={() => router.push('/notifications')}
-                activeOpacity={0.75}
+                activeOpacity={0.7}
                 accessibilityLabel="Notifications"
               >
                 <Ionicons name="notifications-outline" size={19} color="#FFFFFF" />
@@ -130,7 +119,7 @@ export default function ScreenHeader({
             <TouchableOpacity
               style={styles.avatarBtn}
               onPress={() => router.push('/(tabs)/profile')}
-              activeOpacity={0.8}
+              activeOpacity={0.7}
             >
               {avatarUri ? (
                 <Image source={{ uri: avatarUri }} style={styles.headerAvatar} />
@@ -151,55 +140,24 @@ export default function ScreenHeader({
 
 const styles = StyleSheet.create({
   headerContainer: {
-    backgroundColor: colors.headerNavy,
+    backgroundColor: colors.navy,
     paddingHorizontal: 20,
-    paddingBottom: 16,
-    position: 'relative',
-    overflow: 'hidden',
-    borderBottomWidth: 1,
-    borderBottomColor: '#0E2243',
+    paddingBottom: 14,
+    ...shadow.header,
     zIndex: 100,
-    elevation: 12,
-  },
-  goldWaveContainer: {
-    position: 'absolute',
-    top: -24,
-    right: -40,
-    width: 220,
-    height: 110,
-  },
-  goldWaveOuter: {
-    position: 'absolute',
-    width: 200,
-    height: 85,
-    borderRadius: 85,
-    borderWidth: 2,
-    borderColor: 'rgba(223, 183, 108, 0.35)',
-    transform: [{ rotate: '-18deg' }],
-  },
-  goldWaveInner: {
-    position: 'absolute',
-    top: 14,
-    right: 16,
-    width: 170,
-    height: 65,
-    borderRadius: 65,
-    borderWidth: 1.5,
-    borderColor: 'rgba(223, 183, 108, 0.2)',
-    transform: [{ rotate: '-22deg' }],
   },
   headerContentRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    minHeight: 46,
-    marginTop: 4,
+    minHeight: 44,
+    marginTop: 2,
   },
   headerLeftGroup: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 9,
+    gap: 10,
     paddingRight: 8,
   },
   headerBrand: {
@@ -208,18 +166,18 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   brandIconCircle: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
     backgroundColor: colors.gold,
     alignItems: 'center',
     justifyContent: 'center',
   },
   headerLogo: {
     fontFamily: fonts.heading,
-    fontSize: 22,
+    fontSize: 21,
     color: '#FFFFFF',
-    letterSpacing: 1.2,
+    letterSpacing: 1,
   },
   headerTitleGroup: {
     flexDirection: 'row',
@@ -231,13 +189,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   brandOverline: {
-    fontFamily: fonts.bodyBold,
-    fontSize: 9.5,
-    fontWeight: '800',
+    fontFamily: fonts.bodySemiBold,
+    fontSize: 9,
+    fontWeight: '600',
     color: colors.gold,
-    letterSpacing: 1.8,
+    letterSpacing: 1.6,
     textTransform: 'uppercase',
     marginBottom: 1,
+    opacity: 0.85,
   },
   titleWithBadge: {
     flexDirection: 'row',
@@ -245,37 +204,30 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   pageHeadingText: {
-    fontFamily: fonts.heading,
-    fontSize: 20,
+    fontFamily: fonts.bodySemiBold,
+    fontSize: 18,
     color: '#FFFFFF',
-    letterSpacing: 0.6,
+    letterSpacing: 0.2,
   },
   badgePill: {
-    backgroundColor: 'rgba(223, 183, 108, 0.2)',
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
     paddingHorizontal: 7,
     paddingVertical: 2,
     borderRadius: 9,
-    borderWidth: 1,
-    borderColor: 'rgba(223, 183, 108, 0.4)',
   },
   badgeText: {
-    fontFamily: fonts.bodyBold,
+    fontFamily: fonts.bodySemiBold,
     fontSize: 11,
-    fontWeight: '700',
-    color: colors.gold,
+    fontWeight: '600',
+    color: '#FFFFFF',
   },
-  goldBackCircle: {
+  backButton: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: colors.gold,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 3,
   },
   rightSlot: {
     flexDirection: 'row',
@@ -284,21 +236,19 @@ const styles = StyleSheet.create({
     zIndex: 2,
   },
   notifBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.15)',
   },
   notifBadge: {
     position: 'absolute',
     top: -2,
     right: -2,
-    backgroundColor: colors.gold,
+    backgroundColor: colors.error,
     borderRadius: 9,
     minWidth: 16,
     height: 16,
@@ -311,15 +261,15 @@ const styles = StyleSheet.create({
   notifBadgeText: {
     fontSize: 9,
     fontWeight: '800',
-    color: colors.navy,
+    color: '#FFFFFF',
   },
   avatarBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     overflow: 'hidden',
-    borderWidth: 2,
-    borderColor: colors.gold,
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 255, 255, 0.25)',
   },
   headerAvatar: {
     width: '100%',
@@ -333,8 +283,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   headerAvatarText: {
-    fontFamily: fonts.bodyBold,
-    fontSize: 15,
-    color: colors.gold,
+    fontFamily: fonts.bodySemiBold,
+    fontSize: 14,
+    color: 'rgba(255, 255, 255, 0.85)',
   },
 });

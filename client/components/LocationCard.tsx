@@ -443,7 +443,7 @@ export function LocationCard({
             onPress={handleOpenNativeDirections}
             activeOpacity={0.85}
           >
-            <Feather name="navigation-2" size={15} color={colors.navy} />
+            <Feather name="navigation-2" size={15} color="#FFFFFF" />
             <Text style={styles.directionsButtonText}>Get Directions</Text>
           </TouchableOpacity>
         </View>
@@ -602,7 +602,7 @@ export function LocationCard({
                 onPress={handleOpenNativeDirections}
                 activeOpacity={0.88}
               >
-                <Feather name="navigation-2" size={16} color={colors.navy} style={{ marginRight: 6 }} />
+                <Feather name="navigation-2" size={16} color="#FFFFFF" style={{ marginRight: 6 }} />
                 <Text style={styles.modalPrimaryDirectionsText}>
                   Start Navigation in Maps
                 </Text>
@@ -844,7 +844,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    backgroundColor: colors.goldButton,
+    backgroundColor: colors.navy,
     paddingVertical: 10,
     borderRadius: radius.md,
     ...shadow.button,
@@ -852,7 +852,7 @@ const styles = StyleSheet.create({
   directionsButtonText: {
     fontSize: 12.5,
     fontWeight: '700',
-    color: colors.navy,
+    color: '#FFFFFF',
     letterSpacing: 0.2,
   },
 
@@ -999,7 +999,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.goldButton,
+    backgroundColor: colors.navy,
     paddingVertical: 12,
     borderRadius: radius.md,
     ...shadow.button,
@@ -1007,7 +1007,7 @@ const styles = StyleSheet.create({
   modalPrimaryDirectionsText: {
     fontSize: 13.5,
     fontWeight: '700',
-    color: colors.navy,
+    color: '#FFFFFF',
     letterSpacing: 0.2,
   },
 });

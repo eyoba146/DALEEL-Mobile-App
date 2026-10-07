@@ -399,7 +399,7 @@ const styles = StyleSheet.create({
     fontFamily: fonts.body,
   },
   emptyCtaBtn: {
-    backgroundColor: colors.gold,
+    backgroundColor: colors.navy,
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: radius.pill,
@@ -407,7 +407,7 @@ const styles = StyleSheet.create({
   emptyCtaText: {
     fontSize: 12,
     fontWeight: '800',
-    color: colors.navy,
+    color: '#FFFFFF',
   },
   reviewsList: {
     gap: 12,

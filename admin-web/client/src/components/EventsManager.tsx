@@ -18,6 +18,7 @@ import {
   LayoutGrid,
   List,
   QrCode,
+  AlertCircle,
 } from 'lucide-react';
 import { EventCheckInDesk } from './EventCheckInDesk';
 import { useDynamicCategories } from '../utils/categories';
@@ -110,6 +111,20 @@ export const EventsManager: React.FC = () => {
     longitude: 38.7615 as number | null,
   });
 
+  // Validation States
+  const [touchedTitle, setTouchedTitle] = useState(false);
+  const [touchedDate, setTouchedDate] = useState(false);
+  const [touchedCity, setTouchedCity] = useState(false);
+  const [touchedVenue, setTouchedVenue] = useState(false);
+  const [touchedCapacity, setTouchedCapacity] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
+
+  const titleError = (touchedTitle || submitted) && formData.title.trim().length < 3 ? 'Event title must be at least 3 characters' : '';
+  const dateError = (touchedDate || submitted) && !formData.date ? 'Event date is required' : '';
+  const cityError = (touchedCity || submitted) && !formData.city.trim() ? 'City is required' : '';
+  const venueError = (touchedVenue || submitted) && !formData.venue.trim() ? 'Venue name or hall is required' : '';
+  const capacityError = (touchedCapacity || submitted) && (!formData.capacity || formData.capacity <= 0) ? 'Capacity must be at least 1 attendee' : '';
+
   const loadData = async () => {
     setLoading(true);
     try {
@@ -148,6 +163,12 @@ export const EventsManager: React.FC = () => {
       latitude: 9.0105,
       longitude: 38.7615,
     });
+    setTouchedTitle(false);
+    setTouchedDate(false);
+    setTouchedCity(false);
+    setTouchedVenue(false);
+    setTouchedCapacity(false);
+    setSubmitted(false);
     setErrorMessage('');
     setIsEditorActive(true);
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -171,6 +192,12 @@ export const EventsManager: React.FC = () => {
       latitude: item.latitude ?? 9.0105,
       longitude: item.longitude ?? 38.7615,
     });
+    setTouchedTitle(false);
+    setTouchedDate(false);
+    setTouchedCity(false);
+    setTouchedVenue(false);
+    setTouchedCapacity(false);
+    setSubmitted(false);
     setErrorMessage('');
     setIsEditorActive(true);
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -199,8 +226,22 @@ export const EventsManager: React.FC = () => {
 
   const handleSave = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    if (!formData.title.trim()) {
-      const msg = 'Event title is required.';
+    setSubmitted(true);
+    setTouchedTitle(true);
+    setTouchedDate(true);
+    setTouchedCity(true);
+    setTouchedVenue(true);
+    setTouchedCapacity(true);
+
+    if (
+      formData.title.trim().length < 3 ||
+      !formData.date ||
+      !formData.city.trim() ||
+      !formData.venue.trim() ||
+      !formData.capacity ||
+      formData.capacity <= 0
+    ) {
+      const msg = 'Please resolve the highlighted fields before saving the event.';
       setErrorMessage(msg);
       toastError(msg);
       return;
@@ -287,7 +328,7 @@ export const EventsManager: React.FC = () => {
               disabled={isSaving}
               onClick={handleSave}
             >
-              <Check size={16} color="#07152B" />
+              <Check size={16} color="#FFFFFF" />
               <span>{isSaving ? 'Saving...' : editingItem ? 'Save Event' : 'Publish Event'}</span>
             </button>
           </div>
@@ -296,7 +337,7 @@ export const EventsManager: React.FC = () => {
         {errorMessage && <div style={styles.errorBox}>{errorMessage}</div>}
 
         {/* 2-Column Dedicated Editor Workspace */}
-        <div style={styles.editorGrid}>
+        <div style={styles.editorGrid} className="editor-grid-responsive">
           {/* Left Column: Event Details */}
           <div style={styles.formCard}>
             <h3 style={styles.cardSectionTitle}>Event Information & Schedule</h3>
@@ -307,15 +348,24 @@ export const EventsManager: React.FC = () => {
                 <label style={styles.label}>Event Title *</label>
                 <input
                   type="text"
-                  required
                   value={formData.title}
                   onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                  onBlur={() => setTouchedTitle(true)}
                   placeholder="e.g. Ethiopian Diaspora Global Investment Summit 2026"
-                  style={styles.fullInput}
+                  style={{
+                    ...styles.fullInput,
+                    ...(titleError ? styles.inputFieldError : {}),
+                  }}
                 />
+                {titleError && (
+                  <div style={styles.inlineErrorRow}>
+                    <AlertCircle size={13} color="#DC2626" style={{ flexShrink: 0 }} />
+                    <span>{titleError}</span>
+                  </div>
+                )}
               </div>
 
-              <div style={styles.inputRow}>
+              <div style={styles.inputRow} className="input-row-responsive">
                 <div style={{ flex: 1 }}>
                   <label style={styles.label}>Category *</label>
                   <DynamicCategorySelect
@@ -339,16 +389,25 @@ export const EventsManager: React.FC = () => {
                 </div>
               </div>
 
-              <div style={styles.inputRow}>
+              <div style={styles.inputRow} className="input-row-responsive">
                 <div style={{ flex: 1 }}>
                   <label style={styles.label}>Event Date *</label>
                   <input
                     type="date"
-                    required
                     value={formData.date}
                     onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-                    style={styles.fullInput}
+                    onBlur={() => setTouchedDate(true)}
+                    style={{
+                      ...styles.fullInput,
+                      ...(dateError ? styles.inputFieldError : {}),
+                    }}
                   />
+                  {dateError && (
+                    <div style={styles.inlineErrorRow}>
+                      <AlertCircle size={13} color="#DC2626" style={{ flexShrink: 0 }} />
+                      <span>{dateError}</span>
+                    </div>
+                  )}
                 </div>
                 <div style={{ flex: 1 }}>
                   <label style={styles.label}>Event Time</label>
@@ -362,26 +421,46 @@ export const EventsManager: React.FC = () => {
                 </div>
               </div>
 
-              <div style={styles.inputRow}>
+              <div style={styles.inputRow} className="input-row-responsive">
                 <div style={{ flex: 1 }}>
-                  <label style={styles.label}>City</label>
+                  <label style={styles.label}>City *</label>
                   <input
                     type="text"
                     value={formData.city}
                     onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+                    onBlur={() => setTouchedCity(true)}
                     placeholder="e.g. Addis Ababa"
-                    style={styles.fullInput}
+                    style={{
+                      ...styles.fullInput,
+                      ...(cityError ? styles.inputFieldError : {}),
+                    }}
                   />
+                  {cityError && (
+                    <div style={styles.inlineErrorRow}>
+                      <AlertCircle size={13} color="#DC2626" style={{ flexShrink: 0 }} />
+                      <span>{cityError}</span>
+                    </div>
+                  )}
                 </div>
                 <div style={{ flex: 1 }}>
-                  <label style={styles.label}>Venue Name / Hall</label>
+                  <label style={styles.label}>Venue Name / Hall *</label>
                   <input
                     type="text"
                     value={formData.venue}
                     onChange={(e) => setFormData({ ...formData, venue: e.target.value })}
+                    onBlur={() => setTouchedVenue(true)}
                     placeholder="e.g. Skylight Hotel Grand Ballroom"
-                    style={styles.fullInput}
+                    style={{
+                      ...styles.fullInput,
+                      ...(venueError ? styles.inputFieldError : {}),
+                    }}
                   />
+                  {venueError && (
+                    <div style={styles.inlineErrorRow}>
+                      <AlertCircle size={13} color="#DC2626" style={{ flexShrink: 0 }} />
+                      <span>{venueError}</span>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -393,7 +472,7 @@ export const EventsManager: React.FC = () => {
                 />
               </div>
 
-              <div style={styles.inputRow}>
+              <div style={styles.inputRow} className="input-row-responsive">
                 <div style={{ flex: 1 }}>
                   <label style={styles.label}>Host / Organizer</label>
                   <input
@@ -405,14 +484,24 @@ export const EventsManager: React.FC = () => {
                   />
                 </div>
                 <div style={{ flex: 1 }}>
-                  <label style={styles.label}>Max Capacity</label>
+                  <label style={styles.label}>Max Capacity *</label>
                   <input
                     type="number"
-                    min={10}
+                    min={1}
                     value={formData.capacity}
-                    onChange={(e) => setFormData({ ...formData, capacity: parseInt(e.target.value) || 100 })}
-                    style={styles.fullInput}
+                    onChange={(e) => setFormData({ ...formData, capacity: parseInt(e.target.value) || 0 })}
+                    onBlur={() => setTouchedCapacity(true)}
+                    style={{
+                      ...styles.fullInput,
+                      ...(capacityError ? styles.inputFieldError : {}),
+                    }}
                   />
+                  {capacityError && (
+                    <div style={styles.inlineErrorRow}>
+                      <AlertCircle size={13} color="#DC2626" style={{ flexShrink: 0 }} />
+                      <span>{capacityError}</span>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -471,7 +560,7 @@ export const EventsManager: React.FC = () => {
             <span>Refresh</span>
           </button>
           <button className="btn btn-primary" onClick={handleOpenCreate}>
-            <Plus size={16} color="#07152B" />
+            <Plus size={16} color="#FFFFFF" />
             <span>Add Event</span>
           </button>
         </div>
@@ -964,8 +1053,10 @@ export const EventsManager: React.FC = () => {
 
 const styles: { [key: string]: React.CSSProperties } = {
   container: {
-    padding: '32px',
+    padding: 'clamp(16px, 3vw, 32px)',
     maxWidth: '1400px',
+    width: '100%',
+    boxSizing: 'border-box',
     margin: '0 auto',
     display: 'flex',
     flexDirection: 'column',
@@ -1039,7 +1130,9 @@ const styles: { [key: string]: React.CSSProperties } = {
     position: 'relative',
     display: 'flex',
     alignItems: 'center',
-    width: '360px',
+    width: '100%',
+    maxWidth: '360px',
+    minWidth: '240px',
   },
   searchInput: {
     width: '100%',
@@ -1317,6 +1410,19 @@ const styles: { [key: string]: React.CSSProperties } = {
     borderRadius: '8px',
     fontSize: '13.5px',
     color: '#07152B',
+  },
+  inputFieldError: {
+    border: '1.5px solid #EF4444',
+    backgroundColor: '#FFF5F5',
+  },
+  inlineErrorRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '6px',
+    marginTop: '6px',
+    color: '#DC2626',
+    fontSize: '12px',
+    fontWeight: 500,
   },
   imagePreviewWrap: {
     marginTop: '8px',

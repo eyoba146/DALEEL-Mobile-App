@@ -276,9 +276,12 @@ export const UsersManager: React.FC = () => {
       </div>
 
       {/* Main Workspace Layout (Side-by-side with In-Page Inspector) */}
-      <div style={styles.workspaceRow}>
+      <div style={styles.workspaceRow} className="triage-workspace-row">
         {/* Member Table */}
-        <div style={{ ...styles.tableWrapper, ...(inspectingUser ? styles.tableWrapperShrunk : {}) }}>
+        <div 
+          style={{ ...styles.tableWrapper, ...(inspectingUser ? styles.tableWrapperShrunk : {}) }}
+          className="triage-table-wrapper"
+        >
           {loading ? (
             <div style={styles.loadingBox}>
               <RefreshCw size={22} color="#8C6A21" style={{ animation: 'spin 1.2s linear infinite' }} />
@@ -291,7 +294,7 @@ export const UsersManager: React.FC = () => {
               <div style={styles.emptySub}>Try adjusting your search query or filter selections.</div>
             </div>
           ) : (
-            <div style={styles.tableCard}>
+            <div style={styles.tableCard} className="table-wrap">
               <table style={styles.table}>
                 <thead>
                   <tr style={styles.thRow}>
@@ -443,7 +446,7 @@ export const UsersManager: React.FC = () => {
 
         {/* Dedicated In-Page Member Inspector Panel (STRICTLY NO POPUPS) */}
         {inspectingUser && (
-          <aside style={styles.inspectorPanel}>
+          <aside style={styles.inspectorPanel} className="triage-inspector-panel">
             <div style={styles.inspectorHeader}>
               <div style={styles.inspectorTitleRow}>
                 <ShieldCheck size={16} color="#8C6A21" />
@@ -681,8 +684,10 @@ export const UsersManager: React.FC = () => {
 
 const styles: { [key: string]: React.CSSProperties } = {
   container: {
-    padding: '32px',
+    padding: 'clamp(16px, 3vw, 32px)',
     maxWidth: '1600px',
+    width: '100%',
+    boxSizing: 'border-box',
     margin: '0 auto',
     backgroundColor: '#F8FAFC',
     minHeight: '100vh',
@@ -698,6 +703,8 @@ const styles: { [key: string]: React.CSSProperties } = {
     borderRadius: '16px',
     border: '1px solid #E4E9F0',
     boxShadow: '0 2px 10px rgba(7, 21, 43, 0.03)',
+    flexWrap: 'wrap',
+    gap: '16px',
   },
   badgeRow: {
     display: 'flex',
@@ -859,11 +866,13 @@ const styles: { [key: string]: React.CSSProperties } = {
     backgroundColor: '#FFFFFF',
     border: '1px solid #E4E9F0',
     borderRadius: '14px',
-    overflow: 'hidden',
+    overflowX: 'auto',
+    WebkitOverflowScrolling: 'touch',
     boxShadow: '0 2px 10px rgba(7, 21, 43, 0.03)',
   },
   table: {
     width: '100%',
+    minWidth: '850px',
     borderCollapse: 'collapse',
     textAlign: 'left',
   },

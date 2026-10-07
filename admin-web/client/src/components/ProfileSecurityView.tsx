@@ -16,6 +16,7 @@ import {
   Save,
   Shield,
   Building,
+  AlertCircle,
 } from 'lucide-react';
 
 export const ProfileSecurityView: React.FC = () => {
@@ -28,6 +29,9 @@ export const ProfileSecurityView: React.FC = () => {
   const [name, setName] = useState(adminUser?.name || '');
   const [phone, setPhone] = useState(adminUser?.phone || '');
   const [isSavingProfile, setIsSavingProfile] = useState(false);
+  const [touchedName, setTouchedName] = useState(false);
+  const [touchedPhone, setTouchedPhone] = useState(false);
+  const [submittedProfile, setSubmittedProfile] = useState(false);
 
   // Password & Security Form State
   const [currentPassword, setCurrentPassword] = useState('');
@@ -36,6 +40,16 @@ export const ProfileSecurityView: React.FC = () => {
   const [showCurrentPass, setShowCurrentPass] = useState(false);
   const [showNewPass, setShowNewPass] = useState(false);
   const [isSavingPass, setIsSavingPass] = useState(false);
+  const [touchedCurrentPass, setTouchedCurrentPass] = useState(false);
+  const [touchedNewPass, setTouchedNewPass] = useState(false);
+  const [touchedConfirmPass, setTouchedConfirmPass] = useState(false);
+  const [submittedPass, setSubmittedPass] = useState(false);
+
+  const nameError = (touchedName || submittedProfile) && name.trim().length < 2 ? 'Full name must be at least 2 characters' : '';
+  const phoneError = (touchedPhone || submittedProfile) && phone.trim() && !/^[+]?[0-9\s\-().]{7,20}$/.test(phone.trim()) ? 'Please enter a valid phone number (min 7 digits)' : '';
+  const currentPassError = (touchedCurrentPass || submittedPass) && !currentPassword ? 'Current password is required' : '';
+  const newPassError = (touchedNewPass || submittedPass) && newPassword.length < 6 ? 'New password must be at least 6 characters' : '';
+  const confirmPassError = (touchedConfirmPass || submittedPass) && (!confirmPassword ? 'Please confirm your new password' : confirmPassword !== newPassword ? 'New passwords do not match' : '');
 
   const getRoleDisplayName = (role?: string) => {
     switch (role) {
@@ -72,8 +86,11 @@ export const ProfileSecurityView: React.FC = () => {
 
   const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim()) {
-      toastError('Display name cannot be empty.', 'Validation Error');
+    setSubmittedProfile(true);
+    setTouchedName(true);
+    if (phone.trim()) setTouchedPhone(true);
+
+    if (name.trim().length < 2 || (phone.trim() && !/^[+]?[0-9\s\-().]{7,20}$/.test(phone.trim()))) {
       return;
     }
 
@@ -85,6 +102,7 @@ export const ProfileSecurityView: React.FC = () => {
       });
       await refreshUser();
       success('Profile details updated successfully.', 'Profile Saved');
+      setSubmittedProfile(false);
     } catch (err: any) {
       toastError(err.message || 'Failed to update profile details.', 'Update Error');
     } finally {
@@ -94,16 +112,12 @@ export const ProfileSecurityView: React.FC = () => {
 
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!currentPassword) {
-      toastError('Please enter your current password.', 'Validation Error');
-      return;
-    }
-    if (newPassword.length < 6) {
-      toastError('New password must be at least 6 characters.', 'Validation Error');
-      return;
-    }
-    if (newPassword !== confirmPassword) {
-      toastError('New password and confirmation do not match.', 'Validation Error');
+    setSubmittedPass(true);
+    setTouchedCurrentPass(true);
+    setTouchedNewPass(true);
+    setTouchedConfirmPass(true);
+
+    if (!currentPassword || newPassword.length < 6 || newPassword !== confirmPassword) {
       return;
     }
 
@@ -114,6 +128,10 @@ export const ProfileSecurityView: React.FC = () => {
       setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');
+      setSubmittedPass(false);
+      setTouchedCurrentPass(false);
+      setTouchedNewPass(false);
+      setTouchedConfirmPass(false);
     } catch (err: any) {
       toastError(err.message || 'Failed to update password. Please check your current password.', 'Update Failed');
     } finally {
@@ -279,30 +297,51 @@ export const ProfileSecurityView: React.FC = () => {
               <div>
                 <label style={styles.label}>Full Name *</label>
                 <div style={styles.inputWrap}>
-                  <User size={16} color="#8A9AA8" style={styles.fieldIcon} />
+                  <User size={16} color={nameError ? '#EF4444' : '#8A9AA8'} style={styles.fieldIcon} />
                   <input
                     type="text"
-                    required
                     value={name}
                     onChange={(e) => setName(e.target.value)}
+                    onBlur={() => setTouchedName(true)}
                     placeholder="Your official name"
-                    style={{ ...styles.inputField, paddingLeft: '38px' }}
+                    style={{
+                      ...styles.inputField,
+                      paddingLeft: '38px',
+                      ...(nameError ? styles.inputFieldError : {}),
+                    }}
                   />
                 </div>
+                {nameError && (
+                  <div style={styles.inlineErrorRow}>
+                    <AlertCircle size={13} color="#DC2626" style={{ flexShrink: 0 }} />
+                    <span>{nameError}</span>
+                  </div>
+                )}
               </div>
 
               <div>
                 <label style={styles.label}>Direct Contact Phone</label>
                 <div style={styles.inputWrap}>
-                  <Smartphone size={16} color="#8A9AA8" style={styles.fieldIcon} />
+                  <Smartphone size={16} color={phoneError ? '#EF4444' : '#8A9AA8'} style={styles.fieldIcon} />
                   <input
                     type="text"
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
+                    onBlur={() => setTouchedPhone(true)}
                     placeholder="+251 91 100 0000"
-                    style={{ ...styles.inputField, paddingLeft: '38px' }}
+                    style={{
+                      ...styles.inputField,
+                      paddingLeft: '38px',
+                      ...(phoneError ? styles.inputFieldError : {}),
+                    }}
                   />
                 </div>
+                {phoneError && (
+                  <div style={styles.inlineErrorRow}>
+                    <AlertCircle size={13} color="#DC2626" style={{ flexShrink: 0 }} />
+                    <span>{phoneError}</span>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -347,7 +386,7 @@ export const ProfileSecurityView: React.FC = () => {
                 disabled={isSavingProfile}
                 style={{ minWidth: '180px' }}
               >
-                <Save size={15} color="#07152B" />
+                <Save size={15} color="#FFFFFF" />
                 <span>{isSavingProfile ? 'Saving Details...' : 'Save Profile Details'}</span>
               </button>
             </div>
@@ -370,14 +409,19 @@ export const ProfileSecurityView: React.FC = () => {
             <div style={{ maxWidth: '540px' }}>
               <label style={styles.label}>Current Password *</label>
               <div style={styles.inputWrap}>
-                <KeyRound size={16} color="#8A9AA8" style={styles.fieldIcon} />
+                <KeyRound size={16} color={currentPassError ? '#EF4444' : '#8A9AA8'} style={styles.fieldIcon} />
                 <input
                   type={showCurrentPass ? 'text' : 'password'}
-                  required
                   value={currentPassword}
                   onChange={(e) => setCurrentPassword(e.target.value)}
+                  onBlur={() => setTouchedCurrentPass(true)}
                   placeholder="Enter your existing password"
-                  style={{ ...styles.inputField, paddingLeft: '38px', paddingRight: '40px' }}
+                  style={{
+                    ...styles.inputField,
+                    paddingLeft: '38px',
+                    paddingRight: '40px',
+                    ...(currentPassError ? styles.inputFieldError : {}),
+                  }}
                 />
                 <button
                   type="button"
@@ -388,6 +432,12 @@ export const ProfileSecurityView: React.FC = () => {
                   {showCurrentPass ? <EyeOff size={15} color="#8A9AA8" /> : <Eye size={15} color="#8A9AA8" />}
                 </button>
               </div>
+              {currentPassError && (
+                <div style={styles.inlineErrorRow}>
+                  <AlertCircle size={13} color="#DC2626" style={{ flexShrink: 0 }} />
+                  <span>{currentPassError}</span>
+                </div>
+              )}
             </div>
 
             <div style={styles.formGrid2}>
@@ -395,14 +445,19 @@ export const ProfileSecurityView: React.FC = () => {
               <div>
                 <label style={styles.label}>New Password *</label>
                 <div style={styles.inputWrap}>
-                  <Lock size={16} color="#8A9AA8" style={styles.fieldIcon} />
+                  <Lock size={16} color={newPassError ? '#EF4444' : '#8A9AA8'} style={styles.fieldIcon} />
                   <input
                     type={showNewPass ? 'text' : 'password'}
-                    required
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
+                    onBlur={() => setTouchedNewPass(true)}
                     placeholder="Minimum 6 characters"
-                    style={{ ...styles.inputField, paddingLeft: '38px', paddingRight: '40px' }}
+                    style={{
+                      ...styles.inputField,
+                      paddingLeft: '38px',
+                      paddingRight: '40px',
+                      ...(newPassError ? styles.inputFieldError : {}),
+                    }}
                   />
                   <button
                     type="button"
@@ -413,6 +468,12 @@ export const ProfileSecurityView: React.FC = () => {
                     {showNewPass ? <EyeOff size={15} color="#8A9AA8" /> : <Eye size={15} color="#8A9AA8" />}
                   </button>
                 </div>
+                {newPassError && (
+                  <div style={styles.inlineErrorRow}>
+                    <AlertCircle size={13} color="#DC2626" style={{ flexShrink: 0 }} />
+                    <span>{newPassError}</span>
+                  </div>
+                )}
 
                 {/* Password Strength Indicator */}
                 {newPassword && (
@@ -442,17 +503,26 @@ export const ProfileSecurityView: React.FC = () => {
               <div>
                 <label style={styles.label}>Confirm New Password *</label>
                 <div style={styles.inputWrap}>
-                  <Lock size={16} color="#8A9AA8" style={styles.fieldIcon} />
+                  <Lock size={16} color={confirmPassError ? '#EF4444' : '#8A9AA8'} style={styles.fieldIcon} />
                   <input
                     type="password"
-                    required
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
+                    onBlur={() => setTouchedConfirmPass(true)}
                     placeholder="Re-enter your new password"
-                    style={{ ...styles.inputField, paddingLeft: '38px' }}
+                    style={{
+                      ...styles.inputField,
+                      paddingLeft: '38px',
+                      ...(confirmPassError ? styles.inputFieldError : {}),
+                    }}
                   />
                 </div>
-                {confirmPassword && newPassword && (
+                {confirmPassError ? (
+                  <div style={styles.inlineErrorRow}>
+                    <AlertCircle size={13} color="#DC2626" style={{ flexShrink: 0 }} />
+                    <span>{confirmPassError}</span>
+                  </div>
+                ) : confirmPassword && newPassword ? (
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '6px' }}>
                     {confirmPassword === newPassword ? (
                       <>
@@ -470,7 +540,7 @@ export const ProfileSecurityView: React.FC = () => {
                       </>
                     )}
                   </div>
-                )}
+                ) : null}
               </div>
             </div>
 
@@ -504,7 +574,7 @@ export const ProfileSecurityView: React.FC = () => {
                 disabled={isSavingPass || !currentPassword || !newPassword || newPassword !== confirmPassword}
                 style={{ minWidth: '180px' }}
               >
-                <KeyRound size={15} color="#07152B" />
+                <KeyRound size={15} color="#FFFFFF" />
                 <span>{isSavingPass ? 'Updating...' : 'Update Password'}</span>
               </button>
             </div>
@@ -568,8 +638,10 @@ export const ProfileSecurityView: React.FC = () => {
 
 const styles: { [key: string]: React.CSSProperties } = {
   container: {
-    padding: '32px',
+    padding: 'clamp(16px, 3vw, 32px)',
     maxWidth: '1200px',
+    width: '100%',
+    boxSizing: 'border-box',
     margin: '0 auto',
     display: 'flex',
     flexDirection: 'column',
@@ -703,6 +775,8 @@ const styles: { [key: string]: React.CSSProperties } = {
     gap: '10px',
     borderBottom: '1px solid #E2E8F0',
     paddingBottom: '2px',
+    overflowX: 'auto',
+    flexWrap: 'wrap',
   },
   tabBtn: {
     display: 'flex',
@@ -728,7 +802,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     backgroundColor: '#FFFFFF',
     border: '1px solid #E2E8F0',
     borderRadius: '16px',
-    padding: '30px 32px',
+    padding: 'clamp(16px, 3vw, 32px)',
     boxShadow: '0 2px 10px rgba(7, 21, 43, 0.04)',
     display: 'flex',
     flexDirection: 'column',
@@ -756,7 +830,7 @@ const styles: { [key: string]: React.CSSProperties } = {
   },
   formGrid2: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))',
     gap: '20px',
   },
   label: {
@@ -787,6 +861,19 @@ const styles: { [key: string]: React.CSSProperties } = {
     backgroundColor: '#FFFFFF',
     transition: 'all 0.15s ease',
     boxSizing: 'border-box',
+  },
+  inputFieldError: {
+    border: '1.5px solid #EF4444',
+    backgroundColor: '#FFF5F5',
+  },
+  inlineErrorRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '6px',
+    marginTop: '6px',
+    color: '#DC2626',
+    fontSize: '12px',
+    fontWeight: 500,
   },
   fieldHint: {
     display: 'block',
@@ -865,7 +952,7 @@ const styles: { [key: string]: React.CSSProperties } = {
   },
   permissionsGrid: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))',
     gap: '16px',
   },
   permCard: {

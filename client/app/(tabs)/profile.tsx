@@ -1,4 +1,4 @@
-import { Ionicons } from '@expo/vector-icons';
+import { Feather, Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
@@ -86,6 +86,12 @@ export default function ProfileScreen() {
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+  // Field validation error states
+  const [currentPasswordError, setCurrentPasswordError] = useState('');
+  const [newPasswordError, setNewPasswordError] = useState('');
+  const [confirmPasswordError, setConfirmPasswordError] = useState('');
+  const [inlineFieldError, setInlineFieldError] = useState('');
 
   // Sign out confirmation modal state
   const [isSignOutModalVisible, setIsSignOutModalVisible] = useState(false);
@@ -252,6 +258,11 @@ export default function ProfileScreen() {
 
   const openFieldEditor = (field: EditableField) => {
     setActiveField(field);
+    setCurrentPasswordError('');
+    setNewPasswordError('');
+    setConfirmPasswordError('');
+    setInlineFieldError('');
+
     if (field === 'password') {
       setCurrentPassword('');
       setNewPassword('');
@@ -289,13 +300,16 @@ export default function ProfileScreen() {
     const trimmed = fieldValue.trim().toLowerCase();
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(trimmed)) {
+      setInlineFieldError('Please enter a valid email address');
       showToast('Please enter a valid email address', 'error');
       return;
     }
     if (trimmed === user?.email?.toLowerCase()) {
+      setInlineFieldError('Please enter a new email address different from your current one');
       showToast('Please enter a new email address different from your current one', 'error');
       return;
     }
+    setInlineFieldError('');
 
     setIsSavingField(true);
     try {
@@ -316,9 +330,11 @@ export default function ProfileScreen() {
     if (isSavingField) return;
     const code = emailVerificationCode.trim();
     if (code.length !== 6) {
+      setInlineFieldError('Please enter the 6-digit verification code');
       showToast('Please enter the 6-digit verification code', 'error');
       return;
     }
+    setInlineFieldError('');
 
     setIsSavingField(true);
     try {
@@ -384,33 +400,83 @@ export default function ProfileScreen() {
     setIsSavingField(true);
     try {
       if (activeField === 'password') {
-        if (!currentPassword) throw new Error('Please enter your current password');
-        if (!newPassword) throw new Error('Please enter a new password');
-        if (newPassword.length < 8) throw new Error('New password must be at least 8 characters');
-        if (newPassword !== confirmPassword) throw new Error('New passwords do not match');
+        let hasErr = false;
+        if (!currentPassword) {
+          setCurrentPasswordError('Please enter your current password');
+          hasErr = true;
+        } else {
+          setCurrentPasswordError('');
+        }
+        if (!newPassword) {
+          setNewPasswordError('Please enter a new password');
+          hasErr = true;
+        } else if (newPassword.length < 8) {
+          setNewPasswordError('New password must be at least 8 characters');
+          hasErr = true;
+        } else {
+          setNewPasswordError('');
+        }
+        if (!confirmPassword) {
+          setConfirmPasswordError('Please confirm your new password');
+          hasErr = true;
+        } else if (newPassword !== confirmPassword) {
+          setConfirmPasswordError('New passwords do not match');
+          hasErr = true;
+        } else {
+          setConfirmPasswordError('');
+        }
+        if (hasErr) {
+          setIsSavingField(false);
+          return;
+        }
         await changePassword(currentPassword, newPassword);
         setCurrentPassword('');
         setNewPassword('');
         setConfirmPassword('');
+        setCurrentPasswordError('');
+        setNewPasswordError('');
+        setConfirmPasswordError('');
         showToast('Password updated successfully!', 'success');
       } else if (activeField === 'firstName') {
         const trimmed = fieldValue.trim();
-        if (!trimmed) throw new Error('First name cannot be empty');
+        if (trimmed.length < 2) {
+          setInlineFieldError('First name must be at least 2 characters');
+          setIsSavingField(false);
+          return;
+        }
+        setInlineFieldError('');
         const newFullName = `${trimmed} ${lastName}`.trim();
         await updateUser({ name: newFullName });
         showToast('First name updated successfully!', 'success');
       } else if (activeField === 'lastName') {
         const trimmed = fieldValue.trim();
+        if (trimmed.length < 2) {
+          setInlineFieldError('Last name must be at least 2 characters');
+          setIsSavingField(false);
+          return;
+        }
+        setInlineFieldError('');
         const newFullName = `${firstName} ${trimmed}`.trim();
         await updateUser({ name: newFullName });
         showToast('Last name updated successfully!', 'success');
       } else if (activeField === 'phone') {
         const trimmed = fieldValue.trim();
+        if (trimmed && !/^[+]?[0-9\s\-().]{7,20}$/.test(trimmed)) {
+          setInlineFieldError('Please enter a valid phone number (min 7 digits)');
+          setIsSavingField(false);
+          return;
+        }
+        setInlineFieldError('');
         await updateUser({ phone: trimmed });
         showToast('Phone number updated successfully!', 'success');
       } else if (activeField === 'country') {
         const trimmed = fieldValue.trim();
-        if (!trimmed) throw new Error('Country cannot be empty');
+        if (!trimmed) {
+          setInlineFieldError('Country cannot be empty');
+          setIsSavingField(false);
+          return;
+        }
+        setInlineFieldError('');
         await updateUser({ country: trimmed });
         showToast('Country updated successfully!', 'success');
       } else if (activeField === 'persona') {
@@ -595,7 +661,7 @@ export default function ProfileScreen() {
           </View>
         </View>
 
-        {/* Executive My Passes & Activity Hub Card */}
+        {/* Executive Concierge Activity & Inquiries Hub Card */}
         <TouchableOpacity
           style={styles.activityHubHeroCard}
           onPress={() => router.push('/activity')}
@@ -603,11 +669,11 @@ export default function ProfileScreen() {
         >
           <View style={styles.activityHubLeft}>
             <View style={styles.activityHubIconHalo}>
-              <Ionicons name="ticket" size={22} color={colors.gold} />
+              <Ionicons name="briefcase" size={20} color={colors.gold} />
             </View>
             <View style={{ flex: 1 }}>
               <View style={styles.activityHubTitleRow}>
-                <Text style={styles.activityHubTitle}>My Passes & Activity Hub</Text>
+                <Text style={styles.activityHubTitle}>Concierge Activity & Inquiries</Text>
                 {activityCount !== null && activityCount > 0 && (
                   <View style={styles.activityCountBadge}>
                     <Text style={styles.activityCountBadgeText}>{activityCount}</Text>
@@ -615,7 +681,7 @@ export default function ProfileScreen() {
                 )}
               </View>
               <Text style={styles.activityHubSub}>
-                Admission tickets, service inquiries & orders
+                Service consultations, investment prospectuses & orders
               </Text>
             </View>
           </View>
@@ -659,13 +725,22 @@ export default function ProfileScreen() {
               <Text style={styles.inlineCardTitle}>First Name</Text>
             </View>
             <TextInput
-              style={styles.inlineInput}
+              style={[styles.inlineInput, !!inlineFieldError && styles.inlineInputError]}
               value={fieldValue}
-              onChangeText={setFieldValue}
+              onChangeText={(val) => {
+                setFieldValue(val);
+                if (inlineFieldError) setInlineFieldError('');
+              }}
               placeholder="Enter first name"
               placeholderTextColor={colors.charcoalLight}
               autoFocus
             />
+            {!!inlineFieldError && (
+              <View style={styles.fieldErrorRow}>
+                <Ionicons name="alert-circle" size={13} color="#DC2626" />
+                <Text style={styles.fieldErrorText}>{inlineFieldError}</Text>
+              </View>
+            )}
             <View style={styles.inlineBtnRow}>
               <TouchableOpacity
                 style={styles.inlineCancelBtn}
@@ -682,10 +757,10 @@ export default function ProfileScreen() {
                 activeOpacity={0.8}
               >
                 {isSavingField ? (
-                  <ActivityIndicator size="small" color={colors.navy} />
+                  <ActivityIndicator size="small" color="#FFFFFF" />
                 ) : (
                   <>
-                    <Ionicons name="checkmark" size={16} color={colors.navy} style={{ marginRight: 4 }} />
+                    <Ionicons name="checkmark" size={16} color="#FFFFFF" style={{ marginRight: 4 }} />
                     <Text style={styles.inlineSaveText}>Save</Text>
                   </>
                 )}
@@ -721,13 +796,22 @@ export default function ProfileScreen() {
               <Text style={styles.inlineCardTitle}>Last Name</Text>
             </View>
             <TextInput
-              style={styles.inlineInput}
+              style={[styles.inlineInput, !!inlineFieldError && styles.inlineInputError]}
               value={fieldValue}
-              onChangeText={setFieldValue}
+              onChangeText={(val) => {
+                setFieldValue(val);
+                if (inlineFieldError) setInlineFieldError('');
+              }}
               placeholder="Enter last name"
               placeholderTextColor={colors.charcoalLight}
               autoFocus
             />
+            {!!inlineFieldError && (
+              <View style={styles.fieldErrorRow}>
+                <Ionicons name="alert-circle" size={13} color="#DC2626" />
+                <Text style={styles.fieldErrorText}>{inlineFieldError}</Text>
+              </View>
+            )}
             <View style={styles.inlineBtnRow}>
               <TouchableOpacity
                 style={styles.inlineCancelBtn}
@@ -744,10 +828,10 @@ export default function ProfileScreen() {
                 activeOpacity={0.8}
               >
                 {isSavingField ? (
-                  <ActivityIndicator size="small" color={colors.navy} />
+                  <ActivityIndicator size="small" color="#FFFFFF" />
                 ) : (
                   <>
-                    <Ionicons name="checkmark" size={16} color={colors.navy} style={{ marginRight: 4 }} />
+                    <Ionicons name="checkmark" size={16} color="#FFFFFF" style={{ marginRight: 4 }} />
                     <Text style={styles.inlineSaveText}>Save</Text>
                   </>
                 )}
@@ -792,15 +876,24 @@ export default function ProfileScreen() {
               </View>
 
               <TextInput
-                style={styles.inlineInput}
+                style={[styles.inlineInput, !!inlineFieldError && styles.inlineInputError]}
                 value={fieldValue}
-                onChangeText={setFieldValue}
+                onChangeText={(val) => {
+                  setFieldValue(val);
+                  if (inlineFieldError) setInlineFieldError('');
+                }}
                 placeholder="name@example.com"
                 placeholderTextColor={colors.charcoalLight}
                 keyboardType="email-address"
                 autoCapitalize="none"
                 autoFocus
               />
+              {!!inlineFieldError && (
+                <View style={styles.fieldErrorRow}>
+                  <Ionicons name="alert-circle" size={13} color="#DC2626" />
+                  <Text style={styles.fieldErrorText}>{inlineFieldError}</Text>
+                </View>
+              )}
 
               {/* Security Badge */}
               <View style={styles.securityNoticeBox}>
@@ -830,10 +923,10 @@ export default function ProfileScreen() {
                   activeOpacity={0.8}
                 >
                   {isSavingField ? (
-                    <ActivityIndicator size="small" color={colors.navy} />
+                    <ActivityIndicator size="small" color="#FFFFFF" />
                   ) : (
                     <>
-                      <Ionicons name="arrow-forward" size={15} color={colors.navy} style={{ marginRight: 4 }} />
+                      <Ionicons name="arrow-forward" size={15} color="#FFFFFF" style={{ marginRight: 4 }} />
                       <Text style={styles.inlineSaveText}>Send Code</Text>
                     </>
                   )}
@@ -922,10 +1015,10 @@ export default function ProfileScreen() {
                   activeOpacity={0.8}
                 >
                   {isSavingField ? (
-                    <ActivityIndicator size="small" color={colors.navy} />
+                    <ActivityIndicator size="small" color="#FFFFFF" />
                   ) : (
                     <>
-                      <Ionicons name="checkmark-done" size={16} color={colors.navy} style={{ marginRight: 4 }} />
+                      <Ionicons name="checkmark-done" size={16} color="#FFFFFF" style={{ marginRight: 4 }} />
                       <Text style={styles.inlineSaveText}>Verify & Save</Text>
                     </>
                   )}
@@ -966,15 +1059,28 @@ export default function ProfileScreen() {
                 <Text style={styles.inlineDialText}>{getDialCode(user?.country)}</Text>
               </View>
               <TextInput
-                style={[styles.inlineInput, { flex: 1, marginBottom: 0 }]}
+                style={[
+                  styles.inlineInput,
+                  { flex: 1, marginBottom: 0 },
+                  !!inlineFieldError && styles.inlineInputError,
+                ]}
                 value={fieldValue}
-                onChangeText={setFieldValue}
+                onChangeText={(val) => {
+                  setFieldValue(val);
+                  if (inlineFieldError) setInlineFieldError('');
+                }}
                 placeholder="Mobile number"
                 placeholderTextColor={colors.charcoalLight}
                 keyboardType="phone-pad"
                 autoFocus
               />
             </View>
+            {!!inlineFieldError && (
+              <View style={styles.fieldErrorRow}>
+                <Ionicons name="alert-circle" size={13} color="#DC2626" />
+                <Text style={styles.fieldErrorText}>{inlineFieldError}</Text>
+              </View>
+            )}
             <View style={styles.inlineBtnRow}>
               <TouchableOpacity
                 style={styles.inlineCancelBtn}
@@ -991,10 +1097,10 @@ export default function ProfileScreen() {
                 activeOpacity={0.8}
               >
                 {isSavingField ? (
-                  <ActivityIndicator size="small" color={colors.navy} />
+                  <ActivityIndicator size="small" color="#FFFFFF" />
                 ) : (
                   <>
-                    <Ionicons name="checkmark" size={16} color={colors.navy} style={{ marginRight: 4 }} />
+                    <Ionicons name="checkmark" size={16} color="#FFFFFF" style={{ marginRight: 4 }} />
                     <Text style={styles.inlineSaveText}>Save</Text>
                   </>
                 )}
@@ -1093,10 +1199,10 @@ export default function ProfileScreen() {
                 activeOpacity={0.8}
               >
                 {isSavingField ? (
-                  <ActivityIndicator size="small" color={colors.navy} />
+                  <ActivityIndicator size="small" color="#FFFFFF" />
                 ) : (
                   <>
-                    <Ionicons name="checkmark" size={16} color={colors.navy} style={{ marginRight: 4 }} />
+                    <Ionicons name="checkmark" size={16} color="#FFFFFF" style={{ marginRight: 4 }} />
                     <Text style={styles.inlineSaveText}>Save</Text>
                   </>
                 )}
@@ -1212,10 +1318,10 @@ export default function ProfileScreen() {
                 activeOpacity={0.8}
               >
                 {isSavingField ? (
-                  <ActivityIndicator size="small" color={colors.navy} />
+                  <ActivityIndicator size="small" color="#FFFFFF" />
                 ) : (
                   <>
-                    <Ionicons name="checkmark" size={16} color={colors.navy} style={{ marginRight: 4 }} />
+                    <Ionicons name="checkmark" size={16} color="#FFFFFF" style={{ marginRight: 4 }} />
                     <Text style={styles.inlineSaveText}>Save</Text>
                   </>
                 )}
@@ -1306,10 +1412,10 @@ export default function ProfileScreen() {
                 activeOpacity={0.8}
               >
                 {isSavingField ? (
-                  <ActivityIndicator size="small" color={colors.navy} />
+                  <ActivityIndicator size="small" color="#FFFFFF" />
                 ) : (
                   <>
-                    <Ionicons name="checkmark" size={16} color={colors.navy} style={{ marginRight: 4 }} />
+                    <Ionicons name="checkmark" size={16} color="#FFFFFF" style={{ marginRight: 4 }} />
                     <Text style={styles.inlineSaveText}>Save</Text>
                   </>
                 )}
@@ -1355,9 +1461,12 @@ export default function ProfileScreen() {
             <Text style={styles.inlineSubLabel}>Current Password</Text>
             <View style={styles.passwordInputWrap}>
               <TextInput
-                style={styles.passwordInput}
+                style={[styles.passwordInput, !!currentPasswordError && styles.passwordInputError]}
                 value={currentPassword}
-                onChangeText={setCurrentPassword}
+                onChangeText={(val) => {
+                  setCurrentPassword(val);
+                  if (currentPasswordError) setCurrentPasswordError('');
+                }}
                 placeholder="Enter current password"
                 placeholderTextColor={colors.charcoalLight}
                 secureTextEntry={!showCurrentPassword}
@@ -1368,20 +1477,29 @@ export default function ProfileScreen() {
                 onPress={() => setShowCurrentPassword(!showCurrentPassword)}
                 hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
               >
-                <Ionicons
-                  name={showCurrentPassword ? 'eye-off-outline' : 'eye-outline'}
+                <Feather
+                  name={showCurrentPassword ? 'eye-off' : 'eye'}
                   size={18}
                   color={colors.charcoalSub}
                 />
               </TouchableOpacity>
             </View>
+            {!!currentPasswordError && (
+              <View style={styles.fieldErrorRow}>
+                <Ionicons name="alert-circle" size={13} color="#DC2626" />
+                <Text style={styles.fieldErrorText}>{currentPasswordError}</Text>
+              </View>
+            )}
 
             <Text style={styles.inlineSubLabel}>New Password (min 8 characters)</Text>
             <View style={styles.passwordInputWrap}>
               <TextInput
-                style={styles.passwordInput}
+                style={[styles.passwordInput, !!newPasswordError && styles.passwordInputError]}
                 value={newPassword}
-                onChangeText={setNewPassword}
+                onChangeText={(val) => {
+                  setNewPassword(val);
+                  if (newPasswordError) setNewPasswordError('');
+                }}
                 placeholder="Enter new password"
                 placeholderTextColor={colors.charcoalLight}
                 secureTextEntry={!showNewPassword}
@@ -1392,20 +1510,29 @@ export default function ProfileScreen() {
                 onPress={() => setShowNewPassword(!showNewPassword)}
                 hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
               >
-                <Ionicons
-                  name={showNewPassword ? 'eye-off-outline' : 'eye-outline'}
+                <Feather
+                  name={showNewPassword ? 'eye-off' : 'eye'}
                   size={18}
                   color={colors.charcoalSub}
                 />
               </TouchableOpacity>
             </View>
+            {!!newPasswordError && (
+              <View style={styles.fieldErrorRow}>
+                <Ionicons name="alert-circle" size={13} color="#DC2626" />
+                <Text style={styles.fieldErrorText}>{newPasswordError}</Text>
+              </View>
+            )}
 
             <Text style={styles.inlineSubLabel}>Confirm New Password</Text>
             <View style={styles.passwordInputWrap}>
               <TextInput
-                style={styles.passwordInput}
+                style={[styles.passwordInput, !!confirmPasswordError && styles.passwordInputError]}
                 value={confirmPassword}
-                onChangeText={setConfirmPassword}
+                onChangeText={(val) => {
+                  setConfirmPassword(val);
+                  if (confirmPasswordError) setConfirmPasswordError('');
+                }}
                 placeholder="Re-type new password"
                 placeholderTextColor={colors.charcoalLight}
                 secureTextEntry={!showConfirmPassword}
@@ -1416,13 +1543,19 @@ export default function ProfileScreen() {
                 onPress={() => setShowConfirmPassword(!showConfirmPassword)}
                 hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
               >
-                <Ionicons
-                  name={showConfirmPassword ? 'eye-off-outline' : 'eye-outline'}
+                <Feather
+                  name={showConfirmPassword ? 'eye-off' : 'eye'}
                   size={18}
                   color={colors.charcoalSub}
                 />
               </TouchableOpacity>
             </View>
+            {!!confirmPasswordError && (
+              <View style={styles.fieldErrorRow}>
+                <Ionicons name="alert-circle" size={13} color="#DC2626" />
+                <Text style={styles.fieldErrorText}>{confirmPasswordError}</Text>
+              </View>
+            )}
 
             {/* Realtime Matching Status Indicator */}
             {confirmPassword.length > 0 && (
@@ -1461,10 +1594,10 @@ export default function ProfileScreen() {
                 activeOpacity={0.8}
               >
                 {isSavingField ? (
-                  <ActivityIndicator size="small" color={colors.navy} />
+                  <ActivityIndicator size="small" color="#FFFFFF" />
                 ) : (
                   <>
-                    <Ionicons name="shield-checkmark" size={16} color={colors.navy} style={{ marginRight: 4 }} />
+                    <Ionicons name="shield-checkmark" size={16} color="#FFFFFF" style={{ marginRight: 4 }} />
                     <Text style={styles.inlineSaveText}>Update Password</Text>
                   </>
                 )}
@@ -1834,13 +1967,31 @@ const styles = StyleSheet.create({
     color: colors.charcoal,
     borderWidth: 1,
     borderColor: colors.border,
-    marginBottom: 10,
+    marginBottom: 6,
+  },
+  inlineInputError: {
+    borderColor: '#DC2626',
+    borderWidth: 1.5,
+    backgroundColor: '#FFF5F5',
+  },
+  fieldErrorRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 4,
+    marginBottom: 8,
+  },
+  fieldErrorText: {
+    fontSize: 11.5,
+    color: '#DC2626',
+    fontFamily: fonts.bodyMedium,
+    fontWeight: '600',
   },
   inlinePhoneInputWrap: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    marginBottom: 10,
+    marginBottom: 6,
   },
   inlineDialBadge: {
     backgroundColor: colors.surface,
@@ -1881,6 +2032,11 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     paddingRight: 42,
   },
+  passwordInputError: {
+    borderColor: '#DC2626',
+    borderWidth: 1.5,
+    backgroundColor: '#FFF5F5',
+  },
   passwordEyeBtn: {
     position: 'absolute',
     right: 12,
@@ -1919,7 +2075,7 @@ const styles = StyleSheet.create({
   inlineSaveBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.gold,
+    backgroundColor: colors.navy,
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 10,
@@ -1928,7 +2084,7 @@ const styles = StyleSheet.create({
     fontFamily: fonts.bodyBold,
     fontSize: 13,
     fontWeight: '700',
-    color: colors.navy,
+    color: '#FFFFFF',
   },
   inlinePersonaOption: {
     flexDirection: 'row',
@@ -2142,14 +2298,15 @@ const styles = StyleSheet.create({
 
   // Hero Card
   heroCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 22,
+    backgroundColor: colors.card,
+    borderRadius: radius.lg,
     paddingVertical: 26,
     paddingHorizontal: 20,
     alignItems: 'center',
-    borderWidth: 1.5,
+    borderWidth: 1,
     borderColor: colors.border,
     marginBottom: 16,
+    ...shadow.card,
   },
   avatarWrapper: {
     position: 'relative',
@@ -2193,7 +2350,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(15, 46, 34, 0.7)',
+    backgroundColor: 'rgba(7, 21, 43, 0.7)',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -2213,14 +2370,14 @@ const styles = StyleSheet.create({
   userName: {
     fontFamily: fonts.heading,
     fontSize: 24,
-    color: colors.charcoal,
+    color: colors.textPrimary,
     marginBottom: 4,
     textAlign: 'center',
   },
   userEmail: {
     fontFamily: fonts.body,
     fontSize: 14,
-    color: colors.charcoalSub,
+    color: colors.textSecondary,
     marginBottom: 14,
   },
   badgeRow: {
@@ -2235,23 +2392,23 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 12,
     paddingVertical: 5,
-    borderRadius: 14,
-    borderWidth: 1.5,
+    borderRadius: radius.pill,
+    borderWidth: 1,
   },
   personaBadgeDiaspora: {
-    backgroundColor: '#FDF8EB',
+    backgroundColor: colors.surfaceWarm,
     borderColor: colors.goldBorder,
   },
   personaBadgeForeign: {
     backgroundColor: colors.navySoft,
-    borderColor: '#C6D9CF',
+    borderColor: colors.border,
   },
   personaBadgeText: {
     fontFamily: fonts.bodySemiBold,
     fontSize: 12,
   },
   personaTextDiaspora: {
-    color: '#8A6707',
+    color: colors.goldText,
   },
   personaTextForeign: {
     color: colors.navy,
@@ -2263,8 +2420,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.successSoft,
     paddingHorizontal: 10,
     paddingVertical: 5,
-    borderRadius: 14,
-    borderWidth: 1.5,
+    borderRadius: radius.pill,
+    borderWidth: 1,
     borderColor: '#BBE6C9',
   },
   verifiedPillText: {
@@ -2641,12 +2798,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#FFFFFF',
-    borderRadius: radius.xl,
+    backgroundColor: colors.card,
+    borderRadius: radius.lg,
     padding: spacing.md,
     marginBottom: spacing.md,
-    borderWidth: 1.5,
-    borderColor: '#DFB76C',
+    borderWidth: 1,
+    borderColor: colors.border,
     ...shadow.card,
   },
   activityHubLeft: {

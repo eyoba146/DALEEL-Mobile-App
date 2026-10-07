@@ -17,10 +17,9 @@ import { products as sampleProducts } from '../assets/data/sample';
 import { CurrencySelector } from '../components/CurrencySelector';
 import ScreenHeader from '../components/ScreenHeader';
 import { contentApi, Product, categoriesApi, CategoryItem } from '../lib/api';
-import { useCart } from '../lib/cart-context';
 import { useCurrency } from '../lib/currency-context';
 import { useFavorites } from '../lib/favorites-context';
-import { colors, fonts, radius, spacing } from '../theme/tokens';
+import { colors, fonts, radius, shadow, spacing } from '../theme/tokens';
 
 function resolveProductIcon(name: string): keyof typeof Ionicons.glyphMap {
   const n = name.toLowerCase();
@@ -170,7 +169,7 @@ const AnimatedProductCard = React.memo(function AnimatedProductCard({
 
             <View style={styles.viewDetailBtn}>
               <Text style={styles.viewDetailBtnText}>View Artisan Piece</Text>
-              <Ionicons name="arrow-forward" size={13} color={colors.navy} style={{ marginLeft: 4 }} />
+              <Ionicons name="arrow-forward" size={13} color="#FFFFFF" style={{ marginLeft: 4 }} />
             </View>
           </View>
         </View>
@@ -185,7 +184,6 @@ export default function MarketplaceScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { isFavorite, toggleFavorite } = useFavorites();
-  const { itemCount, subtotalETB } = useCart();
   const { formatPrice } = useCurrency();
 
   const [products, setProducts] = useState<Product[]>(sampleProducts);
@@ -302,18 +300,11 @@ export default function MarketplaceScreen() {
             <CurrencySelector compact />
             <TouchableOpacity
               style={styles.headerCartBtn}
-              onPress={() => router.push('/cart')}
+              onPress={() => router.push('/(tabs)/saved')}
               activeOpacity={0.8}
-              accessibilityLabel="Artisan Bag"
+              accessibilityLabel="Saved Items"
             >
-              <Ionicons name="bag-handle-outline" size={19} color="#FFFFFF" />
-              {itemCount > 0 && (
-                <View style={styles.headerCartBadge}>
-                  <Text style={styles.headerCartBadgeText}>
-                    {itemCount > 9 ? '9+' : itemCount}
-                  </Text>
-                </View>
-              )}
+              <Ionicons name="bookmark-outline" size={19} color="#FFFFFF" />
             </TouchableOpacity>
           </View>
         }
@@ -387,7 +378,7 @@ export default function MarketplaceScreen() {
                 }}
                 activeOpacity={0.8}
               >
-                <Ionicons name="refresh" size={15} color={colors.navy} style={{ marginRight: 6 }} />
+                <Ionicons name="refresh" size={15} color="#FFFFFF" style={{ marginRight: 6 }} />
                 <Text style={styles.resetFilterText}>Reset Search & Filters</Text>
               </TouchableOpacity>
             </View>
@@ -472,35 +463,6 @@ export default function MarketplaceScreen() {
           </View>
         </Animated.View>
       </View>
-
-      {/* Floating Bottom View Bag Bar */}
-      {itemCount > 0 && (
-        <View style={[styles.floatingCartBar, { bottom: Math.max(insets.bottom, 12) + 8 }]}>
-          <TouchableOpacity
-            style={styles.floatingCartBtn}
-            onPress={() => router.push('/cart')}
-            activeOpacity={0.9}
-          >
-            <View style={styles.floatingCartLeft}>
-              <View style={styles.floatingCartIconCircle}>
-                <Ionicons name="bag-handle" size={16} color={colors.navy} />
-              </View>
-              <Text style={styles.floatingCartCountText}>
-                {itemCount} item{itemCount > 1 ? 's' : ''} in Bag
-              </Text>
-            </View>
-
-            <View style={styles.floatingCartRight}>
-              <Text style={styles.floatingCartPriceText}>
-                {formatPrice(subtotalETB)}
-              </Text>
-              <View style={styles.floatingCartArrowCircle}>
-                <Ionicons name="arrow-forward" size={13} color={colors.navy} />
-              </View>
-            </View>
-          </TouchableOpacity>
-        </View>
-      )}
     </View>
   );
 }
@@ -541,40 +503,36 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginHorizontal: 16,
-    height: 46,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 23,
-    paddingHorizontal: 6,
-    borderWidth: 1.2,
-    borderColor: 'rgba(198, 148, 10, 0.28)',
-    shadowColor: colors.charcoal,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 5,
-    elevation: 2,
+    height: 48,
+    backgroundColor: colors.card,
+    borderRadius: radius.md,
+    paddingHorizontal: 8,
+    borderWidth: 1,
+    borderColor: colors.border,
+    ...shadow.card,
   },
   searchBarPodFocused: {
-    borderColor: colors.gold,
-    backgroundColor: '#FFFFFF',
-    shadowOpacity: 0.1,
+    borderColor: colors.navy,
+    backgroundColor: colors.card,
+    borderWidth: 1.5,
   },
   searchIconCircle: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: 'rgba(198, 148, 10, 0.12)',
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 8,
   },
   searchIconCircleFocused: {
-    backgroundColor: colors.gold,
+    backgroundColor: colors.navySoft,
   },
   searchInput: {
     flex: 1,
-    fontSize: 13.5,
+    fontSize: 14,
     fontFamily: fonts.body,
-    color: colors.charcoal,
+    color: colors.textPrimary,
     height: '100%',
     paddingVertical: 0,
   },
@@ -582,17 +540,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 6,
   },
   countBadgePill: {
-    backgroundColor: 'rgba(23, 25, 28, 0.05)',
+    backgroundColor: colors.navySoft,
     paddingHorizontal: 9,
     paddingVertical: 3,
-    borderRadius: 12,
+    borderRadius: radius.xs,
     marginRight: 4,
   },
   countBadgeText: {
     fontSize: 11,
-    fontFamily: fonts.body,
-    fontWeight: '700',
-    color: colors.charcoalSub,
+    fontFamily: fonts.bodyBold,
+    color: colors.navy,
   },
 
   // Category Filter Pills
@@ -607,9 +564,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 7,
     borderRadius: radius.pill,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.card,
     borderWidth: 1,
-    borderColor: 'rgba(23, 25, 28, 0.09)',
+    borderColor: colors.border,
     marginRight: 6,
   },
   categoryPillActive: {
@@ -620,7 +577,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontFamily: fonts.body,
     fontWeight: '600',
-    color: colors.charcoal,
+    color: colors.textSecondary,
   },
   categoryPillLabelActive: {
     color: '#FFFFFF',
@@ -629,19 +586,20 @@ const styles = StyleSheet.create({
   // Announcement / Story Banner
   announcementBanner: {
     flexDirection: 'row',
-    backgroundColor: colors.ivory,
-    borderRadius: radius.lg,
+    backgroundColor: colors.navySoft,
+    borderRadius: radius.md,
     padding: 14,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: 'rgba(198, 148, 10, 0.3)',
+    borderColor: colors.border,
     alignItems: 'center',
+    ...shadow.card,
   },
   announcementIconBox: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(198, 148, 10, 0.15)',
+    width: 36,
+    height: 36,
+    borderRadius: radius.sm,
+    backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
@@ -651,15 +609,14 @@ const styles = StyleSheet.create({
   },
   announcementTitle: {
     fontSize: 13,
-    fontFamily: fonts.body,
-    fontWeight: '700',
+    fontFamily: fonts.bodyBold,
     color: colors.navy,
     marginBottom: 2,
   },
   announcementSub: {
-    fontSize: 11.5,
+    fontSize: 12,
     fontFamily: fonts.body,
-    color: colors.charcoalSub,
+    color: colors.textSecondary,
     lineHeight: 16,
   },
 
@@ -668,22 +625,18 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   card: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: radius.xl,
+    backgroundColor: colors.card,
+    borderRadius: radius.lg,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: 'rgba(23, 25, 28, 0.06)',
-    shadowColor: colors.charcoal,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.07,
-    shadowRadius: 10,
-    elevation: 3,
+    borderColor: colors.border,
+    ...shadow.card,
   },
   imageWrap: {
     position: 'relative',
     width: '100%',
     height: 200,
-    backgroundColor: '#EBEBEB',
+    backgroundColor: colors.surfaceWarm,
   },
   cardImage: {
     width: '100%',
@@ -694,26 +647,21 @@ const styles = StyleSheet.create({
     top: 12,
     left: 12,
     backgroundColor: colors.navy,
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-    borderRadius: 14,
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 3,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: radius.xs,
+    borderWidth: 1,
+    borderColor: 'rgba(223, 183, 108, 0.4)',
   },
   priceBadgeText: {
-    fontSize: 13,
-    fontFamily: fonts.body,
-    fontWeight: '800',
+    fontSize: 12,
+    fontFamily: fonts.bodyBold,
     color: colors.gold,
     letterSpacing: 0.3,
   },
   priceBadgeSubText: {
-    fontSize: 10,
-    fontFamily: fonts.body,
-    fontWeight: '600',
+    fontSize: 9,
+    fontFamily: fonts.bodySemiBold,
     color: 'rgba(255, 255, 255, 0.75)',
     marginTop: 1,
   },
@@ -726,15 +674,16 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 12,
     left: 12,
-    backgroundColor: 'rgba(11, 27, 61, 0.85)',
-    paddingHorizontal: 10,
+    backgroundColor: 'rgba(7, 21, 43, 0.85)',
+    paddingHorizontal: 9,
     paddingVertical: 4,
-    borderRadius: 8,
+    borderRadius: radius.xs,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
   },
   categoryPillText: {
     fontSize: 10,
-    fontFamily: fonts.body,
-    fontWeight: '700',
+    fontFamily: fonts.bodyBold,
     color: '#FFFFFF',
     letterSpacing: 0.6,
   },
@@ -747,7 +696,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 8,
     paddingVertical: 4,
-    borderRadius: 8,
+    borderRadius: radius.xs,
   },
   stockDot: {
     width: 6,
@@ -758,8 +707,7 @@ const styles = StyleSheet.create({
   },
   stockText: {
     fontSize: 9.5,
-    fontFamily: fonts.body,
-    fontWeight: '700',
+    fontFamily: fonts.bodyBold,
     color: colors.charcoal,
     letterSpacing: 0.4,
   },
@@ -767,15 +715,17 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 12,
     right: 12,
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: 'rgba(11, 27, 61, 0.65)',
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: 'rgba(7, 21, 43, 0.82)',
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
   },
   floatingBookmarkActive: {
-    backgroundColor: 'rgba(11, 27, 61, 0.92)',
+    backgroundColor: colors.navy,
   },
 
   // Card Body
@@ -795,10 +745,9 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   sellerNameText: {
-    fontSize: 11.5,
-    fontFamily: fonts.body,
-    fontWeight: '700',
-    color: colors.navy,
+    fontSize: 12,
+    fontFamily: fonts.bodyBold,
+    color: colors.textPrimary,
   },
   locationWrap: {
     flexDirection: 'row',
@@ -807,38 +756,39 @@ const styles = StyleSheet.create({
   locationText: {
     fontSize: 11,
     fontFamily: fonts.body,
-    color: colors.charcoalSub,
+    color: colors.textSecondary,
   },
   productTitle: {
     fontSize: 16,
     fontFamily: fonts.heading,
     fontWeight: '700',
-    color: colors.charcoal,
+    color: colors.textPrimary,
     lineHeight: 22,
     marginBottom: 6,
   },
   productBlurb: {
-    fontSize: 12.5,
+    fontSize: 12,
     fontFamily: fonts.body,
-    color: colors.charcoalSub,
+    color: colors.textSecondary,
     lineHeight: 18,
     marginBottom: 10,
   },
   materialsRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(198, 148, 10, 0.08)',
+    backgroundColor: colors.surfaceWarm,
     paddingHorizontal: 9,
     paddingVertical: 5,
-    borderRadius: 8,
+    borderRadius: radius.xs,
     marginBottom: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   materialsText: {
     flex: 1,
     fontSize: 11,
-    fontFamily: fonts.body,
-    color: colors.charcoal,
-    fontWeight: '500',
+    fontFamily: fonts.bodyMedium,
+    color: colors.textPrimary,
   },
   cardFooter: {
     flexDirection: 'row',
@@ -846,7 +796,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingTop: 10,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(23, 25, 28, 0.05)',
+    borderTopColor: colors.border,
   },
   ratingRow: {
     flexDirection: 'row',
@@ -854,56 +804,54 @@ const styles = StyleSheet.create({
   },
   authenticityBadgeText: {
     fontSize: 11,
-    fontFamily: fonts.body,
-    fontWeight: '600',
-    color: colors.gold,
+    fontFamily: fonts.bodySemiBold,
+    color: colors.goldRich,
     marginLeft: 4,
   },
   viewDetailBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(11, 27, 61, 0.06)',
+    backgroundColor: colors.navy,
     paddingHorizontal: 12,
     paddingVertical: 6,
-    borderRadius: 14,
+    borderRadius: radius.xs,
   },
   viewDetailBtnText: {
-    fontSize: 11.5,
-    fontFamily: fonts.body,
-    fontWeight: '700',
-    color: colors.navy,
+    fontSize: 11,
+    fontFamily: fonts.bodyBold,
+    color: '#FFFFFF',
   },
 
   // Empty State
   emptyCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: radius.xl,
+    backgroundColor: colors.card,
+    borderRadius: radius.lg,
     padding: 30,
     alignItems: 'center',
     marginTop: 20,
     borderWidth: 1,
-    borderColor: 'rgba(23, 25, 28, 0.06)',
+    borderColor: colors.border,
+    ...shadow.card,
   },
   emptyIconCircle: {
     width: 64,
     height: 64,
     borderRadius: 32,
-    backgroundColor: 'rgba(198, 148, 10, 0.12)',
+    backgroundColor: colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 14,
   },
   emptyTitle: {
-    fontSize: 16,
+    fontSize: 18,
     fontFamily: fonts.heading,
-    fontWeight: '700',
-    color: colors.charcoal,
+    color: colors.textPrimary,
     marginBottom: 6,
   },
   emptyText: {
     fontSize: 13,
     fontFamily: fonts.body,
-    color: colors.charcoalSub,
+    color: colors.textSecondary,
     textAlign: 'center',
     lineHeight: 18,
     marginBottom: 16,
@@ -911,72 +859,63 @@ const styles = StyleSheet.create({
   resetFilterBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.ivory,
-    borderWidth: 1,
-    borderColor: colors.gold,
-    paddingHorizontal: 16,
-    paddingVertical: 9,
-    borderRadius: radius.pill,
+    backgroundColor: colors.navy,
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    borderRadius: radius.md,
   },
   resetFilterText: {
-    fontSize: 12.5,
-    fontFamily: fonts.body,
-    fontWeight: '700',
-    color: colors.navy,
+    fontSize: 13,
+    fontFamily: fonts.bodyBold,
+    color: '#FFFFFF',
   },
 
   // Cart Header Button & Badge
   headerCartBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
-    borderWidth: 1,
-    borderColor: 'rgba(223, 183, 108, 0.3)',
   },
   headerCartBadge: {
     position: 'absolute',
-    top: -3,
-    right: -3,
-    backgroundColor: colors.gold,
-    borderRadius: 9,
-    minWidth: 17,
-    height: 17,
+    top: -2,
+    right: -2,
+    backgroundColor: colors.error,
+    borderRadius: 8,
+    minWidth: 16,
+    height: 16,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 3,
     borderWidth: 1.5,
-    borderColor: colors.navy,
+    borderColor: '#FFFFFF',
   },
   headerCartBadgeText: {
     fontSize: 9,
     fontWeight: '800',
-    color: colors.navy,
+    color: '#FFFFFF',
   },
 
   // Floating Bottom View Bag Bar
   floatingCartBar: {
     position: 'absolute',
-    left: 14,
-    right: 14,
+    left: 16,
+    right: 16,
     zIndex: 999,
   },
   floatingCartBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: colors.gold,
-    borderRadius: radius.pill,
+    backgroundColor: colors.navy,
+    borderRadius: radius.md,
     paddingVertical: 12,
     paddingHorizontal: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.22,
-    shadowRadius: 10,
-    elevation: 8,
+    ...shadow.button,
   },
   floatingCartLeft: {
     flexDirection: 'row',
@@ -986,33 +925,31 @@ const styles = StyleSheet.create({
     width: 30,
     height: 30,
     borderRadius: 15,
-    backgroundColor: 'rgba(7, 21, 43, 0.12)',
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 8,
   },
   floatingCartCountText: {
     fontSize: 13,
-    fontFamily: fonts.body,
-    fontWeight: '700',
-    color: colors.navy,
+    fontFamily: fonts.bodyBold,
+    color: '#FFFFFF',
   },
   floatingCartRight: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   floatingCartPriceText: {
-    fontSize: 13.5,
-    fontFamily: fonts.body,
-    fontWeight: '800',
-    color: colors.navy,
+    fontSize: 13,
+    fontFamily: fonts.bodyBold,
+    color: '#FFFFFF',
     marginRight: 6,
   },
   floatingCartArrowCircle: {
     width: 22,
     height: 22,
     borderRadius: 11,
-    backgroundColor: 'rgba(7, 21, 43, 0.12)',
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
     alignItems: 'center',
     justifyContent: 'center',
   },
