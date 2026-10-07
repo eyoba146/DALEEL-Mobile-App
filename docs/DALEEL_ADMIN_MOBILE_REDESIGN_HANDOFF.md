@@ -188,7 +188,8 @@ colors = {
 - `Button`: Adapted with shared luxury styles, loading state, and variant matrix.
 - `Input`: Shared floating label input pattern with inline error alerts.
 - `Card`: Shared subtle border `#E4E9F0` with elevated surface.
-- `ScreenHeader`: Deep Navy header variant matching customer app's headers with back button and badge pills.
+- `ScreenHeader`: Deep Navy header variant matching customer app's headers with back button, brand overline, and badge pills.
+- `Login`: Re-architected to match client app's hero canvas, compass pod, DM Serif Display title, and flush form layout.
 - `Tokens`: Exact customer color palette, typography font families (`DMSerifDisplay_400Regular`, `Inter`), spacing rhythm, and border radii.
 
 ---
@@ -198,6 +199,7 @@ colors = {
   `mklink /J "admin-app\node_modules" "client\node_modules"`
 - Reuses all 800+ installed packages directly from `client/node_modules`.
 - Both apps share the exact same version of Expo (57.0.22), React Native (0.86.3), Expo Router (57.0.21), and React (19.1.0).
+- Installed `expo-camera@~57.0.6` in `client/node_modules` for live RSVP gate pass QR code scanning at summits and events.
 - Git repository remains clean and lightweight: `admin-app/node_modules/` is excluded via `.gitignore`.
 
 ---
@@ -209,9 +211,11 @@ colors = {
 
 ## 13. Verification Summary
 1. **Directory Junction**: Successfully linked and verified; TypeScript compiler executes directly inside `admin-app`.
-2. **TypeScript Type Check**: `npx tsc --noEmit` in `admin-app/` passes with exit code 0 and 0 errors.
-3. **Customer App Type Check**: `npx tsc --noEmit` in `client/` passes with exit code 0 and 0 errors.
-4. **Backend Contract Alignment**: All REST endpoints in `admin-app/lib/api.ts` match the active Express server in `server/src/routes/admin.ts`.
+2. **Camera QR Code Scanner**: `expo-camera` CameraView with `qr` barcode scanning, golden corner reticles, and flashlight toggle added to `admin-app/app/event/scanner.tsx`.
+3. **Login & Header Consistency**: ScreenHeader and Login screen updated to strictly match the customer mobile app's luxury design system.
+4. **TypeScript Type Check**: `npx tsc --noEmit` in `admin-app/` passes with exit code 0 and 0 errors.
+5. **Customer App Type Check**: `npx tsc --noEmit` in `client/` passes with exit code 0 and 0 errors.
+6. **Backend Contract Alignment**: All REST endpoints in `admin-app/lib/api.ts` match the active Express server in `server/src/routes/admin.ts`.
 
 ---
 

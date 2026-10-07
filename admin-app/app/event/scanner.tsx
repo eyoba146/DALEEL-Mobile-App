@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   StyleSheet,
   Text,
@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { CameraView, useCameraPermissions } from 'expo-camera';
 import { ScreenHeader } from '../../components/ScreenHeader';
 import { Card } from '../../components/Card';
 import { Button } from '../../components/Button';
@@ -26,6 +27,7 @@ export default function EventScannerScreen() {
   const router = useRouter();
   const { showToast } = useToast();
 
+  const [permission, requestPermission] = useCameraPermissions();
   const [events, setEvents] = useState<any[]>([]);
   const [selectedEventId, setSelectedEventId] = useState<string>(paramEventId || '');
   const [loading, setLoading] = useState(true);
@@ -33,6 +35,12 @@ export default function EventScannerScreen() {
   const [codeQuery, setCodeQuery] = useState('');
   const [attendeeFilter, setAttendeeFilter] = useState<'all' | 'checked_in' | 'pending'>('all');
   const [searchAttendee, setSearchAttendee] = useState('');
+
+  // Scanner UI States
+  const [scanMode, setScanMode] = useState<'camera' | 'manual'>('camera');
+  const [cameraScanned, setCameraScanned] = useState(false);
+  const [torchEnabled, setTorchEnabled] = useState(false);
+  const lastScannedTimeRef = useRef<number>(0);
 
   // Attendance data
   const [eventData, setEventData] = useState<any>(null);
@@ -82,15 +90,32 @@ export default function EventScannerScreen() {
       setAttendees(res.attendees || []);
     } catch (err: any) {
       console.log('Failed to load attendance:', err);
-      // Fallback empty metrics
       setMetrics(null);
       setAttendees([]);
     }
   };
 
-  const handleVerifyCode = async () => {
-    const trimmed = codeQuery.trim().toUpperCase();
-    if (!trimmed) {
+  const verifyPassCode = async (rawCode: string) => {
+    let cleanCode = rawCode.trim();
+
+    // Check if the QR code is JSON or URL encoded
+    if (cleanCode.startsWith('{') && cleanCode.endsWith('}')) {
+      try {
+        const parsed = JSON.parse(cleanCode);
+        if (parsed.code || parsed.passCode || parsed.id) {
+          cleanCode = String(parsed.code || parsed.passCode || parsed.id).trim();
+        }
+      } catch {}
+    } else if (cleanCode.includes('code=')) {
+      const match = cleanCode.match(/code=([^&]+)/);
+      if (match && match[1]) {
+        cleanCode = decodeURIComponent(match[1]).trim();
+      }
+    }
+
+    cleanCode = cleanCode.toUpperCase();
+
+    if (!cleanCode) {
       showToast('Please enter an RSVP or Passcode', 'error');
       return;
     }
@@ -98,7 +123,7 @@ export default function EventScannerScreen() {
     try {
       setSubmittingCode(true);
       setLastResult(null);
-      const res = await adminApi.checkInEventPass(trimmed, selectedEventId || undefined);
+      const res = await adminApi.checkInEventPass(cleanCode, selectedEventId || undefined);
 
       setLastResult({
         status: 'success',
@@ -106,7 +131,7 @@ export default function EventScannerScreen() {
         message: res.message || 'Attendee granted entry successfully.',
         guestName: res.rsvp?.fullName || 'Verified Guest',
         tickets: res.rsvp?.ticketsCount || 1,
-        passCode: res.rsvp?.passCode || trimmed,
+        passCode: res.rsvp?.passCode || cleanCode,
       });
 
       setCodeQuery('');
@@ -122,12 +147,22 @@ export default function EventScannerScreen() {
         message: err.message || 'Ticket could not be validated.',
         guestName: err.rsvp?.fullName,
         tickets: err.rsvp?.ticketsCount,
-        passCode: trimmed,
+        passCode: cleanCode,
       });
       showToast(err.message || 'Pass verification failed', 'error');
     } finally {
       setSubmittingCode(false);
     }
+  };
+
+  const handleBarcodeScanned = ({ data }: { data: string }) => {
+    const now = Date.now();
+    // Throttle duplicate scans within 2 seconds
+    if (now - lastScannedTimeRef.current < 2000) return;
+    lastScannedTimeRef.current = now;
+
+    setCameraScanned(true);
+    verifyPassCode(data);
   };
 
   const handleUndo = async (rsvpId: string, guestName: string) => {
@@ -182,7 +217,6 @@ export default function EventScannerScreen() {
         title="Gate Pass Check-In"
         subtitle={eventData?.title || 'Summit Verification Desk'}
         showBack
-        variant="navy"
         badge="GATE DESK"
       />
 
@@ -249,40 +283,180 @@ export default function EventScannerScreen() {
           </View>
         )}
 
-        {/* Verification Card & Passcode Input */}
-        <Card style={styles.verifyCard}>
-          <Text style={styles.verifyCardTitle}>PASSCODE & TICKET SCANNER</Text>
-          <Text style={styles.verifyCardSub}>
-            Type or paste the attendee's 8-character passcode (e.g. DL-EVT-4819)
-          </Text>
-
-          <View style={styles.inputRow}>
-            <TextInput
-              style={styles.passInput}
-              value={codeQuery}
-              onChangeText={setCodeQuery}
-              placeholder="e.g. DL-EVT-XXXX"
-              placeholderTextColor={colors.textTertiary}
-              autoCapitalize="characters"
-              autoCorrect={false}
-              returnKeyType="done"
-              onSubmitEditing={handleVerifyCode}
+        {/* Mode Switcher: Camera QR Scanner vs Manual Code Entry */}
+        <View style={styles.modeTabs}>
+          <TouchableOpacity
+            style={[styles.modeTabBtn, scanMode === 'camera' && styles.modeTabBtnActive]}
+            onPress={() => {
+              setScanMode('camera');
+              setCameraScanned(false);
+            }}
+            activeOpacity={0.8}
+          >
+            <Ionicons
+              name="camera"
+              size={18}
+              color={scanMode === 'camera' ? colors.gold : colors.textSecondary}
             />
-            <TouchableOpacity
-              style={styles.verifyBtn}
-              onPress={handleVerifyCode}
-              disabled={submittingCode}
-              activeOpacity={0.8}
+            <Text
+              style={[
+                styles.modeTabBtnText,
+                scanMode === 'camera' && styles.modeTabBtnTextActive,
+              ]}
             >
-              {submittingCode ? (
-                <ActivityIndicator size="small" color="#FFFFFF" />
-              ) : (
-                <Ionicons name="checkmark-circle" size={20} color="#FFFFFF" />
-              )}
-              <Text style={styles.verifyBtnText}>Check In</Text>
-            </TouchableOpacity>
-          </View>
-        </Card>
+              Camera QR Scanner
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.modeTabBtn, scanMode === 'manual' && styles.modeTabBtnActive]}
+            onPress={() => setScanMode('manual')}
+            activeOpacity={0.8}
+          >
+            <Ionicons
+              name="keypad-outline"
+              size={18}
+              color={scanMode === 'manual' ? colors.gold : colors.textSecondary}
+            />
+            <Text
+              style={[
+                styles.modeTabBtnText,
+                scanMode === 'manual' && styles.modeTabBtnTextActive,
+              ]}
+            >
+              Manual Code
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* CAMERA SCANNER VIEW */}
+        {scanMode === 'camera' && (
+          <Card style={styles.cameraContainerCard}>
+            {!permission ? (
+              <View style={styles.cameraPermissionBox}>
+                <ActivityIndicator size="small" color={colors.gold} />
+                <Text style={styles.permissionText}>Checking camera access...</Text>
+              </View>
+            ) : !permission.granted ? (
+              <View style={styles.cameraPermissionBox}>
+                <View style={styles.cameraIconCircle}>
+                  <Ionicons name="camera-reverse-outline" size={32} color={colors.gold} />
+                </View>
+                <Text style={styles.permissionTitle}>Camera Permission Required</Text>
+                <Text style={styles.permissionSub}>
+                  DALEEL requires camera access to scan attendee RSVP QR codes at the gate.
+                </Text>
+                <Button
+                  label="Enable Camera Access"
+                  onPress={requestPermission}
+                  variant="gold"
+                  style={styles.grantBtn}
+                />
+              </View>
+            ) : (
+              <View style={styles.cameraViewportWrap}>
+                <CameraView
+                  style={styles.cameraView}
+                  facing="back"
+                  enableTorch={torchEnabled}
+                  barcodeScannerSettings={{
+                    barcodeTypes: ['qr'],
+                  }}
+                  onBarcodeScanned={cameraScanned ? undefined : handleBarcodeScanned}
+                >
+                  {/* Viewfinder Target Graphic */}
+                  <View style={styles.cameraOverlay}>
+                    <View style={styles.targetFrame}>
+                      {/* 4 Golden Corner Reticles */}
+                      <View style={[styles.cornerReticle, styles.cornerTL]} />
+                      <View style={[styles.cornerReticle, styles.cornerTR]} />
+                      <View style={[styles.cornerReticle, styles.cornerBL]} />
+                      <View style={[styles.cornerReticle, styles.cornerBR]} />
+
+                      {cameraScanned ? (
+                        <View style={styles.scannedSuccessBadge}>
+                          <Ionicons name="checkmark-circle" size={48} color={colors.gold} />
+                          <Text style={styles.scannedBadgeText}>QR Code Read</Text>
+                        </View>
+                      ) : (
+                        <View style={styles.laserScanLine} />
+                      )}
+                    </View>
+                    <Text style={styles.cameraHint}>
+                      Align attendee's DALEEL RSVP QR code inside the frame
+                    </Text>
+                  </View>
+                </CameraView>
+
+                {/* Camera Control Strip */}
+                <View style={styles.cameraControlBar}>
+                  <TouchableOpacity
+                    style={styles.controlIconBtn}
+                    onPress={() => setTorchEnabled(!torchEnabled)}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons
+                      name={torchEnabled ? 'flash' : 'flash-outline'}
+                      size={20}
+                      color={torchEnabled ? colors.gold : '#FFFFFF'}
+                    />
+                    <Text style={styles.controlBtnLabel}>
+                      {torchEnabled ? 'Flash ON' : 'Flash OFF'}
+                    </Text>
+                  </TouchableOpacity>
+
+                  {cameraScanned && (
+                    <TouchableOpacity
+                      style={styles.resumeScanBtn}
+                      onPress={() => setCameraScanned(false)}
+                      activeOpacity={0.8}
+                    >
+                      <Ionicons name="scan" size={16} color={colors.navy} />
+                      <Text style={styles.resumeScanText}>Scan Next Pass</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              </View>
+            )}
+          </Card>
+        )}
+
+        {/* MANUAL PASSCODE ENTRY VIEW */}
+        {scanMode === 'manual' && (
+          <Card style={styles.verifyCard}>
+            <Text style={styles.verifyCardTitle}>MANUAL PASSCODE ENTRY</Text>
+            <Text style={styles.verifyCardSub}>
+              Type or paste the attendee's 8-character passcode (e.g. DL-EVT-4819)
+            </Text>
+
+            <View style={styles.inputRow}>
+              <TextInput
+                style={styles.passInput}
+                value={codeQuery}
+                onChangeText={setCodeQuery}
+                placeholder="e.g. DL-EVT-XXXX"
+                placeholderTextColor={colors.textTertiary}
+                autoCapitalize="characters"
+                autoCorrect={false}
+                returnKeyType="done"
+                onSubmitEditing={() => verifyPassCode(codeQuery)}
+              />
+              <TouchableOpacity
+                style={styles.verifyBtn}
+                onPress={() => verifyPassCode(codeQuery)}
+                disabled={submittingCode}
+                activeOpacity={0.8}
+              >
+                {submittingCode ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <Ionicons name="checkmark-circle" size={20} color="#FFFFFF" />
+                )}
+                <Text style={styles.verifyBtnText}>Check In</Text>
+              </TouchableOpacity>
+            </View>
+          </Card>
+        )}
 
         {/* Scan Result Callout */}
         {lastResult && (
@@ -322,6 +496,17 @@ export default function EventScannerScreen() {
                 </Text>
               )}
             </View>
+            {cameraScanned && (
+              <TouchableOpacity
+                style={styles.nextPassBtn}
+                onPress={() => {
+                  setCameraScanned(false);
+                  setLastResult(null);
+                }}
+              >
+                <Text style={styles.nextPassText}>Next</Text>
+              </TouchableOpacity>
+            )}
           </View>
         )}
 
@@ -429,10 +614,7 @@ export default function EventScannerScreen() {
                     ) : (
                       <TouchableOpacity
                         style={styles.quickAdmitBtn}
-                        onPress={() => {
-                          setCodeQuery(att.passCode);
-                          handleVerifyCode();
-                        }}
+                        onPress={() => verifyPassCode(att.passCode)}
                         activeOpacity={0.7}
                       >
                         <Ionicons name="checkmark" size={14} color="#FFFFFF" />
@@ -467,7 +649,7 @@ const styles = StyleSheet.create({
   },
   pickerLabel: {
     ...type.tiny,
-    fontFamily: fonts.sansBold,
+    fontFamily: fonts.bodyBold,
     color: colors.textTertiary,
     letterSpacing: 1,
     marginBottom: 6,
@@ -479,7 +661,7 @@ const styles = StyleSheet.create({
   eventPill: {
     paddingHorizontal: 14,
     paddingVertical: 8,
-    borderRadius: radius.full,
+    borderRadius: radius.pill,
     backgroundColor: colors.card,
     borderWidth: 1,
     borderColor: colors.border,
@@ -491,11 +673,11 @@ const styles = StyleSheet.create({
   eventPillText: {
     ...type.caption,
     color: colors.textSecondary,
-    fontFamily: fonts.sansMedium,
+    fontFamily: fonts.bodyMedium,
   },
   eventPillTextSelected: {
     color: '#FFFFFF',
-    fontFamily: fonts.sansBold,
+    fontFamily: fonts.bodyBold,
   },
   metricsRow: {
     flexDirection: 'row',
@@ -510,7 +692,7 @@ const styles = StyleSheet.create({
   },
   metricNumber: {
     ...type.h2,
-    fontFamily: fonts.sansBold,
+    fontFamily: fonts.bodyBold,
     color: colors.textPrimary,
   },
   metricLabel: {
@@ -519,6 +701,200 @@ const styles = StyleSheet.create({
     marginTop: 2,
     textAlign: 'center',
   },
+
+  // Mode Switcher Tabs
+  modeTabs: {
+    flexDirection: 'row',
+    backgroundColor: colors.card,
+    borderRadius: radius.md,
+    padding: 4,
+    borderWidth: 1,
+    borderColor: colors.border,
+    marginBottom: 14,
+    gap: 4,
+  },
+  modeTabBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    borderRadius: radius.sm,
+    gap: 8,
+  },
+  modeTabBtnActive: {
+    backgroundColor: colors.navy,
+  },
+  modeTabBtnText: {
+    ...type.caption,
+    fontFamily: fonts.bodySemiBold,
+    color: colors.textSecondary,
+  },
+  modeTabBtnTextActive: {
+    color: '#FFFFFF',
+    fontFamily: fonts.bodyBold,
+  },
+
+  // Camera Container Card
+  cameraContainerCard: {
+    padding: 0,
+    overflow: 'hidden',
+    marginBottom: 16,
+    backgroundColor: '#000000',
+    borderRadius: radius.lg,
+    borderWidth: 1.5,
+    borderColor: 'rgba(223, 183, 108, 0.4)',
+  },
+  cameraPermissionBox: {
+    padding: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.card,
+  },
+  cameraIconCircle: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: 'rgba(223, 183, 108, 0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 14,
+  },
+  permissionTitle: {
+    ...type.h3,
+    color: colors.textPrimary,
+    marginBottom: 6,
+  },
+  permissionSub: {
+    ...type.caption,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    marginBottom: 18,
+    maxWidth: 280,
+  },
+  permissionText: {
+    ...type.caption,
+    color: colors.textSecondary,
+    marginTop: 8,
+  },
+  grantBtn: {
+    minWidth: 200,
+  },
+  cameraViewportWrap: {
+    height: 280,
+    position: 'relative',
+  },
+  cameraView: {
+    flex: 1,
+  },
+  cameraOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.35)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  targetFrame: {
+    width: 190,
+    height: 190,
+    position: 'relative',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cornerReticle: {
+    position: 'absolute',
+    width: 24,
+    height: 24,
+    borderColor: colors.gold,
+  },
+  cornerTL: {
+    top: 0,
+    left: 0,
+    borderTopWidth: 3.5,
+    borderLeftWidth: 3.5,
+    borderTopLeftRadius: 8,
+  },
+  cornerTR: {
+    top: 0,
+    right: 0,
+    borderTopWidth: 3.5,
+    borderRightWidth: 3.5,
+    borderTopRightRadius: 8,
+  },
+  cornerBL: {
+    bottom: 0,
+    left: 0,
+    borderBottomWidth: 3.5,
+    borderLeftWidth: 3.5,
+    borderBottomLeftRadius: 8,
+  },
+  cornerBR: {
+    bottom: 0,
+    right: 0,
+    borderBottomWidth: 3.5,
+    borderRightWidth: 3.5,
+    borderBottomRightRadius: 8,
+  },
+  laserScanLine: {
+    width: '80%',
+    height: 2,
+    backgroundColor: 'rgba(223, 183, 108, 0.75)',
+  },
+  scannedSuccessBadge: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+  },
+  scannedBadgeText: {
+    ...type.caption,
+    fontFamily: fonts.bodyBold,
+    color: '#FFFFFF',
+  },
+  cameraHint: {
+    ...type.tiny,
+    color: 'rgba(255, 255, 255, 0.85)',
+    marginTop: 14,
+    textAlign: 'center',
+    fontFamily: fonts.bodyMedium,
+  },
+  cameraControlBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    backgroundColor: colors.navyDeep,
+  },
+  controlIconBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 4,
+  },
+  controlBtnLabel: {
+    ...type.tiny,
+    color: 'rgba(255, 255, 255, 0.85)',
+    fontFamily: fonts.bodyMedium,
+  },
+  resumeScanBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: colors.gold,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: radius.pill,
+  },
+  resumeScanText: {
+    ...type.tiny,
+    fontFamily: fonts.bodyBold,
+    color: colors.navy,
+  },
+
+  // Manual Verify Card
   verifyCard: {
     padding: 16,
     marginBottom: 16,
@@ -528,7 +904,7 @@ const styles = StyleSheet.create({
   },
   verifyCardTitle: {
     ...type.caption,
-    fontFamily: fonts.sansBold,
+    fontFamily: fonts.bodyBold,
     color: colors.goldText,
     letterSpacing: 1,
   },
@@ -551,7 +927,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     paddingHorizontal: 14,
     fontSize: 16,
-    fontFamily: fonts.sansBold,
+    fontFamily: fonts.bodyBold,
     color: colors.textPrimary,
     letterSpacing: 1,
   },
@@ -566,9 +942,11 @@ const styles = StyleSheet.create({
   },
   verifyBtnText: {
     ...type.body,
-    fontFamily: fonts.sansBold,
+    fontFamily: fonts.bodyBold,
     color: '#FFFFFF',
   },
+
+  // Result Banner
   resultBanner: {
     flexDirection: 'row',
     padding: 14,
@@ -601,7 +979,7 @@ const styles = StyleSheet.create({
   },
   resultTitle: {
     ...type.body,
-    fontFamily: fonts.sansBold,
+    fontFamily: fonts.bodyBold,
     color: colors.textPrimary,
   },
   resultMsg: {
@@ -611,17 +989,30 @@ const styles = StyleSheet.create({
   },
   resultGuest: {
     ...type.caption,
-    fontFamily: fonts.sansSemiBold,
+    fontFamily: fonts.bodySemiBold,
     color: colors.textPrimary,
     marginTop: 4,
   },
+  nextPassBtn: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    backgroundColor: colors.navy,
+    borderRadius: radius.sm,
+  },
+  nextPassText: {
+    ...type.tiny,
+    fontFamily: fonts.bodyBold,
+    color: '#FFFFFF',
+  },
+
+  // Roster
   rosterHeader: {
     marginTop: 6,
     marginBottom: 8,
   },
   sectionHeading: {
     ...type.tiny,
-    fontFamily: fonts.sansBold,
+    fontFamily: fonts.bodyBold,
     color: colors.textTertiary,
     letterSpacing: 1,
     marginLeft: 2,
@@ -645,7 +1036,7 @@ const styles = StyleSheet.create({
     height: 40,
     fontSize: 13,
     color: colors.textPrimary,
-    fontFamily: fonts.sansRegular,
+    fontFamily: fonts.body,
   },
   filterPillsRow: {
     flexDirection: 'row',
@@ -655,7 +1046,7 @@ const styles = StyleSheet.create({
   filterPill: {
     paddingHorizontal: 12,
     paddingVertical: 6,
-    borderRadius: radius.full,
+    borderRadius: radius.pill,
     backgroundColor: colors.card,
     borderWidth: 1,
     borderColor: colors.border,
@@ -666,12 +1057,12 @@ const styles = StyleSheet.create({
   },
   filterPillText: {
     ...type.tiny,
-    fontFamily: fonts.sansMedium,
+    fontFamily: fonts.bodyMedium,
     color: colors.textSecondary,
   },
   filterPillTextActive: {
     color: '#FFFFFF',
-    fontFamily: fonts.sansBold,
+    fontFamily: fonts.bodyBold,
   },
   attendeeCard: {
     padding: 12,
@@ -692,7 +1083,7 @@ const styles = StyleSheet.create({
   },
   attendeeName: {
     ...type.body,
-    fontFamily: fonts.sansSemiBold,
+    fontFamily: fonts.bodySemiBold,
     color: colors.textPrimary,
   },
   statusBadge: {
@@ -709,7 +1100,7 @@ const styles = StyleSheet.create({
   statusBadgeText: {
     ...type.tiny,
     fontSize: 10,
-    fontFamily: fonts.sansBold,
+    fontFamily: fonts.bodyBold,
   },
   statusTextChecked: {
     color: colors.success,
@@ -735,7 +1126,7 @@ const styles = StyleSheet.create({
   },
   passCodeText: {
     ...type.tiny,
-    fontFamily: fonts.sansBold,
+    fontFamily: fonts.bodyBold,
     color: colors.textPrimary,
   },
   ticketCount: {
@@ -759,7 +1150,7 @@ const styles = StyleSheet.create({
   undoBtnText: {
     ...type.tiny,
     color: colors.textSecondary,
-    fontFamily: fonts.sansMedium,
+    fontFamily: fonts.bodyMedium,
   },
   quickAdmitBtn: {
     flexDirection: 'row',
@@ -772,7 +1163,7 @@ const styles = StyleSheet.create({
   },
   quickAdmitText: {
     ...type.tiny,
-    fontFamily: fonts.sansBold,
+    fontFamily: fonts.bodyBold,
     color: colors.navy,
   },
 });
