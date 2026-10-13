@@ -178,8 +178,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   brandLogoImg: {
-    width: 30,
-    height: 30,
+    width: 22,
+    height: 32,
+    aspectRatio: 184 / 286,
   },
   headerLogo: {
     fontFamily: fonts.heading,

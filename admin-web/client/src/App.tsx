@@ -12,7 +12,7 @@ const AppContent: React.FC = () => {
     return (
       <div style={styles.loadingScreen}>
         <div style={styles.logoSpinner}>
-          <img src="/daleel-logo.png" alt="DALEEL" style={styles.logoImg} />
+          <img src="/daleel-logo.png" alt="DALEEL" className="logo-on-dark" style={styles.logoImg} />
         </div>
         <div style={styles.loadingText}>Initializing DALEEL Command Portal...</div>
       </div>
@@ -49,8 +49,8 @@ const styles: { [key: string]: React.CSSProperties } = {
     gap: '16px',
   },
   logoSpinner: {
-    width: '64px',
-    height: '64px',
+    height: '68px',
+    width: 'auto',
     backgroundColor: 'transparent',
     border: 'none',
     boxShadow: 'none',
@@ -60,8 +60,9 @@ const styles: { [key: string]: React.CSSProperties } = {
     animation: 'pulse 1.8s infinite',
   },
   logoImg: {
-    width: '100%',
-    height: '100%',
+    height: '68px',
+    width: 'auto',
+    maxWidth: '48px',
     objectFit: 'contain' as const,
   },
   loadingText: {

@@ -108,7 +108,7 @@ export const LoginView: React.FC = () => {
         <div>
           <div style={styles.heroBrandRow}>
             <div style={styles.crestCircle}>
-              <img src="/daleel-logo.png" alt="DALEEL" style={styles.logoImg} />
+              <img src="/daleel-logo.png" alt="DALEEL" className="logo-on-dark" style={styles.logoImg} />
             </div>
             <div>
               <span style={styles.heroBrandTitle}>DALEEL</span>
@@ -458,8 +458,8 @@ const styles: { [key: string]: React.CSSProperties } = {
     marginBottom: '32px',
   },
   crestCircle: {
-    width: '46px',
-    height: '46px',
+    height: '48px',
+    width: 'auto',
     backgroundColor: 'transparent',
     border: 'none',
     boxShadow: 'none',
@@ -469,8 +469,9 @@ const styles: { [key: string]: React.CSSProperties } = {
     flexShrink: 0,
   },
   logoImg: {
-    width: '100%',
-    height: '100%',
+    height: '48px',
+    width: 'auto',
+    maxWidth: '38px',
     objectFit: 'contain' as const,
   },
   heroBrandTitle: {

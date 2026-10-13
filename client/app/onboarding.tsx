@@ -305,8 +305,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   brandLogoImg: {
-    width: 28,
-    height: 28,
+    width: 20,
+    height: 30,
+    aspectRatio: 184 / 286,
   },
   brandWordmark: {
     fontFamily: fonts.bodyBold,

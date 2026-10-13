@@ -988,6 +988,152 @@ input::placeholder, textarea::placeholder {
   box-shadow: var(--shadow-elevated);
 }
 
+/* Luminous Glowing Contour for Daleel Logo on Dark Surfaces */
+.logo-on-dark {
+  filter: drop-shadow(0 0 1px rgba(255, 255, 255, 0.75)) drop-shadow(0 0 7px rgba(223, 183, 108, 0.45));
+  transition: filter 0.2s ease, transform 0.2s ease;
+}
+.logo-on-dark:hover {
+  filter: drop-shadow(0 0 1.5px rgba(255, 255, 255, 0.9)) drop-shadow(0 0 10px rgba(223, 183, 108, 0.65));
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   HEADER RESPONSIVE RULES & MOBILE DROPDOWNS
+   ═══════════════════════════════════════════════════════════════ */
+.header-container {
+  box-sizing: border-box;
+  width: 100%;
+}
+
+.header-left-group {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  flex: 1;
+}
+
+.header-title-group {
+  min-width: 0;
+  overflow: hidden;
+}
+
+.header-title {
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.header-right-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.lang-dropdown-mobile {
+  display: none;
+}
+
+.lang-mobile-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 9px;
+  background-color: #F8FAFC;
+  border: 1px solid #E2E8F0;
+  border-radius: 9999px;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  user-select: none;
+}
+
+.lang-mobile-btn:hover {
+  background-color: #EEF2F6;
+  border-color: #CBD5E1;
+}
+
+.lang-menu-dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: 200px;
+  background-color: #FFFFFF;
+  border: 1px solid #E2E8F0;
+  border-radius: 12px;
+  box-shadow: 0 10px 28px rgba(7, 21, 43, 0.16), 0 2px 6px rgba(7, 21, 43, 0.06);
+  padding: 6px;
+  z-index: 250;
+  animation: fadeIn 0.16s ease-out;
+}
+
+.lang-menu-header {
+  font-size: 10px;
+  font-weight: 750;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #64748B;
+  padding: 6px 10px 4px 10px;
+  border-bottom: 1px solid #F1F5F9;
+  margin-bottom: 4px;
+}
+
+.lang-menu-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border: none;
+  background: transparent;
+  border-radius: 8px;
+  cursor: pointer;
+  font-family: inherit;
+  text-align: left;
+  transition: background-color 0.15s ease;
+}
+
+.lang-menu-item:hover {
+  background-color: #F8FAFC;
+}
+
+.lang-menu-item.active {
+  background-color: rgba(223, 183, 108, 0.12);
+}
+
+.lang-badge-tag {
+  font-size: 11px;
+  font-weight: 750;
+  color: #07152B;
+  background-color: #F1F5F9;
+  padding: 2px 6px;
+  border-radius: 6px;
+  min-width: 22px;
+  text-align: center;
+}
+
+.lang-menu-item.active .lang-badge-tag {
+  background-color: #07152B;
+  color: #DFB76C;
+}
+
+.lang-name-text {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.lang-native-label {
+  font-size: 12px;
+  font-weight: 650;
+  color: #07152B;
+}
+
+.lang-en-label {
+  font-size: 10px;
+  color: #64748B;
+}
+
 /* Mobile trigger & close buttons (hidden on desktop) */
 .mobile-menu-trigger {
   display: none;
@@ -1125,6 +1271,52 @@ input::placeholder, textarea::placeholder {
 
 /* Breakpoint: Narrow Tablet & Phablet (<= 768px) */
 @media (max-width: 768px) {
+  /* Header Compact Mobile Architecture */
+  .header-container {
+    padding: 0 12px !important;
+    gap: 8px !important;
+  }
+
+  .header-title {
+    font-size: 15px !important;
+  }
+
+  .header-subtitle {
+    display: none !important;
+  }
+
+  .lang-segmented-desktop {
+    display: none !important;
+  }
+
+  .lang-dropdown-mobile {
+    display: inline-block !important;
+  }
+
+  .header-user-pill {
+    padding: 3px !important;
+    background: transparent !important;
+    border-color: transparent !important;
+    box-shadow: none !important;
+  }
+
+  .header-user-meta {
+    display: none !important;
+  }
+
+  .header-security-icon {
+    display: none !important;
+  }
+
+  .header-right-group {
+    gap: 6px !important;
+  }
+
+  .mobile-menu-trigger {
+    margin-right: 8px !important;
+    flex-shrink: 0 !important;
+  }
+
   /* Showcase Rows Reflow to Elegant Cards */
   .showcase-row {
     flex-direction: column !important;

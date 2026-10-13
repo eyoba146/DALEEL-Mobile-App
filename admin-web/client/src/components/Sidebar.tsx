@@ -162,7 +162,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       {/* Brand & Crest Header - Deep Navy Foundation */}
       <div style={styles.brandBox}>
         <div style={styles.brandLogo}>
-          <img src="/daleel-logo.png" alt="DALEEL" style={styles.logoImg} />
+          <img src="/daleel-logo.png" alt="DALEEL" className="logo-on-dark" style={styles.logoImg} />
         </div>
         <div>
           <div style={styles.brandName}>{t('brand.title', 'DALEEL')}</div>
@@ -337,8 +337,8 @@ const styles: { [key: string]: React.CSSProperties } = {
     borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
   },
   brandLogo: {
-    width: '38px',
     height: '38px',
+    width: 'auto',
     backgroundColor: 'transparent',
     border: 'none',
     display: 'flex',
@@ -347,8 +347,9 @@ const styles: { [key: string]: React.CSSProperties } = {
     flexShrink: 0,
   },
   logoImg: {
-    width: '100%',
-    height: '100%',
+    height: '38px',
+    width: 'auto',
+    maxWidth: '30px',
     objectFit: 'contain' as const,
   },
   brandName: {

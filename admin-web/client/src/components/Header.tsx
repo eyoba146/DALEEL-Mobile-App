@@ -1,9 +1,9 @@
-import React from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useAdminAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import type { Language } from '../utils/translations';
 import type { AppModule } from '../context/AuthContext';
-import { CalendarDays, ShieldCheck, Globe, Menu } from 'lucide-react';
+import { CalendarDays, ShieldCheck, Globe, Menu, ChevronDown, Check } from 'lucide-react';
 
 interface HeaderProps {
   currentTab: AppModule;
@@ -68,6 +68,24 @@ const LOCALE_MAP: Record<Language, string> = {
 export const Header: React.FC<HeaderProps> = ({ currentTab, onSelectTab, onToggleSidebar }) => {
   const { adminUser } = useAdminAuth();
   const { language, setLanguage, languages, t } = useLanguage();
+  const [langDropdownOpen, setLangDropdownOpen] = useState(false);
+  const langDropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent | TouchEvent) => {
+      if (langDropdownRef.current && !langDropdownRef.current.contains(e.target as Node)) {
+        setLangDropdownOpen(false);
+      }
+    };
+    if (langDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener('touchstart', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
+    };
+  }, [langDropdownOpen]);
 
   const formattedDate = new Intl.DateTimeFormat(LOCALE_MAP[language] || 'en-US', {
     weekday: 'long',
@@ -81,9 +99,9 @@ export const Header: React.FC<HeaderProps> = ({ currentTab, onSelectTab, onToggl
   const isProfileActive = currentTab === 'profile';
 
   return (
-    <header style={styles.header}>
+    <header className="header-container" style={styles.header}>
       {/* Title & Mobile Menu Trigger */}
-      <div style={styles.leftGroup}>
+      <div className="header-left-group" style={styles.leftGroup}>
         {onToggleSidebar && (
           <button
             type="button"
@@ -95,16 +113,16 @@ export const Header: React.FC<HeaderProps> = ({ currentTab, onSelectTab, onToggl
             <Menu size={19} color="#07152B" />
           </button>
         )}
-        <div style={styles.titleGroup}>
-          <h2 style={styles.title}>{title}</h2>
-          <div style={styles.subtitle}>{subtitle}</div>
+        <div className="header-title-group" style={styles.titleGroup}>
+          <h2 className="header-title" style={styles.title}>{title}</h2>
+          <div className="header-subtitle" style={styles.subtitle}>{subtitle}</div>
         </div>
       </div>
 
       {/* Right User & Date Group */}
-      <div style={styles.rightGroup}>
-        {/* Multilingual Selector Segmented Pills */}
-        <div style={styles.langContainer} role="group" aria-label="Language selection">
+      <div className="header-right-group" style={styles.rightGroup}>
+        {/* Desktop: Multilingual Selector Segmented Pills */}
+        <div className="lang-segmented-desktop" style={styles.langContainer} role="group" aria-label="Language selection">
           <Globe size={13} color="#8C6A21" style={{ marginLeft: '4px', marginRight: '2px' }} />
           {languages.map((lang) => {
             const isActive = language === lang.code;
@@ -126,14 +144,66 @@ export const Header: React.FC<HeaderProps> = ({ currentTab, onSelectTab, onToggl
           })}
         </div>
 
+        {/* Mobile: Compact Dropdown Trigger (< 768px) */}
+        <div className="lang-dropdown-mobile" ref={langDropdownRef} style={{ position: 'relative' }}>
+          <button
+            type="button"
+            className="lang-mobile-btn"
+            onClick={() => setLangDropdownOpen((prev) => !prev)}
+            aria-label="Select language"
+            aria-expanded={langDropdownOpen}
+          >
+            <Globe size={13} color="#8C6A21" />
+            <span style={{ fontWeight: 700, fontSize: '11.5px', color: '#07152B' }}>
+              {languages.find((l) => l.code === language)?.badge || 'EN'}
+            </span>
+            <ChevronDown
+              size={12}
+              color="#64748B"
+              style={{
+                transform: langDropdownOpen ? 'rotate(180deg)' : 'none',
+                transition: 'transform 0.15s ease',
+              }}
+            />
+          </button>
+
+          {langDropdownOpen && (
+            <div className="lang-menu-dropdown">
+              <div className="lang-menu-header">Select Language</div>
+              {languages.map((lang) => {
+                const isActive = language === lang.code;
+                return (
+                  <button
+                    key={lang.code}
+                    type="button"
+                    className={`lang-menu-item ${isActive ? 'active' : ''}`}
+                    onClick={() => {
+                      setLanguage(lang.code);
+                      setLangDropdownOpen(false);
+                    }}
+                  >
+                    <span className="lang-badge-tag">{lang.badge}</span>
+                    <span className="lang-name-text">
+                      <span className="lang-native-label">{lang.nativeName}</span>
+                      <span className="lang-en-label">{lang.name}</span>
+                    </span>
+                    {isActive && <Check size={14} color="#DFB76C" />}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
         {/* Date Display */}
         <div className="header-date-chip" style={styles.dateChip}>
           <CalendarDays size={14} color="#8C6A21" />
           <span style={styles.dateText}>{formattedDate}</span>
         </div>
 
-        {/* User Profile & Security Pill (Navigates directly in-page, NO POPUP) */}
+        {/* User Profile & Security Pill */}
         <div
+          className="header-user-pill"
           style={{
             ...styles.userPill,
             ...(isProfileActive ? styles.userPillActive : {}),
@@ -146,7 +216,7 @@ export const Header: React.FC<HeaderProps> = ({ currentTab, onSelectTab, onToggl
           <div style={styles.userAvatar}>
             {adminUser?.name?.charAt(0).toUpperCase() || 'A'}
           </div>
-          <div style={styles.userMeta}>
+          <div className="header-user-meta" style={styles.userMeta}>
             <span style={styles.userName}>{adminUser?.name}</span>
             <span style={styles.userRole}>
               {adminUser?.adminRole === 'SUPER_ADMIN'
@@ -154,7 +224,7 @@ export const Header: React.FC<HeaderProps> = ({ currentTab, onSelectTab, onToggl
                 : t('role.coordinator', 'Coordinator')}
             </span>
           </div>
-          <div style={styles.securityIcon}>
+          <div className="header-security-icon" style={styles.securityIcon}>
             <ShieldCheck size={16} color={isProfileActive ? '#07152B' : '#8C6A21'} />
           </div>
         </div>
@@ -182,6 +252,8 @@ const styles: { [key: string]: React.CSSProperties } = {
     display: 'flex',
     alignItems: 'center',
     minWidth: 0,
+    flex: 1,
+    gap: '8px',
   },
   titleGroup: {
     minWidth: 0,
