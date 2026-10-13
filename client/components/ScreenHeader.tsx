@@ -87,7 +87,11 @@ export default function ScreenHeader({
             /* Home / Root Header: Brand Badge + DALEEL Logo */
             <View style={styles.headerBrand}>
               <View style={styles.brandIconCircle}>
-                <Ionicons name="compass" size={16} color={colors.navy} />
+                <Image
+                  source={require('../assets/daleel-logo.png')}
+                  style={styles.brandLogoImg}
+                  resizeMode="contain"
+                />
               </View>
               <Text style={styles.headerLogo}>DALEEL</Text>
             </View>
@@ -166,12 +170,15 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   brandIconCircle: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    backgroundColor: colors.gold,
+    width: 32,
+    height: 32,
+    backgroundColor: 'transparent',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  brandLogoImg: {
+    width: 30,
+    height: 30,
   },
   headerLogo: {
     fontFamily: fonts.heading,

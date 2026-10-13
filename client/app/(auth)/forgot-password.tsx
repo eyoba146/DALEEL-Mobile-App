@@ -242,7 +242,7 @@ export default function ForgotPassword() {
           {/* Brand */}
           <View style={styles.brandArea}>
             <View style={styles.logoContainer}>
-              <Image source={require('../../assets/icon.png')} style={styles.logo} />
+              <Image source={require('../../assets/daleel-logo.png')} style={styles.logo} resizeMode="contain" />
             </View>
             <Text style={styles.wordmark}>D A L E E L</Text>
           </View>
@@ -448,17 +448,12 @@ const styles = StyleSheet.create({
     marginBottom: spacing.lg,
   },
   logoContainer: {
-    shadowColor: colors.gold,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.12,
-    shadowRadius: 10,
-    elevation: 2,
+    backgroundColor: 'transparent',
     marginBottom: spacing.xs,
   },
   logo: {
-    width: 64,
-    height: 64,
-    borderRadius: 18,
+    width: 54,
+    height: 54,
   },
   wordmark: {
     fontFamily: 'Inter_700Bold',

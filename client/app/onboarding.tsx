@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React, { useState } from 'react';
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SupportedLanguage } from '../lib/api';
 import { useAuth } from '../lib/auth-context';
@@ -63,7 +63,11 @@ export default function Onboarding() {
 
           <View style={styles.brandCluster}>
             <View style={styles.compassPod}>
-              <Ionicons name="compass" size={16} color={colors.gold} />
+              <Image
+                source={require('../assets/daleel-logo.png')}
+                style={styles.brandLogoImg}
+                resizeMode="contain"
+              />
             </View>
             <Text style={styles.brandWordmark}>D A L E E L</Text>
           </View>
@@ -294,12 +298,15 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   compassPod: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: 'rgba(223, 183, 108, 0.18)',
+    width: 32,
+    height: 32,
+    backgroundColor: 'transparent',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  brandLogoImg: {
+    width: 28,
+    height: 28,
   },
   brandWordmark: {
     fontFamily: fonts.bodyBold,

@@ -4,6 +4,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import {
   Animated,
   Easing,
+  Image,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -279,7 +280,11 @@ export default function Register() {
 
               <View style={styles.brandCluster}>
                 <View style={styles.compassPod}>
-                  <Ionicons name="compass" size={18} color={colors.gold} />
+                  <Image
+                    source={require('../../assets/daleel-logo.png')}
+                    style={styles.brandLogoImg}
+                    resizeMode="contain"
+                  />
                 </View>
                 <Text style={styles.brandWordmark}>D A L E E L</Text>
               </View>
@@ -832,14 +837,15 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   compassPod: {
-    width: 30,
-    height: 30,
-    borderRadius: radius.pill,
-    backgroundColor: 'rgba(223,183,108,0.16)',
-    borderWidth: 1,
-    borderColor: 'rgba(223,183,108,0.35)',
+    width: 32,
+    height: 32,
+    backgroundColor: 'transparent',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  brandLogoImg: {
+    width: 30,
+    height: 30,
   },
   brandWordmark: {
     fontFamily: fonts.bodyBold,

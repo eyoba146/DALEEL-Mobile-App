@@ -2,6 +2,7 @@ import { Feather, Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
+  Image,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -120,7 +121,11 @@ export default function AdminLoginScreen() {
             {/* Top Brand Cluster */}
             <View style={styles.brandCluster}>
               <View style={styles.compassPod}>
-                <Ionicons name="compass" size={20} color={colors.gold} />
+                <Image
+                  source={require('../../assets/daleel-logo.png')}
+                  style={styles.brandLogoImg}
+                  resizeMode="contain"
+                />
               </View>
               <Text style={styles.brandWordmark}>D A L E E L</Text>
             </View>
@@ -307,14 +312,15 @@ const styles = StyleSheet.create({
     marginBottom: spacing.lg,
   },
   compassPod: {
-    width: 34,
-    height: 34,
-    borderRadius: radius.pill,
-    backgroundColor: 'rgba(223,183,108,0.16)',
-    borderWidth: 1,
-    borderColor: 'rgba(223,183,108,0.35)',
+    width: 36,
+    height: 36,
+    backgroundColor: 'transparent',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  brandLogoImg: {
+    width: 34,
+    height: 34,
   },
   brandWordmark: {
     fontFamily: fonts.bodyBold,

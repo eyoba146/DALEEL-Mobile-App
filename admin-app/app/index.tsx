@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { View, Text, ActivityIndicator, StyleSheet } from 'react-native';
+import { View, Text, ActivityIndicator, StyleSheet, Image } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAdminAuth } from '../lib/auth-context';
 import { colors, fonts, type } from '../theme/tokens';
@@ -22,7 +22,11 @@ export default function Index() {
   return (
     <View style={styles.container}>
       <View style={styles.brandBadge}>
-        <Ionicons name="shield-checkmark" size={32} color={colors.gold} />
+        <Image
+          source={require('../assets/daleel-logo.png')}
+          style={styles.brandLogoImg}
+          resizeMode="contain"
+        />
       </View>
       <Text style={styles.brandTitle}>DALEEL</Text>
       <Text style={styles.brandSubtitle}>EXECUTIVE ADMIN CONSOLE</Text>
@@ -40,15 +44,16 @@ const styles = StyleSheet.create({
     padding: 24,
   },
   brandBadge: {
-    width: 68,
-    height: 68,
-    borderRadius: 20,
-    backgroundColor: 'rgba(223, 183, 108, 0.12)',
-    borderWidth: 1.5,
-    borderColor: colors.goldBorder,
+    width: 72,
+    height: 72,
+    backgroundColor: 'transparent',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 16,
+  },
+  brandLogoImg: {
+    width: 68,
+    height: 68,
   },
   brandTitle: {
     fontFamily: fonts.serifBold,

@@ -57,6 +57,8 @@ yarn-error.*
 # ── Native Build Folders (when prebuilt) ──────────
 client/ios/
 client/android/
+admin-app/ios/
+admin-app/android/
 
 # ── Operating System & Editor Files ───────────────
 .DS_Store
