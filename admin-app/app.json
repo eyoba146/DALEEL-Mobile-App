@@ -20,11 +20,12 @@
       "predictiveBackGestureEnabled": false,
       "package": "com.daleel.admin",
       "permissions": [
-        "CAMERA",
-        "READ_EXTERNAL_STORAGE",
-        "WRITE_EXTERNAL_STORAGE",
-        "ACCESS_COARSE_LOCATION",
-        "ACCESS_FINE_LOCATION"
+        "android.permission.CAMERA",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.RECORD_AUDIO"
       ]
     },
     "web": {
@@ -51,6 +52,12 @@
           "locationAlwaysAndWhenInUsePermission": "Allow DALEEL Admin to access location."
         }
       ]
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "0d56770f-6ed5-415d-a6f5-64f281b8d6a5"
+      }
+    },
+    "owner": "eyob146"
   }
 }

@@ -20,11 +20,12 @@
       "predictiveBackGestureEnabled": false,
       "package": "com.daleel.app",
       "permissions": [
-        "CAMERA",
-        "READ_EXTERNAL_STORAGE",
-        "WRITE_EXTERNAL_STORAGE",
-        "ACCESS_COARSE_LOCATION",
-        "ACCESS_FINE_LOCATION"
+        "android.permission.CAMERA",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.RECORD_AUDIO"
       ]
     },
     "web": {
@@ -51,6 +52,12 @@
           "locationAlwaysAndWhenInUsePermission": "Allow DALEEL to find nearby places and services."
         }
       ]
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "1721ea7c-7a0c-437d-b037-88e86709ddb8"
+      }
+    },
+    "owner": "eyob146"
   }
 }
