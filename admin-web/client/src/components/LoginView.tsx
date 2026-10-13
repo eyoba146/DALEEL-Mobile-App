@@ -15,8 +15,6 @@ import {
   Briefcase,
   ShoppingBag,
   TrendingUp,
-  ShieldCheck,
-  Sparkles,
 } from 'lucide-react';
 
 export const LoginView: React.FC = () => {
@@ -32,7 +30,6 @@ export const LoginView: React.FC = () => {
   const [rememberMe, setRememberMe] = useState(true);
   const [errorMsg, setErrorMsg] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [showCredentialsHelp, setShowCredentialsHelp] = useState(false);
 
   // Field-level validation states
   const [touchedEmail, setTouchedEmail] = useState(false);
@@ -74,13 +71,6 @@ export const LoginView: React.FC = () => {
     }
   };
 
-  const handleApplyPreset = (presetEmail: string) => {
-    setEmail(presetEmail);
-    setPassword('Admin2026!');
-    setTouchedEmail(false);
-    setTouchedPassword(false);
-    setErrorMsg('');
-  };
 
   const handleRecoverySubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -179,14 +169,13 @@ export const LoginView: React.FC = () => {
           </div>
         </div>
 
-        {/* Bottom: Security Accreditation Capsule */}
+        {/* Bottom: Institutional Governance Capsule */}
         <div style={styles.heroSecurityBox}>
           <div style={styles.securityHeaderRow}>
-            <ShieldCheck size={16} color="#DFB76C" />
-            <span style={styles.securityTitle}>Federal Platform Security Standards</span>
+            <span style={styles.securityTitle}>DALEEL Governance & Administration</span>
           </div>
           <div style={styles.securityText}>
-            256-Bit Cryptographic Authorization • Granular Role-Based Permissions • Real-Time Session Governance
+            Official management console orchestrating Ethiopian cultural heritage, vetted diaspora concierge services, and verified marketplace operations.
           </div>
         </div>
       </div>
@@ -312,41 +301,15 @@ export const LoginView: React.FC = () => {
 
                   <button
                     type="button"
-                    style={styles.helpToggle}
-                    onClick={() => setShowCredentialsHelp(!showCredentialsHelp)}
+                    style={styles.forgotBtn}
+                    onClick={() => {
+                      setMode('forgot');
+                      setErrorMsg('');
+                    }}
                   >
-                    <Sparkles size={13} color="#8C6A21" />
-                    <span>{showCredentialsHelp ? 'Hide directory' : 'Coordinator presets'}</span>
+                    Forgot passkey?
                   </button>
                 </div>
-
-                {/* Coordinator Accounts Drawer */}
-                {showCredentialsHelp && (
-                  <div style={styles.helpDrawer}>
-                    <div style={styles.drawerTitle}>Active Coordinator Directory:</div>
-                    <div style={styles.accountsList}>
-                      {[
-                        { role: 'Super Admin', mail: 'superadmin@daleel.et' },
-                        { role: 'Destinations Lead', mail: 'destinations@daleel.et' },
-                        { role: 'Services Lead', mail: 'services@daleel.et' },
-                        { role: 'Events Lead', mail: 'events@daleel.et' },
-                        { role: 'Marketplace Lead', mail: 'marketplace@daleel.et' },
-                        { role: 'Investment Officer', mail: 'investments@daleel.et' },
-                      ].map((acc) => (
-                        <button
-                          key={acc.mail}
-                          type="button"
-                          style={styles.accountItem}
-                          onClick={() => handleApplyPreset(acc.mail)}
-                        >
-                          <span style={styles.accRole}>{acc.role}</span>
-                          <span style={styles.accMail}>{acc.mail}</span>
-                        </button>
-                      ))}
-                    </div>
-                    <div style={styles.drawerHint}>Default access key: Admin2026!</div>
-                  </div>
-                )}
 
                 <button
                   type="submit"
@@ -587,8 +550,8 @@ const styles: { [key: string]: React.CSSProperties } = {
   },
   heroSecurityBox: {
     padding: '16px 20px',
-    backgroundColor: 'rgba(7, 21, 43, 0.6)',
-    border: '1px solid rgba(223, 183, 108, 0.25)',
+    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+    border: '1px solid rgba(255, 255, 255, 0.08)',
     borderRadius: '12px',
     maxWidth: '560px',
   },
@@ -611,13 +574,14 @@ const styles: { [key: string]: React.CSSProperties } = {
     lineHeight: 1.4,
   },
 
-  // Form Side (Right 50%) Styles (Flush to Background, No Card Effect)
+  // Form Side (Right 50%) Styles (Flush to Background, Centered)
   formDesk: {
     width: '100%',
     maxWidth: '440px',
     boxSizing: 'border-box',
     display: 'flex',
     flexDirection: 'column',
+    margin: 'auto',
   },
   formHeader: {
     textAlign: 'center',
@@ -767,64 +731,15 @@ const styles: { [key: string]: React.CSSProperties } = {
   checkbox: {
     cursor: 'pointer',
   },
-  helpToggle: {
+  forgotBtn: {
     background: 'none',
     border: 'none',
     color: '#8C6A21',
-    fontWeight: 650,
+    fontWeight: 600,
     cursor: 'pointer',
     fontSize: '12px',
-    display: 'inline-flex',
-    alignItems: 'center',
-    gap: '4px',
-  },
-  helpDrawer: {
-    backgroundColor: '#F8FAFC',
-    border: '1px solid #E4E9F0',
-    borderRadius: '10px',
-    padding: '12px',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '8px',
-  },
-  drawerTitle: {
-    fontSize: '11px',
-    fontWeight: 700,
-    color: '#07152B',
-    textTransform: 'uppercase',
-    letterSpacing: '0.04em',
-  },
-  accountsList: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(2, 1fr)',
-    gap: '6px',
-  },
-  accountItem: {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'flex-start',
-    padding: '6px 8px',
-    backgroundColor: '#FFFFFF',
-    border: '1px solid #E4E9F0',
-    borderRadius: '6px',
-    cursor: 'pointer',
-    textAlign: 'left',
-    transition: 'all 0.15s ease',
-  },
-  accRole: {
-    fontSize: '11px',
-    fontWeight: 700,
-    color: '#07152B',
-  },
-  accMail: {
-    fontSize: '10px',
-    color: '#5A687A',
-  },
-  drawerHint: {
-    fontSize: '10.5px',
-    color: '#8A9AA8',
-    fontStyle: 'italic',
-    textAlign: 'center',
+    padding: 0,
+    textDecoration: 'none',
   },
   submitBtn: {
     marginTop: '6px',

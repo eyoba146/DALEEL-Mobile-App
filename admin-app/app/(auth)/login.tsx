@@ -19,13 +19,6 @@ import { useAdminAuth } from '../../lib/auth-context';
 import { useAdminToast } from '../../lib/toast-context';
 import { colors, fonts, radius, spacing, type } from '../../theme/tokens';
 
-const PRESET_ACCOUNTS = [
-  { label: 'Super Admin', email: 'admin@daleel.et', pass: 'AdminPass123!' },
-  { label: 'Services', email: 'services@daleel.et', pass: 'Services2026!' },
-  { label: 'Events', email: 'events@daleel.et', pass: 'Events2026!' },
-  { label: 'Market', email: 'market@daleel.et', pass: 'Market2026!' },
-  { label: 'Invest', email: 'invest@daleel.et', pass: 'Invest2026!' },
-];
 
 export default function AdminLoginScreen() {
   const insets = useSafeAreaInsets();
@@ -98,11 +91,6 @@ export default function AdminLoginScreen() {
     }
   };
 
-  const handleApplyPreset = (presetEmail: string, presetPass: string) => {
-    setEmail(presetEmail);
-    setPassword(presetPass);
-    setError(null);
-  };
 
   return (
     <View style={styles.screen}>
@@ -247,38 +235,10 @@ export default function AdminLoginScreen() {
               style={styles.ctaButton}
             />
 
-            {/* Pre-configured Roles Quick Select */}
-            <View style={styles.presetsContainer}>
-              <Text style={styles.presetsHeading}>QUICK ROLE PRESETS</Text>
-              <View style={styles.presetsRow}>
-                {PRESET_ACCOUNTS.map((acc) => {
-                  const isActive = email === acc.email;
-                  return (
-                    <TouchableOpacity
-                      key={acc.label}
-                      style={[styles.presetChip, isActive && styles.presetChipActive]}
-                      onPress={() => handleApplyPreset(acc.email, acc.pass)}
-                      activeOpacity={0.7}
-                    >
-                      <Text
-                        style={[
-                          styles.presetChipText,
-                          isActive && styles.presetChipTextActive,
-                        ]}
-                      >
-                        {acc.label}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-            </View>
-
             {/* Bottom Institutional Notice */}
             <View style={styles.footerRow}>
-              <Ionicons name="shield-checkmark-outline" size={14} color={colors.textSecondary} />
               <Text style={styles.footerText}>
-                Protected institutional platform. Cryptographically audited.
+                Authorized administrative staff only • DALEEL Executive Platform
               </Text>
             </View>
           </View>
@@ -445,46 +405,6 @@ const styles = StyleSheet.create({
     height: 52,
     borderRadius: radius.md,
     backgroundColor: colors.navy,
-  },
-
-  // Role Presets
-  presetsContainer: {
-    marginTop: spacing.xl,
-    paddingTop: spacing.md,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-  },
-  presetsHeading: {
-    fontFamily: fonts.bodyBold,
-    fontSize: 10,
-    letterSpacing: 1,
-    color: colors.textTertiary,
-    marginBottom: 10,
-  },
-  presetsRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  presetChip: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: radius.pill,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  presetChipActive: {
-    backgroundColor: colors.navy,
-    borderColor: colors.gold,
-  },
-  presetChipText: {
-    fontFamily: fonts.bodySemiBold,
-    fontSize: 11,
-    color: colors.textSecondary,
-  },
-  presetChipTextActive: {
-    color: colors.gold,
   },
 
   // Footer
