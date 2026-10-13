@@ -4,7 +4,6 @@ import { ToastProvider } from './context/ToastContext';
 import { LanguageProvider } from './context/LanguageContext';
 import { LoginView } from './components/LoginView';
 import { Layout } from './components/Layout';
-import { Shield } from 'lucide-react';
 
 const AppContent: React.FC = () => {
   const { adminUser, isLoading } = useAdminAuth();
@@ -13,7 +12,7 @@ const AppContent: React.FC = () => {
     return (
       <div style={styles.loadingScreen}>
         <div style={styles.logoSpinner}>
-          <Shield size={36} color="#DFB76C" />
+          <img src="/daleel-logo.png" alt="DALEEL" style={styles.logoImg} />
         </div>
         <div style={styles.loadingText}>Initializing DALEEL Command Portal...</div>
       </div>
@@ -52,14 +51,18 @@ const styles: { [key: string]: React.CSSProperties } = {
   logoSpinner: {
     width: '64px',
     height: '64px',
-    borderRadius: '16px',
-    backgroundColor: 'rgba(223, 183, 108, 0.12)',
-    border: '1px solid rgba(223, 183, 108, 0.35)',
+    backgroundColor: 'transparent',
+    border: 'none',
+    boxShadow: 'none',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    boxShadow: '0 0 30px rgba(223, 183, 108, 0.25)',
     animation: 'pulse 1.8s infinite',
+  },
+  logoImg: {
+    width: '100%',
+    height: '100%',
+    objectFit: 'contain' as const,
   },
   loadingText: {
     fontSize: '14px',

@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { useAdminAuth } from '../context/AuthContext';
 import { adminApi } from '../api';
 import {
-  Shield,
   Lock,
   Mail,
   Eye,
@@ -119,7 +118,7 @@ export const LoginView: React.FC = () => {
         <div>
           <div style={styles.heroBrandRow}>
             <div style={styles.crestCircle}>
-              <Shield size={24} color="#DFB76C" />
+              <img src="/daleel-logo.png" alt="DALEEL" style={styles.logoImg} />
             </div>
             <div>
               <span style={styles.heroBrandTitle}>DALEEL</span>
@@ -498,14 +497,18 @@ const styles: { [key: string]: React.CSSProperties } = {
   crestCircle: {
     width: '46px',
     height: '46px',
-    backgroundColor: 'rgba(223, 183, 108, 0.12)',
-    border: '1.5px solid #DFB76C',
-    borderRadius: '12px',
+    backgroundColor: 'transparent',
+    border: 'none',
+    boxShadow: 'none',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
     flexShrink: 0,
-    boxShadow: '0 4px 14px rgba(7, 21, 43, 0.3)',
+  },
+  logoImg: {
+    width: '100%',
+    height: '100%',
+    objectFit: 'contain' as const,
   },
   heroBrandTitle: {
     fontFamily: "'DM Serif Display', Georgia, serif",

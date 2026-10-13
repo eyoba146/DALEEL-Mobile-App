@@ -12,7 +12,6 @@ import {
   TrendingUp,
   Users,
   LogOut,
-  Shield,
   ShieldCheck,
   Activity,
   User,
@@ -163,7 +162,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       {/* Brand & Crest Header - Deep Navy Foundation */}
       <div style={styles.brandBox}>
         <div style={styles.brandLogo}>
-          <Shield size={20} color="#DFB76C" />
+          <img src="/daleel-logo.png" alt="DALEEL" style={styles.logoImg} />
         </div>
         <div>
           <div style={styles.brandName}>{t('brand.title', 'DALEEL')}</div>
@@ -340,14 +339,17 @@ const styles: { [key: string]: React.CSSProperties } = {
   brandLogo: {
     width: '38px',
     height: '38px',
-    borderRadius: '10px',
-    backgroundColor: '#050D1A',
-    border: '1.5px solid #DFB76C',
+    backgroundColor: 'transparent',
+    border: 'none',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    boxShadow: '0 0 12px rgba(223, 183, 108, 0.25)',
     flexShrink: 0,
+  },
+  logoImg: {
+    width: '100%',
+    height: '100%',
+    objectFit: 'contain' as const,
   },
   brandName: {
     fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif",
