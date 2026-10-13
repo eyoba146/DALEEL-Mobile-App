@@ -18,14 +18,39 @@
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.daleel.admin"
+      "package": "com.daleel.admin",
+      "permissions": [
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE",
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
       "expo-font",
-      "expo-splash-screen"
+      "expo-splash-screen",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow DALEEL Admin to access camera for capturing photos."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow DALEEL Admin to access photos."
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Allow DALEEL Admin to access location."
+        }
+      ]
     ]
   }
 }

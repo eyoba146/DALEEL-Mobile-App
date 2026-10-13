@@ -1,0 +1,37 @@
+services:
+  # DALEEL Express API Backend
+  - type: web
+    name: daleel-backend
+    runtime: node
+    rootDir: server
+    plan: free
+    region: frankfurt # Or oregon, ohio, singapore
+    buildCommand: npm install && npx prisma generate && npx prisma db push && npm run build
+    startCommand: npm run start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: DATABASE_URL
+        fromDatabase:
+          name: daleel-db
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+      - key: BREVO_API_KEY
+        sync: false
+      - key: EMAIL_FROM
+        value: DALEEL App <no-reply@yourdomain.com>
+      - key: CLOUDINARY_CLOUD_NAME
+        sync: false
+      - key: CLOUDINARY_UPLOAD_PRESET
+        sync: false
+
+databases:
+  # Managed PostgreSQL Database on Render
+  - name: daleel-db
+    databaseName: daleel
+    user: daleel_user
+    plan: free
+    region: frankfurt
