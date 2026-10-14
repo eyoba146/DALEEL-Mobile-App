@@ -1,4 +1,4 @@
-# DALEEL (ደሊል) — The Digital Bridge to Ethiopia
+# DALEEL (ዳሊል) — The Digital Bridge to Ethiopia
 
 DALEEL is a full-stack diaspora and fintech application connecting the Ethiopian diaspora, expats, and international travelers to local Ethiopian services, real estate, investment, community, and curated travel heritage.
 
