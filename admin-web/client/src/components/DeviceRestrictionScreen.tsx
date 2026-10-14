@@ -1,14 +1,14 @@
 import React, { useState } from 'react';
 import type { DeviceAccessEvaluation } from '../utils/devicePolicy';
 import {
-  Monitor,
   Laptop,
-  RotateCcw,
-  Maximize2,
+  Monitor,
   Copy,
   Check,
   RefreshCw,
   Sparkles,
+  ShieldCheck,
+  Compass,
 } from 'lucide-react';
 
 interface DeviceRestrictionScreenProps {
@@ -39,340 +39,550 @@ export const DeviceRestrictionScreen: React.FC<DeviceRestrictionScreenProps> = (
   const handleManualRefresh = () => {
     setIsRefreshing(true);
     onReevaluate();
-    setTimeout(() => setIsRefreshing(false), 600);
+    setTimeout(() => setIsRefreshing(false), 650);
   };
 
   const widthProgress = Math.min(100, Math.round((viewportWidth / minRequiredWidth) * 100));
 
-  // Determine elegant contextual content
-  const getContent = () => {
-    switch (denialReason) {
-      case 'TABLET_PORTRAIT_BLOCKED':
-        return {
-          pill: 'Orientation Required',
-          title: 'Rotate to landscape',
-          subtitle:
-            'Rotate your tablet 90° into landscape orientation to unlock the administrative console.',
-          icon: <RotateCcw size={32} color="#DFB76C" />,
-          illustration: 'tablet-rotate',
-          actionText: 'The console unlocks automatically upon rotating your device.',
-        };
-
-      case 'VIEWPORT_TOO_NARROW':
-        return {
-          pill: 'Display Adjustment',
-          title: 'Enlarge your browser window',
-          subtitle: `The portal requires at least ${minRequiredWidth}px of horizontal space for multi-column triage tables and navigation.`,
-          icon: <Maximize2 size={32} color="#DFB76C" />,
-          illustration: 'expand-window',
-          actionText: `Drag your window edge or maximize to expand past ${minRequiredWidth}px.`,
-        };
-
-      case 'PHONE_BLOCKED':
-      default:
-        return {
-          pill: 'Desktop Experience',
-          title: 'Designed for larger screens',
-          subtitle:
-            'The DALEEL administration portal is built for desktop and landscape tablet displays to comfortably manage live maps, triage desks, and member registries.',
-          icon: <Monitor size={32} color="#DFB76C" />,
-          illustration: 'desktop-laptop',
-          actionText: 'Open this link on your PC, laptop, or tablet in landscape mode.',
-        };
-    }
-  };
-
-  const content = getContent();
+  const isRotateTablet = denialReason === 'TABLET_PORTRAIT_BLOCKED';
+  const isNarrowWindow = denialReason === 'VIEWPORT_TOO_NARROW';
 
   return (
-    <div style={styles.container}>
-      {/* Ambient Radial Backlights */}
-      <div style={styles.ambientGlowPrimary} />
-      <div style={styles.ambientGlowSecondary} />
+    <div style={styles.page}>
+      {/* Background Lighting Meshes */}
+      <div style={styles.gridOverlay} />
+      <div style={styles.ambientGlowTop} />
+      <div style={styles.ambientGlowCenter} />
 
-      <div style={styles.card}>
-        {/* Brand Crest Header */}
-        <div style={styles.brandRow}>
+      {/* Top Brand Navigation Bar */}
+      <header style={styles.header}>
+        <div style={styles.brandGroup}>
           <div style={styles.logoWrap}>
-            <img
-              src="/daleel-logo.png"
-              alt="DALEEL"
-              style={styles.logoImg}
-            />
+            <img src="/daleel-logo.png" alt="DALEEL" style={styles.logoImg} />
           </div>
-          <div style={styles.brandMeta}>
+          <div style={styles.brandDivider} />
+          <div style={styles.brandTextGroup}>
             <span style={styles.brandTitle}>DALEEL</span>
-            <span style={styles.brandSubtitle}>EXECUTIVE CONSOLE</span>
+            <span style={styles.brandSub}>BUSINESS CONSOLE</span>
           </div>
         </div>
 
-        {/* Hero Visual Graphic with Soft Glow */}
-        <div style={styles.heroVisualWrap}>
-          <div style={styles.iconAura} />
-          <div style={styles.iconCircle}>
-            {content.icon}
-          </div>
-        </div>
-
-        {/* Status Pill */}
-        <div style={styles.pillWrap}>
-          <span style={styles.statusPill}>
-            <Sparkles size={12} color="#DFB76C" style={{ marginRight: 6 }} />
-            {content.pill}
+        <div style={styles.headerBadge}>
+          <span style={styles.statusDot} />
+          <span style={styles.statusBadgeText}>
+            {isRotateTablet
+              ? 'Orientation Required'
+              : isNarrowWindow
+              ? 'Display Adjustment'
+              : 'Desktop Experience'}
           </span>
         </div>
+      </header>
 
-        {/* Heading & Subtitle */}
-        <h1 style={styles.headline}>{content.title}</h1>
-        <p style={styles.subtitle}>{content.subtitle}</p>
+      {/* Main Full-Bleed Body Container */}
+      <main style={styles.mainContent}>
+        <div style={styles.contentColumn}>
+          {/* Hero Device Illustration */}
+          <div style={styles.illustrationContainer}>
+            <div style={styles.glowAura} />
 
-        {/* Interactive Width Progress Gauge (Only when viewport is narrow on desktop/tablet) */}
-        {denialReason === 'VIEWPORT_TOO_NARROW' && (
-          <div style={styles.gaugeBox}>
-            <div style={styles.gaugeHeader}>
-              <span style={styles.gaugeLabel}>Current width</span>
-              <span style={styles.gaugeValue}>
-                {viewportWidth}px <span style={styles.gaugeTarget}>/ {minRequiredWidth}px</span>
-              </span>
-            </div>
-            <div style={styles.progressBarTrack}>
-              <div
-                style={{
-                  ...styles.progressBarFill,
-                  width: `${widthProgress}%`,
-                }}
-              />
-            </div>
+            {isRotateTablet ? (
+              /* Tablet Rotation Visual */
+              <div style={styles.rotateIllustration}>
+                <svg
+                  width="180"
+                  height="140"
+                  viewBox="0 0 180 140"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
+                  style={{ filter: 'drop-shadow(0 12px 30px rgba(0, 0, 0, 0.45))' }}
+                >
+                  {/* Tablet Frame */}
+                  <rect
+                    x="45"
+                    y="15"
+                    width="90"
+                    height="110"
+                    rx="14"
+                    fill="#081426"
+                    stroke="#DFB76C"
+                    strokeWidth="2"
+                    strokeOpacity="0.7"
+                  />
+                  {/* Screen Content Mockup */}
+                  <rect x="52" y="24" width="76" height="92" rx="8" fill="#040A14" />
+                  <rect x="58" y="32" width="30" height="6" rx="3" fill="#DFB76C" fillOpacity="0.8" />
+                  <rect x="58" y="44" width="64" height="4" rx="2" fill="#1E3250" />
+                  <rect x="58" y="52" width="54" height="4" rx="2" fill="#1E3250" />
+                  <rect x="58" y="64" width="64" height="36" rx="4" fill="#0E1E34" />
+                  {/* Rotation Indicator Curved Arrow */}
+                  <path
+                    d="M142 42C154 58 154 82 140 100"
+                    stroke="#DFB76C"
+                    strokeWidth="2.5"
+                    strokeLinecap="round"
+                    strokeDasharray="4 4"
+                  />
+                  <path
+                    d="M136 94L140 102L148 98"
+                    stroke="#DFB76C"
+                    strokeWidth="2.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </div>
+            ) : isNarrowWindow ? (
+              /* Viewport Expand Visual */
+              <div style={styles.rotateIllustration}>
+                <svg
+                  width="200"
+                  height="130"
+                  viewBox="0 0 200 130"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
+                  style={{ filter: 'drop-shadow(0 12px 30px rgba(0, 0, 0, 0.45))' }}
+                >
+                  {/* Window Frame */}
+                  <rect
+                    x="25"
+                    y="15"
+                    width="150"
+                    height="95"
+                    rx="10"
+                    fill="#081426"
+                    stroke="#DFB76C"
+                    strokeWidth="2"
+                    strokeOpacity="0.7"
+                  />
+                  {/* Header Bar */}
+                  <rect x="25" y="15" width="150" height="22" rx="10" fill="#0D1E36" />
+                  <circle cx="38" cy="26" r="3" fill="#EF4444" fillOpacity="0.7" />
+                  <circle cx="48" cy="26" r="3" fill="#DFB76C" fillOpacity="0.7" />
+                  <circle cx="58" cy="26" r="3" fill="#10B981" fillOpacity="0.7" />
+                  {/* Mock Window Grid */}
+                  <rect x="35" y="47" width="34" height="52" rx="4" fill="#0D1E36" />
+                  <rect x="76" y="47" width="88" height="22" rx="4" fill="#0E223D" />
+                  <rect x="76" y="75" width="88" height="24" rx="4" fill="#0A182C" />
+                  {/* Expand Arrows */}
+                  <path
+                    d="M10 62L2 62M2 62L6 58M2 62L6 66"
+                    stroke="#DFB76C"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                  />
+                  <path
+                    d="M190 62L198 62M198 62L194 58M198 62L194 66"
+                    stroke="#DFB76C"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                  />
+                </svg>
+              </div>
+            ) : (
+              /* Desktop Workstation Visual */
+              <div style={styles.rotateIllustration}>
+                <svg
+                  width="220"
+                  height="140"
+                  viewBox="0 0 220 140"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
+                  style={{ filter: 'drop-shadow(0 16px 36px rgba(0, 0, 0, 0.55))' }}
+                >
+                  {/* Monitor Display Bezel */}
+                  <rect
+                    x="20"
+                    y="10"
+                    width="180"
+                    height="104"
+                    rx="12"
+                    fill="#081426"
+                    stroke="#DFB76C"
+                    strokeWidth="2"
+                    strokeOpacity="0.75"
+                  />
+                  {/* Screen Glass Area */}
+                  <rect x="27" y="17" width="166" height="90" rx="7" fill="#040913" />
+                  {/* Miniature DALEEL Dashboard Mockup */}
+                  {/* Left Mini Sidebar */}
+                  <rect x="31" y="21" width="30" height="82" rx="4" fill="#081528" />
+                  <rect x="35" y="27" width="12" height="4" rx="2" fill="#DFB76C" />
+                  <rect x="35" y="37" width="22" height="3" rx="1.5" fill="#1C3352" />
+                  <rect x="35" y="44" width="18" height="3" rx="1.5" fill="#1C3352" />
+                  <rect x="35" y="51" width="20" height="3" rx="1.5" fill="#1C3352" />
+                  {/* Main Grid Content */}
+                  <rect x="67" y="21" width="60" height="36" rx="4" fill="#0A1C33" />
+                  <rect x="131" y="21" width="58" height="36" rx="4" fill="#0A1C33" />
+                  {/* Gold Mini Accent Cards */}
+                  <circle cx="76" cy="30" r="3" fill="#DFB76C" />
+                  <rect x="83" y="29" width="32" height="3" rx="1.5" fill="#FFFFFF" fillOpacity="0.8" />
+                  <rect x="76" y="39" width="42" height="8" rx="2" fill="#152B4A" />
+                  {/* Lower Triage Table Mockup */}
+                  <rect x="67" y="62" width="122" height="41" rx="4" fill="#08162A" />
+                  <line x1="67" y1="73" x2="189" y2="73" stroke="#162D4D" strokeWidth="1" />
+                  <circle cx="75" cy="80" r="2.5" fill="#10B981" />
+                  <rect x="83" y="79" width="46" height="3" rx="1.5" fill="#94A3B8" />
+                  <rect x="156" y="78" width="24" height="5" rx="2.5" fill="#DFB76C" fillOpacity="0.3" />
+                  <circle cx="75" cy="92" r="2.5" fill="#DFB76C" />
+                  <rect x="83" y="91" width="38" height="3" rx="1.5" fill="#94A3B8" />
+                  {/* Monitor Stand Base */}
+                  <path
+                    d="M95 114L88 132H132L125 114H95Z"
+                    fill="#081426"
+                    stroke="#DFB76C"
+                    strokeWidth="1.5"
+                    strokeOpacity="0.6"
+                  />
+                  <rect x="78" y="131" width="64" height="4" rx="2" fill="#DFB76C" fillOpacity="0.7" />
+                </svg>
+              </div>
+            )}
           </div>
-        )}
 
-        {/* Action Prompt */}
-        <div style={styles.actionPromptBox}>
-          <span style={styles.actionPromptText}>{content.actionText}</span>
-        </div>
+          {/* Editorial Category Pill */}
+          <div style={styles.kickerWrap}>
+            <span style={styles.kickerPill}>
+              <Sparkles size={11} color="#DFB76C" style={{ marginRight: 6 }} />
+              {isRotateTablet
+                ? 'Display Orientation'
+                : isNarrowWindow
+                ? 'Viewport Required'
+                : 'Executive Workspace'}
+            </span>
+          </div>
 
-        {/* Primary Action Button */}
-        <div style={styles.actionButtonGroup}>
-          {denialReason === 'PHONE_BLOCKED' && (
-            <button
-              type="button"
-              onClick={handleCopyLink}
-              style={{
-                ...styles.primaryBtn,
-                backgroundColor: copied ? '#10B981' : '#DFB76C',
-                borderColor: copied ? '#10B981' : '#DFB76C',
-              }}
-            >
-              {copied ? (
-                <>
-                  <Check size={16} color="#07152B" style={{ marginRight: 8 }} />
-                  <span>Link Copied to Clipboard</span>
-                </>
-              ) : (
-                <>
-                  <Copy size={16} color="#07152B" style={{ marginRight: 8 }} />
-                  <span>Copy Portal Link</span>
-                </>
-              )}
-            </button>
+          {/* Editorial Headline */}
+          <h1 style={styles.heading}>
+            {isRotateTablet
+              ? 'Please rotate your tablet to landscape'
+              : isNarrowWindow
+              ? 'Please enlarge your browser window'
+              : 'Optimized for widescreen workstations'}
+          </h1>
+
+          {/* Narrative Explanation */}
+          <p style={styles.leadText}>
+            {isRotateTablet
+              ? 'The DALEEL administration console supports tablet hardware in landscape orientation. Turn your device 90° horizontally to comfortably view tables, maps, and navigation.'
+              : isNarrowWindow
+              ? `Your browser width is currently ${viewportWidth}px. Expand horizontal window width past ${minRequiredWidth}px to render multi-column triage desks and regional data.`
+              : 'The DALEEL business administration portal delivers high-density triage desks, GPS registry tables, and operational coordination tools designed specifically for desktop PCs, laptops, and landscape tablets.'}
+          </p>
+
+          {/* Width Progress Gauge (When viewport is narrow) */}
+          {isNarrowWindow && (
+            <div style={styles.gaugeContainer}>
+              <div style={styles.gaugeHeader}>
+                <span style={styles.gaugeLabel}>Current Viewport Width</span>
+                <span style={styles.gaugeValue}>
+                  {viewportWidth}px <span style={styles.gaugeTarget}>/ {minRequiredWidth}px</span>
+                </span>
+              </div>
+              <div style={styles.progressBarTrack}>
+                <div
+                  style={{
+                    ...styles.progressBarFill,
+                    width: `${widthProgress}%`,
+                  }}
+                />
+              </div>
+            </div>
           )}
 
-          <button
-            type="button"
-            onClick={handleManualRefresh}
-            style={denialReason === 'PHONE_BLOCKED' ? styles.secondaryBtn : styles.primaryBtn}
-          >
-            <RefreshCw
-              size={14}
-              color={denialReason === 'PHONE_BLOCKED' ? '#DFB76C' : '#07152B'}
-              style={{
-                marginRight: 8,
-                transition: 'transform 0.4s ease',
-                transform: isRefreshing ? 'rotate(180deg)' : 'none',
-              }}
-            />
-            <span>Check Display</span>
-          </button>
-        </div>
+          {/* Action Row */}
+          <div style={styles.actionRow}>
+            {!isRotateTablet && !isNarrowWindow && (
+              <button
+                type="button"
+                onClick={handleCopyLink}
+                style={{
+                  ...styles.primaryActionBtn,
+                  backgroundColor: copied ? '#10B981' : '#DFB76C',
+                  borderColor: copied ? '#10B981' : '#DFB76C',
+                }}
+              >
+                {copied ? (
+                  <>
+                    <Check size={16} color="#040D1B" style={{ marginRight: 8 }} />
+                    <span>Link Copied to Clipboard</span>
+                  </>
+                ) : (
+                  <>
+                    <Copy size={16} color="#040D1B" style={{ marginRight: 8 }} />
+                    <span>Copy Console Link</span>
+                  </>
+                )}
+              </button>
+            )}
 
-        {/* Minimal Supported Platforms Footer */}
-        <div style={styles.supportedFooter}>
-          <div style={styles.supportedItem}>
-            <Laptop size={13} color="#94A3B8" style={{ marginRight: 5 }} />
-            <span>Desktop & Laptop</span>
+            <button
+              type="button"
+              onClick={handleManualRefresh}
+              style={
+                !isRotateTablet && !isNarrowWindow
+                  ? styles.secondaryActionBtn
+                  : styles.primaryActionBtn
+              }
+            >
+              <RefreshCw
+                size={14}
+                color={!isRotateTablet && !isNarrowWindow ? '#DFB76C' : '#040D1B'}
+                style={{
+                  marginRight: 8,
+                  transition: 'transform 0.45s ease',
+                  transform: isRefreshing ? 'rotate(180deg)' : 'none',
+                }}
+              />
+              <span>Check Display</span>
+            </button>
           </div>
-          <span style={styles.supportedDot}>•</span>
-          <div style={styles.supportedItem}>
-            <Monitor size={13} color="#94A3B8" style={{ marginRight: 5 }} />
-            <span>Tablet (Landscape)</span>
+
+          {/* Seamless Feature Tags */}
+          <div style={styles.platformBadgesRow}>
+            <div style={styles.platformBadge}>
+              <Laptop size={13} color="#DFB76C" style={{ marginRight: 6 }} />
+              <span>Desktop & Laptop</span>
+            </div>
+            <div style={styles.platformBadge}>
+              <Monitor size={13} color="#DFB76C" style={{ marginRight: 6 }} />
+              <span>Tablet (Landscape)</span>
+            </div>
+            <div style={styles.platformBadge}>
+              <ShieldCheck size={13} color="#DFB76C" style={{ marginRight: 6 }} />
+              <span>256-Bit Encrypted</span>
+            </div>
           </div>
         </div>
-      </div>
+      </main>
+
+      {/* Grounded Page Footer */}
+      <footer style={styles.footer}>
+        <div style={styles.footerLeft}>
+          <Compass size={13} color="#8A9AA8" style={{ marginRight: 6 }} />
+          <span>DALEEL Platform • Diaspora Administration Infrastructure</span>
+        </div>
+        <div style={styles.footerRight}>
+          <span>Executive Access Only</span>
+        </div>
+      </footer>
     </div>
   );
 };
 
 const styles: { [key: string]: React.CSSProperties } = {
-  container: {
+  page: {
     minHeight: '100vh',
     width: '100vw',
-    backgroundColor: '#050D1A',
+    backgroundColor: '#040D1B',
     backgroundImage: `
-      radial-gradient(circle at 50% 0%, rgba(223, 183, 108, 0.08) 0%, transparent 60%),
-      radial-gradient(circle at 80% 100%, rgba(11, 27, 61, 0.8) 0%, transparent 60%)
+      radial-gradient(ellipse 90% 60% at 50% -10%, rgba(223, 183, 108, 0.12) 0%, transparent 60%),
+      radial-gradient(ellipse 70% 50% at 50% 110%, rgba(11, 27, 61, 0.95) 0%, transparent 80%),
+      linear-gradient(180deg, #040D1B 0%, #061327 50%, #030812 100%)
     `,
     display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: '24px 16px',
-    boxSizing: 'border-box',
+    flexDirection: 'column',
+    justifyContent: 'space-between',
     fontFamily: "'Plus Jakarta Sans', system-ui, -apple-system, sans-serif",
+    color: '#FFFFFF',
+    boxSizing: 'border-box',
     position: 'relative',
-    overflow: 'hidden',
+    overflowX: 'hidden',
+    overflowY: 'auto',
   },
-  ambientGlowPrimary: {
+  gridOverlay: {
     position: 'absolute',
-    top: '-20%',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundImage:
+      'radial-gradient(rgba(223, 183, 108, 0.08) 1px, transparent 1px)',
+    backgroundSize: '28px 28px',
+    pointerEvents: 'none',
+    zIndex: 1,
+  },
+  ambientGlowTop: {
+    position: 'absolute',
+    top: 0,
     left: '50%',
     transform: 'translateX(-50%)',
+    width: '800px',
+    height: '240px',
+    background: 'radial-gradient(ellipse, rgba(223, 183, 108, 0.14) 0%, transparent 70%)',
+    pointerEvents: 'none',
+    zIndex: 1,
+  },
+  ambientGlowCenter: {
+    position: 'absolute',
+    top: '40%',
+    left: '50%',
+    transform: 'translate(-50%, -50%)',
     width: '500px',
     height: '350px',
-    background: 'radial-gradient(circle, rgba(223, 183, 108, 0.1) 0%, transparent 70%)',
+    background: 'radial-gradient(circle, rgba(16, 38, 77, 0.5) 0%, transparent 75%)',
     pointerEvents: 'none',
     zIndex: 1,
   },
-  ambientGlowSecondary: {
-    position: 'absolute',
-    bottom: '-15%',
-    right: '-10%',
-    width: '450px',
-    height: '350px',
-    background: 'radial-gradient(circle, rgba(19, 40, 79, 0.6) 0%, transparent 70%)',
-    pointerEvents: 'none',
-    zIndex: 1,
-  },
-  card: {
+  header: {
     width: '100%',
-    maxWidth: '440px',
-    backgroundColor: 'rgba(7, 21, 43, 0.78)',
-    border: '1px solid rgba(223, 183, 108, 0.18)',
-    borderRadius: '24px',
-    padding: '36px 28px',
-    boxShadow: '0 24px 60px rgba(0, 0, 0, 0.5), 0 0 30px rgba(223, 183, 108, 0.04)',
-    backdropFilter: 'blur(20px)',
-    WebkitBackdropFilter: 'blur(20px)',
+    padding: '18px 24px',
     display: 'flex',
-    flexDirection: 'column',
     alignItems: 'center',
-    textAlign: 'center',
+    justifyContent: 'space-between',
+    borderBottom: '1px solid rgba(223, 183, 108, 0.14)',
+    backgroundColor: 'rgba(4, 13, 27, 0.75)',
+    backdropFilter: 'blur(16px)',
+    WebkitBackdropFilter: 'blur(16px)',
     position: 'relative',
-    zIndex: 10,
+    zIndex: 20,
     boxSizing: 'border-box',
   },
-  brandRow: {
+  brandGroup: {
     display: 'flex',
     alignItems: 'center',
     gap: '12px',
-    marginBottom: '28px',
   },
   logoWrap: {
-    height: '36px',
+    height: '34px',
     width: 'auto',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
   },
   logoImg: {
-    height: '36px',
+    height: '34px',
     width: 'auto',
-    maxWidth: '30px',
+    maxWidth: '28px',
     objectFit: 'contain',
   },
-  brandMeta: {
+  brandDivider: {
+    width: '1px',
+    height: '22px',
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+  },
+  brandTextGroup: {
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'flex-start',
-    textAlign: 'left',
+    lineHeight: 1.1,
   },
   brandTitle: {
-    fontSize: '17px',
+    fontSize: '15px',
     fontWeight: 800,
     color: '#FFFFFF',
     letterSpacing: '0.06em',
-    lineHeight: 1.1,
   },
-  brandSubtitle: {
-    fontSize: '9px',
-    fontWeight: 750,
+  brandSub: {
+    fontSize: '8.5px',
+    fontWeight: 800,
     color: '#DFB76C',
     letterSpacing: '0.12em',
     marginTop: '2px',
   },
-  heroVisualWrap: {
+  headerBadge: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '6px',
+    padding: '4px 12px',
+    borderRadius: '9999px',
+    backgroundColor: 'rgba(223, 183, 108, 0.08)',
+    border: '1px solid rgba(223, 183, 108, 0.22)',
+  },
+  statusDot: {
+    width: '6px',
+    height: '6px',
+    borderRadius: '50%',
+    backgroundColor: '#DFB76C',
+    boxShadow: '0 0 6px #DFB76C',
+  },
+  statusBadgeText: {
+    fontSize: '11px',
+    fontWeight: 700,
+    color: '#DFB76C',
+    letterSpacing: '0.04em',
+  },
+  mainContent: {
+    flex: 1,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: '40px 20px',
     position: 'relative',
-    marginBottom: '20px',
+    zIndex: 10,
+    boxSizing: 'border-box',
+  },
+  contentColumn: {
+    width: '100%',
+    maxWidth: '560px',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    textAlign: 'center',
+  },
+  illustrationContainer: {
+    position: 'relative',
+    marginBottom: '26px',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  iconAura: {
+  glowAura: {
     position: 'absolute',
-    width: '90px',
-    height: '90px',
+    width: '240px',
+    height: '160px',
     borderRadius: '50%',
     background: 'radial-gradient(circle, rgba(223, 183, 108, 0.22) 0%, transparent 70%)',
-    filter: 'blur(8px)',
+    filter: 'blur(16px)',
+    pointerEvents: 'none',
   },
-  iconCircle: {
-    width: '72px',
-    height: '72px',
-    borderRadius: '20px',
-    backgroundColor: 'rgba(255, 255, 255, 0.03)',
-    border: '1px solid rgba(223, 183, 108, 0.25)',
+  rotateIllustration: {
+    position: 'relative',
+    zIndex: 2,
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    boxShadow: '0 8px 24px rgba(0, 0, 0, 0.35)',
-    position: 'relative',
-    zIndex: 2,
   },
-  pillWrap: {
-    marginBottom: '16px',
+  kickerWrap: {
+    marginBottom: '14px',
   },
-  statusPill: {
+  kickerPill: {
     display: 'inline-flex',
     alignItems: 'center',
     fontSize: '11px',
-    fontWeight: 700,
-    letterSpacing: '0.06em',
+    fontWeight: 750,
+    letterSpacing: '0.08em',
+    textTransform: 'uppercase',
     color: '#DFB76C',
-    backgroundColor: 'rgba(223, 183, 108, 0.1)',
-    border: '1px solid rgba(223, 183, 108, 0.22)',
-    padding: '4px 14px',
+    backgroundColor: 'rgba(223, 183, 108, 0.09)',
+    border: '1px solid rgba(223, 183, 108, 0.24)',
+    padding: '5px 14px',
     borderRadius: '9999px',
   },
-  headline: {
-    fontSize: '22px',
-    fontWeight: 750,
+  heading: {
+    fontSize: '28px',
+    fontWeight: 800,
     color: '#FFFFFF',
-    letterSpacing: '-0.02em',
-    margin: '0 0 10px 0',
-    lineHeight: 1.3,
+    letterSpacing: '-0.025em',
+    lineHeight: 1.25,
+    margin: '0 0 14px 0',
+    maxWidth: '480px',
   },
-  subtitle: {
-    fontSize: '13.5px',
-    color: '#94A3B8',
-    lineHeight: 1.6,
-    margin: '0 0 24px 0',
-    maxWidth: '380px',
+  leadText: {
+    fontSize: '14.5px',
+    color: '#A0B0C4',
+    lineHeight: 1.65,
+    margin: '0 0 28px 0',
+    maxWidth: '460px',
   },
-  gaugeBox: {
+  gaugeContainer: {
     width: '100%',
+    maxWidth: '380px',
     backgroundColor: 'rgba(255, 255, 255, 0.03)',
-    border: '1px solid rgba(255, 255, 255, 0.07)',
+    border: '1px solid rgba(255, 255, 255, 0.08)',
     borderRadius: '12px',
     padding: '12px 16px',
-    marginBottom: '20px',
+    marginBottom: '24px',
     boxSizing: 'border-box',
   },
   gaugeHeader: {
@@ -382,13 +592,13 @@ const styles: { [key: string]: React.CSSProperties } = {
     marginBottom: '8px',
   },
   gaugeLabel: {
-    fontSize: '11.5px',
+    fontSize: '11px',
     color: '#94A3B8',
-    fontWeight: 600,
+    fontWeight: 650,
   },
   gaugeValue: {
     fontSize: '12.5px',
-    fontWeight: 700,
+    fontWeight: 750,
     color: '#FFFFFF',
   },
   gaugeTarget: {
@@ -397,7 +607,7 @@ const styles: { [key: string]: React.CSSProperties } = {
   },
   progressBarTrack: {
     width: '100%',
-    height: '5px',
+    height: '6px',
     backgroundColor: 'rgba(255, 255, 255, 0.08)',
     borderRadius: '999px',
     overflow: 'hidden',
@@ -408,76 +618,84 @@ const styles: { [key: string]: React.CSSProperties } = {
     borderRadius: '999px',
     transition: 'width 0.25s ease',
   },
-  actionPromptBox: {
-    width: '100%',
-    padding: '12px 14px',
-    backgroundColor: 'rgba(255, 255, 255, 0.02)',
-    border: '1px solid rgba(255, 255, 255, 0.06)',
-    borderRadius: '10px',
-    marginBottom: '24px',
-    boxSizing: 'border-box',
-  },
-  actionPromptText: {
-    fontSize: '12.5px',
-    color: '#CBD5E1',
-    lineHeight: 1.5,
-  },
-  actionButtonGroup: {
-    width: '100%',
+  actionRow: {
     display: 'flex',
     flexDirection: 'column',
-    gap: '10px',
-    marginBottom: '24px',
+    gap: '12px',
+    width: '100%',
+    maxWidth: '340px',
+    marginBottom: '32px',
   },
-  primaryBtn: {
+  primaryActionBtn: {
     width: '100%',
     display: 'inline-flex',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: '12px 20px',
+    padding: '13px 22px',
     backgroundColor: '#DFB76C',
-    color: '#07152B',
+    color: '#040D1B',
     border: '1px solid #DFB76C',
     borderRadius: '12px',
-    fontSize: '13.5px',
+    fontSize: '14px',
     fontWeight: 750,
     cursor: 'pointer',
     transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
-    boxShadow: '0 4px 16px rgba(223, 183, 108, 0.22)',
+    boxShadow: '0 6px 20px rgba(223, 183, 108, 0.28)',
   },
-  secondaryBtn: {
+  secondaryActionBtn: {
     width: '100%',
     display: 'inline-flex',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: '11px 20px',
-    backgroundColor: 'transparent',
+    padding: '12px 22px',
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
     color: '#DFB76C',
     border: '1px solid rgba(223, 183, 108, 0.3)',
     borderRadius: '12px',
-    fontSize: '13px',
+    fontSize: '13.5px',
     fontWeight: 700,
     cursor: 'pointer',
     transition: 'all 0.18s ease',
   },
-  supportedFooter: {
+  platformBadgesRow: {
     display: 'flex',
+    flexWrap: 'wrap',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: '10px',
-    paddingTop: '16px',
-    borderTop: '1px solid rgba(255, 255, 255, 0.06)',
-    width: '100%',
+    gap: '8px',
   },
-  supportedItem: {
-    display: 'flex',
+  platformBadge: {
+    display: 'inline-flex',
     alignItems: 'center',
     fontSize: '11.5px',
+    fontWeight: 600,
     color: '#94A3B8',
-    fontWeight: 500,
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    border: '1px solid rgba(255, 255, 255, 0.06)',
+    padding: '5px 12px',
+    borderRadius: '8px',
   },
-  supportedDot: {
-    color: 'rgba(255, 255, 255, 0.2)',
-    fontSize: '10px',
+  footer: {
+    width: '100%',
+    padding: '16px 24px',
+    borderTop: '1px solid rgba(255, 255, 255, 0.06)',
+    backgroundColor: 'rgba(4, 13, 27, 0.65)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    fontSize: '11px',
+    color: '#64748B',
+    position: 'relative',
+    zIndex: 20,
+    boxSizing: 'border-box',
+  },
+  footerLeft: {
+    display: 'flex',
+    alignItems: 'center',
+  },
+  footerRight: {
+    fontWeight: 600,
+    color: '#8A9AA8',
+    letterSpacing: '0.04em',
   },
 };
