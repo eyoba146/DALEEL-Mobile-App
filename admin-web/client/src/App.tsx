@@ -2,6 +2,8 @@ import React from 'react';
 import { AuthProvider, useAdminAuth } from './context/AuthContext';
 import { ToastProvider } from './context/ToastContext';
 import { LanguageProvider } from './context/LanguageContext';
+import { DeviceAccessProvider } from './context/DeviceAccessContext';
+import { DeviceAccessGuard } from './components/DeviceAccessGuard';
 import { LoginView } from './components/LoginView';
 import { Layout } from './components/Layout';
 
@@ -28,13 +30,17 @@ const AppContent: React.FC = () => {
 
 export default function App() {
   return (
-    <AuthProvider>
-      <LanguageProvider>
-        <ToastProvider>
-          <AppContent />
-        </ToastProvider>
-      </LanguageProvider>
-    </AuthProvider>
+    <DeviceAccessProvider>
+      <DeviceAccessGuard>
+        <AuthProvider>
+          <LanguageProvider>
+            <ToastProvider>
+              <AppContent />
+            </ToastProvider>
+          </LanguageProvider>
+        </AuthProvider>
+      </DeviceAccessGuard>
+    </DeviceAccessProvider>
   );
 }
 
