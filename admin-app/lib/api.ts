@@ -2,7 +2,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const API_STORAGE_KEY = 'daleel_admin_token';
-const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://192.168.64.242:4000/api';
+const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? 'https://daleel-backend-lnlu.onrender.com/api';
 
 export type AdminRole =
   | 'SUPER_ADMIN'

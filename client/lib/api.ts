@@ -2,7 +2,7 @@
 // backend is deployed — everything else in the app calls through here,
 // so no screen needs to change when you wire it to the real server.
 
-const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:4000/api';
+const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? 'https://daleel-backend-lnlu.onrender.com/api';
 
 type RequestOptions = {
   method?: 'GET' | 'POST' | 'PATCH' | 'DELETE';

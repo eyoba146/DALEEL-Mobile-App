@@ -11,11 +11,21 @@
       "distribution": "internal",
       "android": {
         "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://daleel-backend-lnlu.onrender.com/api",
+        "EXPO_PUBLIC_CLOUDINARY_CLOUD_NAME": "urbxorts",
+        "EXPO_PUBLIC_CLOUDINARY_UPLOAD_PRESET": "sbjkanpm"
       }
     },
     "production": {
       "android": {
         "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://daleel-backend-lnlu.onrender.com/api",
+        "EXPO_PUBLIC_CLOUDINARY_CLOUD_NAME": "urbxorts",
+        "EXPO_PUBLIC_CLOUDINARY_UPLOAD_PRESET": "sbjkanpm"
       }
     }
   },
